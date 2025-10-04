@@ -1,0 +1,76 @@
+export type PluginUploadStreamEvent =
+  | PluginScanConfigOkEvent
+  | PluginScanConfigFailedEvent
+  | PluginScanBeginEvent
+  | PluginScanOkEvent
+  | PluginScanFailedEvent
+  | PluginScanPendingEvent
+  | PluginScanCompleteEvent
+  | PluginScanConfigFailedEvent
+  | PluginScanErrorEvent;
+
+export interface PluginScanConfigOkEvent {
+  stage: 'config-ok';
+  message: string;
+}
+
+export interface PluginScanConfigFailedEvent {
+  stage: 'config-failed';
+  status: 'failed';
+  errors: any;
+}
+
+export interface PluginScanConfigFailedEvent {
+  stage: 'db-entry';
+  status: 'failed';
+  errors: string;
+}
+//-----------
+
+export interface PluginScanBeginEvent {
+  stage: 'begin-scan';
+  total: number;
+  plugin_zip_id: number;
+}
+
+export interface PluginScanOkEvent {
+  stage: 'ok';
+  file: string;
+  progress: [number, number]; // [validated, totalFiles]
+}
+
+export interface PluginScanFailedEvent {
+  stage: 'failed';
+  file: string;
+  violations: any[]; // You may want to define a Violation interface
+  progress: [number, number];
+}
+
+export interface PluginScanPendingEvent {
+  stage: 'pending';
+  file: string;
+  size: number;
+}
+
+export interface PluginScanCompleteEvent {
+  stage: 'complete';
+  status: 'valid' | 'failed' | 'pending';
+  failed_files: Array<{ file: string; violations: any[] }>;
+  pending_files: string[];
+  plugin_zip_id: number;
+}
+
+export interface PluginScanErrorEvent {
+  status: 'failed';
+  errors: any; // array or object, depending on your error reporting
+}
+
+// Optionally, a more specific violation interface:
+export interface Violation {
+  type: string;
+  line?: number;
+  token?: string;
+  snippet?: string;
+  issue?: string;
+  // add more as needed
+}

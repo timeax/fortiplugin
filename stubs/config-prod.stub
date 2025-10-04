@@ -1,0 +1,628 @@
+<?php
+
+declare(strict_types=1);
+
+namespace Plugins\YourPluginNamespace\Internal;
+
+use Timeax\SecurePlugin\Contracts\ConfigInterface;
+
+final class Config implements ConfigInterface
+{
+    /**
+     * Cached plugin config values.
+     * Loaded from plugin.config.json.
+     */
+    private static array $configData;
+
+    /**
+     * Runtime installation info (e.g., from DB).
+     */
+    private static array $info = [
+        'id' => '#{PLUGIN_ID}',
+        'alias' => '#{PLUGIN_ALIAS}',
+    ];
+
+    /**
+     * Cached signature contents from `.internal/Signed`
+     */
+    private static ?string $signature = null;
+
+    /**
+     * Manifest-defined permission structure
+     */
+    private static array $manifest = [];
+
+    // ─────────────────────────────────────────────
+    // CORE CONFIG METHODS
+    // ─────────────────────────────────────────────
+
+    /**
+     * Load and cache the plugin's manifest.json file.
+     *
+     * This file defines:
+     * - required permissions
+     * - other static metadata
+     *
+     * It should not be modified at runtime.
+     *
+     * @return array<string, mixed> Parsed manifest structure
+     */
+    private static function loadManifest(): array
+    {
+        if (!empty(self::$manifest)) {
+            return self::$manifest;
+        }
+
+        $path = dirname(__DIR__) . '/manifest.json';
+
+        if (!file_exists($path)) {
+            return self::$manifest = [];
+        }
+
+        $json = file_get_contents($path);
+        $data = json_decode($json, true);
+
+        if (!is_array($data)) {
+            return self::$manifest = [];
+        }
+
+        return self::$manifest = $data;
+    }
+
+    public static function all(): array
+    {
+        return self::$configData ??= self::loadConfig();
+    }
+
+    /**
+     * Retrieve a value from plugin.config.json using a key (supports dot notation).
+     *
+     * If the key is a top-level string (e.g., "alias") or nested using dot syntax
+     * (e.g., "uiConfig.theme.color"), this method will resolve it accordingly.
+     *
+     * @param string $key     The config key (dot notation supported).
+     * @param mixed|null $default Default value to return if key is not found.
+     *
+     * @return mixed The resolved value from config, or default if not found.
+     *
+     * @example
+     * Config::get('alias');                        // e.g., "social-plugin"
+     * Config::get('uiConfig.theme.color', 'red');  // e.g., "#ff0000"
+     * Config::get('missing.key', 'fallback');      // returns 'fallback'
+     */
+    public static function get(string $key, mixed $default = null): mixed
+    {
+        $config = self::all();
+
+        if (array_key_exists($key, $config)) {
+            return $config[$key];
+        }
+
+        $segments = explode('.', $key);
+        foreach ($segments as $segment) {
+            if (is_array($config) && array_key_exists($segment, $config)) {
+                $config = $config[$segment];
+            } else {
+                return $default;
+            }
+        }
+
+        return $config;
+    }
+
+    /**
+     * Get the plugin's declared name from plugin.config.json.
+     *
+     * This is usually a human-readable name like "Instagram Booster" or "SEO Tool".
+     * Falls back to a placeholder if not defined.
+     *
+     * @return string The plugin's display name.
+     *
+     * @example
+     * Config::getName(); // "TikTok Viral Pro"
+     */
+    public static function getName(): string
+    {
+        return (string) self::get('name', '#{PLUGIN_STUDLY}');
+    }
+
+    /**
+     * Get the plugin's alias identifier as declared in plugin.config.json.
+     *
+     * The alias is typically a lowercase, slug-friendly string used for:
+     * - internal identification
+     * - folder names
+     * - routing
+     * - permission tagging
+     *
+     * Example aliases: "instagram-boost", "email-sender", "smm-reposter"
+     *
+     * @return string The plugin's runtime alias.
+     *
+     * @example
+     * Config::getAlias(); // "social-boost"
+     */
+    public static function getAlias(): string
+    {
+        return (string) self::get('alias', '#{PLUGIN_ALIAS}');
+    }
+
+    /**
+     * Get the plugin version string from plugin.config.json.
+     *
+     * This version number is used for:
+     * - plugin update checks
+     * - dependency management
+     * - UI display
+     *
+     * Version should follow semantic versioning (e.g., "1.0.0", "2.3.1-beta").
+     * If not set, a stub fallback is returned.
+     *
+     * @return string The version string of the plugin.
+     *
+     * @example
+     * Config::getVersion(); // "1.2.0"
+     */
+    public static function getVersion(): string
+    {
+        return (string) self::get('version', '0.0.1');
+    }
+
+   /**
+    * Get the plugin's optional description.
+    *
+    * This value typically explains what the plugin does in a short sentence or paragraph.
+    * It's used in dashboards, plugin listings, or developer interfaces.
+    *
+    * This field is optional — if not present in plugin.config.json, `null` is returned.
+    *
+    * @return string|null A description of the plugin, or null if not set.
+    *
+    * @example
+    * Config::getDescription(); // "Provides bulk scheduling for social media posts."
+    */
+   public static function getDescription(): ?string
+   {
+       return self::get('description');
+   }
+
+    /**
+     * Get the plugin's declared author name or identifier.
+     *
+     * This is usually the name, company, or handle of the developer or organization
+     * that created the plugin.
+     *
+     * It is used for attribution in admin panels or marketplaces.
+     *
+     * If no author is provided in plugin.config.json, `null` is returned.
+     *
+     * @return string|null The plugin author's name, or null if not set.
+     *
+     * @example
+     * Config::getAuthor(); // "Timeax"
+     */
+    public static function getAuthor(): ?string
+    {
+        return self::get('author');
+    }
+
+    /**
+     * Get the plugin's optional UI config block.
+     *
+     * This block typically defines frontend-related settings such as:
+     * - routes to expose in the admin panel
+     * - component registration paths
+     * - icons, tab order, or menu locations
+     *
+     * If no UI config is present in plugin.config.json, `null` is returned.
+     *
+     * @return array<string, mixed>|null UI config array or null if not defined.
+     *
+     * @example
+     * Config::getUiConfig(); // ['route' => 'plugin.dashboard', 'icon' => 'plugin-icon']
+     */
+    public static function getUiConfig(): ?array
+    {
+        return self::get('uiConfig');
+    }
+
+    /**
+     * Get the plugin's host-supplied input config schema.
+     *
+     * This block defines the values that the **host system must provide**
+     * for the plugin to function. For example:
+     * - API credentials
+     * - target URLs
+     * - runtime settings
+     *
+     * This was previously known as `apiConfig`, but is now generalized as `hostConfig`.
+     * If `hostConfig` is not found, it also checks fallback key `config`.
+     *
+     * @return array<string, mixed>|null The input schema block, or null if not defined.
+     *
+     * @example
+     * Config::getHostConfig(); // ['alias' => ['type' => 'string'], 'website_url' => ...]
+     */
+    public static function getHostConfig(): ?array
+    {
+        return self::get('hostConfig') ?? self::get('config') ?? null;
+    }
+
+    // ─────────────────────────────────────────────
+    // INSTALL INFO METHODS
+    // ─────────────────────────────────────────────
+
+    /**
+     * Get runtime plugin install info injected by the host system.
+     *
+     * This includes metadata about how the plugin was installed, such as:
+     * - the database ID assigned to it
+     * - the alias under which it was registered
+     *
+     * This is not read from config.json — it is injected during installation
+     * or loaded from the system/plugin loader. Used for internal tracking only.
+     *
+     * @return array{id: int|string|null, alias: string|null}
+     *
+     * @example
+     * Config::getInfo(); // ['id' => 42, 'alias' => 'email-sender']
+     */
+    public static function getInfo(): array
+    {
+        return self::$info;
+    }
+
+    /**
+     * Get the plugin's installed database ID.
+     *
+     * This value is injected at runtime by the system when the plugin is
+     * installed and recorded in the database. It should be used only for
+     * internal operations like:
+     * - fetching DB permissions
+     * - linking logs, audits, or activity
+     *
+     * In stub/dev mode, this returns a placeholder (e.g., "#{PLUGIN_ID}").
+     *
+     * @return int|string|null The plugin ID, or null/placeholder if unset.
+     *
+     * @example
+     * Config::getPluginId(); // 42 or "#{PLUGIN_ID}"
+     */
+    public static function getPluginId(): int|string|null
+    {
+        return self::$info['id'] ?? null;
+    }
+
+    /**
+     * Get the alias under which the plugin was registered on the host system.
+     *
+     * This may differ from the alias declared in plugin.config.json, as the host
+     * might override or rename it at install time.
+     *
+     * Useful when resolving:
+     * - permission scopes (e.g., plugin_tag_alias)
+     * - active plugin registry keys
+     * - loading from PSR maps or dynamic plugin loader
+     *
+     * In stub mode, this will return a placeholder like "#{PLUGIN_ALIAS}".
+     *
+     * @return string|null The resolved installed alias, or null if not available.
+     *
+     * @example
+     * Config::getInstalledAlias(); // "email-broadcast"
+     */
+    public static function getInstalledAlias(): ?string
+    {
+        return self::$info['alias'] ?? null;
+    }
+
+    // ─────────────────────────────────────────────
+    // PERMISSION METHODS (Stubs)
+    // ─────────────────────────────────────────────
+
+    /**
+     * Returns all permissions declared by the plugin in `manifest.json`,
+     * along with their current grant status in the host system.
+     *
+     * Each permission block includes:
+     * - the type (`db`, `file`, `notify`, `module`)
+     * - the target (model, path, channel, module name)
+     * - a list of required actions (e.g., ["select", "insert"])
+     * - a list of which actions have actually been granted by the host
+     *
+     * This method will attempt to:
+     * 1. Load and cache `manifest.json`
+     * 2. Extract `requiredPermissions`
+     * 3. Compare them against actual DB-granted permissions
+     *
+     * In stub mode, this returns a placeholder structure for validation.
+     *
+     * @return array<array{
+     *     type: string,
+     *     target: string,
+     *     permissions: string[],
+     *     granted: string[]
+     * }>
+     *
+     * @example
+     * [
+     *   [
+     *     "type" => "db",
+     *     "target" => "orders",
+     *     "permissions" => ["select", "insert"],
+     *     "granted" => ["select"]
+     *   ],
+     *   [
+     *     "type" => "module",
+     *     "target" => "reporting",
+     *     "permissions" => ["access"],
+     *     "granted" => ["access"]
+     *   ]
+     * ]
+     */
+    public static function getRequiredPermissions(): array
+    {
+        $manifest = self::loadManifest(); // loads and caches manifest.json
+        $required = $manifest['requiredPermissions'] ?? [];
+        $grants = self::getExtraPermissions();
+
+        $results = [];
+
+        foreach ($required as $entry) {
+            $type = $entry['type'] ?? null;
+            $target = $entry['target'] ?? null;
+            $permissions = $entry['permissions'] ?? [];
+
+            if (!is_string($type) || !is_string($target) || !is_array($permissions)) {
+                continue; // skip invalid entries
+            }
+
+            $granted = [];
+
+            foreach ($grants[$type] ?? [] as $record) {
+                $matchKey = match ($type) {
+                    'db' => 'model',
+                    'file' => 'file_path',
+                    'notify' => 'channel',
+                    'module' => 'module',
+                    default => null
+                };
+
+                if (!$matchKey || ($record[$matchKey] ?? null) !== $target) {
+                    continue;
+                }
+
+                foreach ($permissions as $perm) {
+                    if (isset($record[$perm]) && $record[$perm] === true) {
+                        $granted[] = $perm;
+                    }
+                }
+
+                break; // only need one match per target
+            }
+
+            $results[] = [
+                'type' => $type,
+                'target' => $target,
+                'permissions' => array_values($permissions),
+                'granted' => array_values($granted),
+            ];
+        }
+
+        return $results;
+    }
+
+    /**
+     * Determine if the plugin has been granted **all required permissions**
+     * declared in manifest.json.
+     *
+     * Internally, this calls `getRequiredPermissions()` and checks that
+     * each declared permission (type + target + actions) is fully satisfied
+     * by the host system.
+     *
+     * This is useful for:
+     * - gating plugin initialization
+     * - warning admins during plugin install/activation
+     * - controlling access to plugin features
+     *
+     * @return bool True if all required permissions are granted
+     *
+     * @example
+     * Config::hasRequiredPermissions(); // true or false
+     */
+    public static function hasRequiredPermissions(): bool
+    {
+        foreach (self::getRequiredPermissions() as $entry) {
+            $required = $entry['permissions'] ?? [];
+            $granted = $entry['granted'] ?? [];
+
+            if (array_diff($required, $granted)) {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    /**
+     * Return all **granted permissions** from the host system,
+     * grouped by type: db, file, notify, module.
+     *
+     * These permissions go beyond what is declared in the manifest.json
+     * and are stored in the database. They may be:
+     * - user-approved optional permissions
+     * - default access scopes
+     * - injected by the host as overrides
+     *
+     * Each group contains flat arrays of permission records.
+     * This method is typically used by:
+     * - `getRequiredPermissions()` for grant comparison
+     * - `getPermission()` for on-demand checks
+     *
+     * @return array{
+     *     db: array<array{model: string, select: bool, insert: bool, update: bool, delete: bool}>,
+     *     file: array<array{file_path: string, read: bool, write: bool, execute: bool}>,
+     *     notify: array<array{channel: string, send: bool, receive: bool}>,
+     *     module: array<array{module: string, access: bool}>
+     * }
+     */
+    public static function getExtraPermissions(): array
+    {
+        $tagId = self::resolveTagId(); // helper method based on plugin_id or context
+
+        if (!$tagId) {
+            return [
+                'db' => [],
+                'file' => [],
+                'notify' => [],
+                'module' => [],
+            ];
+        }
+
+        return [
+            'db' => \App\Models\PluginDbPermission::query()
+                ->where('tag_id', $tagId)
+                ->get(['model', 'select', 'insert', 'update', 'delete'])
+                ->map(fn($perm) => $perm->toArray())
+                ->all(),
+
+            'file' => \App\Models\PluginFilePermission::query()
+                ->where('tag_id', $tagId)
+                ->get(['file_path', 'read', 'write', 'execute'])
+                ->map(fn($perm) => $perm->toArray())
+                ->all(),
+
+            'notify' => \App\Models\PluginNotificationPermission::query()
+                ->where('tag_id', $tagId)
+                ->get(['channel', 'send', 'receive'])
+                ->map(fn($perm) => $perm->toArray())
+                ->all(),
+
+            'module' => \App\Models\PluginModulePermission::query()
+                ->where('tag_id', $tagId)
+                ->get(['module', 'access'])
+                ->map(fn($perm) => $perm->toArray())
+                ->all(),
+        ];
+    }
+
+/**
+ * Check if a specific permission (or set of permissions) has been granted
+ * to the plugin for a given type and target.
+ *
+ * This method is used to verify whether the plugin has access to a particular
+ * model, file, channel, or module, and optionally whether certain actions
+ * (e.g., select, write, send) are permitted.
+ *
+ * Supported types and targets:
+ * - "db":     model name (e.g., "users") — actions: select, insert, update, delete
+ * - "file":   file path (e.g., "tmp/logs") — actions: read, write, execute
+ * - "notify": channel (e.g., "email") — actions: send, receive
+ * - "module": module name (e.g., "reporting") — action: access (or leave null)
+ *
+ * You may pass a string (comma- or slash-delimited), or an array of actions.
+ * If no action is provided, the method will return true if **any** permission exists.
+ *
+ * @param string $type        The permission type: "db", "file", "notify", or "module"
+ * @param string $target      The resource to match (e.g., model name, file path, etc.)
+ * @param string|string[]|null $permissions The permission(s) to check, e.g. "select,insert"
+ *
+ * @return bool True if all specified permissions are granted, or false otherwise
+ *
+ * @example
+ * Config::getPermission('db', 'users', 'select');               // true
+ * Config::getPermission('notify', 'email', ['send', 'receive']); // true
+ * Config::getPermission('module', 'analytics');                 // true if 'access' granted
+ * Config::getPermission('file', 'tmp/logs', 'read/write');      // true if both granted
+ */
+    public static function getPermission(string $type, string $target, string|array|null $permissions = null): bool
+    {
+        $grants = self::getExtraPermissions();
+
+        if (!isset($grants[$type]) || !$target) {
+            return false;
+        }
+
+        $records = $grants[$type];
+
+        // Find the matching permission record
+        $match = collect($records)->first(function ($entry) use ($type, $target) {
+            return match ($type) {
+                'db'     => $entry['model'] === $target,
+                'file'   => $entry['file_path'] === $target,
+                'notify' => $entry['channel'] === $target,
+                'module' => $entry['module'] === $target,
+                default  => false,
+            };
+        });
+
+        if (!$match) {
+            return false;
+        }
+
+        // If no permissions specified, treat as: any access is enough
+        if ($permissions === null) {
+            return in_array(true, array_values($match), true);
+        }
+
+        $perms = is_string($permissions)
+            ? preg_split('/[\s,|\/&]+/', $permissions)
+            : (array) $permissions;
+
+        foreach ($perms as $perm) {
+            if (!isset($match[$perm]) || $match[$perm] !== true) {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    // ─────────────────────────────────────────────
+    // SIGNATURE LOADING
+    // ─────────────────────────────────────────────
+
+    /**
+     * Get the plugin's raw cryptographic signature from `.internal/Signed`.
+     *
+     * This file contains the signature block used to validate the plugin package.
+     * It may be a string (PEM, token, hash, or JSON) depending on the signing strategy.
+     *
+     * This value is cached after first access.
+     *
+     * @return string|null The raw signature contents, or null if not present.
+     *
+     * @example
+     * Config::getSignature(); // "-----BEGIN SIGNATURE-----..."
+     */
+    public static function getSignature(): ?string
+    {
+        if (self::$signature !== null) {
+            return self::$signature;
+        }
+
+        $path = dirname(__DIR__) . '/.internal/Signed';
+
+        if (!file_exists($path)) {
+            return null;
+        }
+
+        return self::$signature = file_get_contents($path);
+    }
+
+    // -------------------------
+    // Helpers
+    //--------------------------
+    private static function resolveTagId(): ?int
+    {
+        $pluginId = self::getPluginId();
+
+        if (!$pluginId || !is_numeric($pluginId)) {
+            return null;
+        }
+
+        return \App\Models\Plugin::query()
+            ->where('id', $pluginId)
+            ->value('tag_id');
+    }
+}

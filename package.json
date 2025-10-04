@@ -1,0 +1,8 @@
+{
+  "scripts": {
+    "db": "npx prisma generate"
+  },
+  "devDependencies": {
+    "prisma-laravel-migrate": "^0.2.9"
+  }
+}

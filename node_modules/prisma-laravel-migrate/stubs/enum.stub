@@ -1,0 +1,8 @@
+<?php
+
+namespace ${enumDef.namespace}\\Enums;
+
+enum ${enumDef.name}: string
+{
+${enumDef.values.map(v => `    case ${v} = '${v}';`).join('\n')}
+}

@@ -1,0 +1,73 @@
+import path from 'path';
+import * as fs from 'fs';
+
+const EXT_PATTERN = /\.(tsx?|jsx?)$/i;
+
+/**
+ * Creates an app.tsx file that simply imports every discovered entry.
+ * Helpful for HMR / dev mode.
+ */
+function writeAppEntry(inputs, srcRoot) {
+    const app = path.join(srcRoot, 'app.tsx');
+    const lines = ['// Auto-generated – do not edit', ''];
+
+    for (const [name, full] of Object.entries(inputs)) {
+        const rel = './' +
+            path.relative(srcRoot, full).replace(/\\/g, '/').replace(EXT_PATTERN, '');
+        const variable = name
+            .replace(/[^a-zA-Z0-9_$]/g, '_')
+            .replace(/^(\d)/, '_$1');
+
+        lines.push(`import * as ${variable} from '${rel}';`);
+        lines.push(`console.log('${name} loaded:', ${variable});`, '');
+    }
+
+    fs.writeFileSync(app, lines.join('\n'), 'utf8');
+    console.log(`✅ Generated app.tsx in ${srcRoot}`);
+}
+
+/** Recursively collect entry files except when dirPath === baseDir */
+function crawl(dirPath, baseDir, acc) {
+    if (!fs.existsSync(dirPath)) return;
+
+    const isRoot = dirPath === baseDir;
+
+    for (const item of fs.readdirSync(dirPath)) {
+        const full = path.join(dirPath, item);
+        const stat = fs.statSync(full);
+
+        if (stat.isDirectory()) {
+            if (isRoot) continue;          // ⛔ skip sub-dirs at root level
+            crawl(full, baseDir, acc);     // ✅ recurse on deeper dirs
+        } else if (EXT_PATTERN.test(item)) {
+            const logical = path
+                .relative(baseDir, full)
+                .replace(EXT_PATTERN, '')
+                .replace(/\\/g, '/')
+                .replace(/^(pages|Pages|addons|Addons)\//, '');
+
+            const name = logical.replace(/\//g, '.');
+            acc[name] = full;
+        }
+    }
+}
+
+/**
+ * Discover integration pages/components and return a Rollup input map.
+ * @param {string} srcRoot absolute or relative path to the embed/ts folder
+ * @returns {Object<string,string>} Rollup input object
+ */
+export function generatePluginInputs(srcRoot = path.resolve(__dirname, 'ts')) {
+    srcRoot = path.resolve(srcRoot);
+    const inputs = {};
+
+    // Deep crawl pages/ and addons/; root dir handled inside crawl()
+    ['pages', 'Pages', 'addons', 'Addons', '.'].forEach((dir) =>
+        crawl(path.join(srcRoot, dir), srcRoot, inputs),
+    );
+
+    console.log('✅ Integrations discovered:', inputs);
+    writeAppEntry(inputs, srcRoot);
+
+    return {...inputs, __app_entry: path.join(srcRoot, 'app.tsx')};
+}

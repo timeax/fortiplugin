@@ -1,0 +1,140 @@
+<?php
+#{SIGNATURE_BLOCK}
+
+declare(strict_types=1);
+
+namespace Plugins\#{PLUGIN_STUDLY}\Internal;
+
+use Illuminate\Support\Facades\File;
+use Timeax\SecurePlugin\Contracts\ConfigInterface;
+use RuntimeException;
+
+final class Config implements ConfigInterface
+{
+    private static array $configData;
+    private static ?string $signature = null;
+
+    /**
+     * Loads and caches plugin.config.json
+     */
+    private static function loadConfig(): array
+    {
+        if (isset(self::$configData)) {
+            return self::$configData;
+        }
+
+        $path = dirname(__DIR__) . '/plugin.config.json';
+        if (!File::exists($path)) {
+            throw new RuntimeException("Missing plugin.config.json at $path");
+        }
+
+        $json = File::get($path);
+        $data = json_decode($json, true);
+
+        if (!is_array($data)) {
+            throw new RuntimeException("Invalid plugin.config.json");
+        }
+
+        return self::$configData = $data;
+    }
+
+    public static function all(): array
+    {
+        return self::loadConfig();
+    }
+
+    public static function get(string $key, mixed $default = null): mixed
+    {
+        return self::loadConfig()[$key] ?? $default;
+    }
+
+    public static function getName(): string
+    {
+        return (string) self::get('name', 'Unknown Plugin');
+    }
+
+    public static function getAlias(): string
+    {
+        return (string) self::get('alias', 'unknown');
+    }
+
+    public static function getVersion(): string
+    {
+        return (string) self::get('version', '0.0.1');
+    }
+
+    public static function getDescription(): ?string
+    {
+        return self::get('description');
+    }
+
+    public static function getAuthor(): ?string
+    {
+        return self::get('author');
+    }
+
+    public static function getUiConfig(): ?array
+    {
+        return self::get('uiConfig');
+    }
+
+    public static function getHostConfig(): ?array
+    {
+        return self::get('hostConfig') ?? self::get('config') ?? null;
+    }
+
+    public static function getInfo(): array
+    {
+        return ['id' => null, 'alias' => null]; // Not available in dev mode
+    }
+
+    public static function getPluginId(): ?int
+    {
+        return null;
+    }
+
+    public static function getInstalledAlias(): ?string
+    {
+        return null;
+    }
+
+    public static function getRequiredPermissions(): array
+    {
+        // Not implemented in dev mode (requires manifest.json and grant logic)
+        return [];
+    }
+
+    public static function hasRequiredPermissions(): bool
+    {
+        return false;
+    }
+
+    public static function getExtraPermissions(): array
+    {
+        return [
+            'db' => [],
+            'file' => [],
+            'notify' => [],
+            'module' => [],
+        ];
+    }
+
+    public static function getPermission(string $type, string $target, string|array|null $permissions = null): bool
+    {
+        return false; // Not implemented in dev mode
+    }
+
+    public static function getSignature(): ?string
+    {
+        if (self::$signature !== null) {
+            return self::$signature;
+        }
+
+        $path = dirname(__DIR__) . '/.internal/Signed';
+        if (!File::exists($path)) {
+            return null;
+        }
+
+        return self::$signature = File::get($path);
+    }
+}

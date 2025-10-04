@@ -1,0 +1,19 @@
+{
+  "host": "https://plugins.examplehost.com",          // Host B's API root
+  "token": "your-upload-token-string",                // Upload token for handshake
+  "plugin_slug": "superseo",                          // The placeholder slug (must match host),
+  "plugin_key": "plugin-unique-key-abc",              // The unique key assigned by host (required)
+  "author": {
+    "name": "Jane Developer",
+    "email": "jane@example.com",
+    "website": "https://janedev.com"                  // (Optional)
+  },
+  
+  "meta": {
+    "description": "A plugin for SEO automation.",
+    "tags": ["SEO", "automation"],
+    "homepage": "https://github.com/jane/SuperSEO",
+    "contact": "security@janedev.com"
+  }
+}
+

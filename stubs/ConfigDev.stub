@@ -1,0 +1,58 @@
+<?php
+#{SIGNATURE_BLOCK}
+
+declare(strict_types=1);
+
+namespace Plugins\#{PLUGIN_STUDLY}\Internal;
+
+use Illuminate\Support\Facades\File;
+
+return final class Config
+{
+    /** Cached copy for the current request */
+    private static array $data;
+
+    /** Load JSON once (dev env) */
+    private static function load(): array
+    {
+        if (isset(self::$data)) {
+            return self::$data;
+        }
+
+        $json = File::get(dirname(__DIR__) . '/plugin.config.json');
+        return self::$data = json_decode($json, true) ?: [];
+    }
+
+    /* ─── Convenience getters ─────────────────────────── */
+
+    public static function get(string $key, $default = null)
+    {
+        return self::load()[$key] ?? $default;
+    }
+
+    public static function getName(): string
+    {
+        return self::get('name', '#{PLUGIN_STUDLY}');
+    }
+
+    public static function getAlias(): string
+    {
+        return self::get('alias', '#{PLUGIN_ALIAS}');
+    }
+
+    public static function getVersion(): string
+    {
+        return self::get('version', '0.0.0');
+    }
+
+    public static function getDescription(): string
+    {
+        return self::get('description', '');
+    }
+
+    /** Always true in dev mode; production stub will pull from DB */
+    public static function isActive(): bool
+    {
+        return true;
+    }
+}

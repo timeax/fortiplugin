@@ -1,0 +1,504 @@
+// ─────────────────────────────────────────────────────────
+// FortiPlugin (userless) + Authors + Plugin Issues wired in
+// ─────────────────────────────────────────────────────────
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+generator migrations {
+  provider    = "prisma-laravel-migrations"
+  outputDir   = "./database/migrations"
+  tablePrefix = "scpl_"
+}
+
+generator models {
+  provider      = "prisma-laravel-models"
+  outputDir     = "src/Models"
+  outputEnumDir = "src/Enums"
+  namespace     = "Timeax\\FortiPlugin"
+  stubDir       = "prisma/stubs"
+  tablePrefix   = "scpl_"
+}
+
+// ─── ENUMS ────────────────────────────────────────────────
+
+enum PluginStatus {
+  active
+  inactive
+  archived
+}
+
+enum ValidationStatus {
+  valid
+  unchecked
+  failed
+  pending
+}
+
+enum AuthorStatus {
+  pending
+  active
+  inactive
+  blocked
+}
+
+enum PluginSettingValueType {
+  string
+  number
+  boolean
+  json
+  file
+  blob
+}
+
+enum AuthorRole {
+  owner
+  maintainer
+  contributor
+}
+
+enum IssueStatus {
+  open
+  triage
+  in_progress
+  resolved
+  rejected
+  closed
+}
+
+// ─── MODELS ───────────────────────────────────────────────
+
+// TAGS (unchanged)
+///@guarded:id
+///@fillable:name,is_system,status
+model Tag {
+  id         BigInt       @id @default(autoincrement()) @db.BigInt
+  name       String       @unique
+  is_system  Boolean      @default(false)
+  status     PluginStatus @default(active)
+  created_at DateTime     @default(now())
+  updated_at DateTime     @updatedAt
+
+  plugins Plugin[]
+
+  pluginNotificationPermissions PluginNotificationPermission[]
+  pluginModulePermissions       PluginModulePermission[]
+  pluginFilePermissions         PluginFilePermission[]
+  pluginDbPermissions           PluginDbPermission[]
+
+  @@map("tags")
+}
+
+// AUTHORS (new)
+///@hidden:password
+///@guarded:id
+///@fillable:slug,name,handle,email,avatar_url,org,website,meta,verified,password,status
+model Author {
+  id         BigInt       @id @default(autoincrement()) @db.BigInt
+  slug       String       @unique
+  name       String
+  handle     String?      @unique
+  email      String?      @unique
+  password   String
+  avatar_url String?
+  org        String?
+  website    String?
+  meta       Json?
+  status     AuthorStatus @default(pending)
+  verified   Boolean      @default(false)
+  created_at DateTime     @default(now())
+  updated_at DateTime     @updatedAt
+
+  // relations
+  pluginLinks       PluginAuthor[]
+  reportedIssues    PluginIssue[]        @relation("IssueReporter")
+  issueMessages     PluginIssueMessage[]
+  uploadedZips      PluginZip[]
+  pluginTokens      PluginToken[]
+  tokens            AuthorToken[] /// author-level tokens (for login sessions etc.)
+  pluginAuditActors PluginAuditLog[]     @relation("PluginAuditActor")
+  auditActors       AuditLog[]           @relation("AuditActor")
+
+  @@map("authors")
+}
+
+///@guarded:id
+///@fillable:author_id,token_hash,expires_at,last_used,revoked,meta
+model AuthorToken {
+  id         BigInt    @id @default(autoincrement()) @db.BigInt
+  author_id  BigInt
+  token_hash String    @unique
+  expires_at DateTime
+  last_used  DateTime?
+  revoked    Boolean   @default(false)
+  meta       Json? /// e.g. { "scopes": ["forti-packager-fetch-policy"] }
+  created_at DateTime  @default(now())
+  updated_at DateTime  @updatedAt
+
+  author Author @relation(fields: [author_id], references: [id])
+
+  @@index([author_id])
+  @@map("author_tokens")
+}
+
+// PLUGINS
+///@guarded:id
+///@fillable:name,image,tag_id,status,config,meta,plugin_placeholder_id,owner_ref
+model Plugin {
+  id                    BigInt       @id @default(autoincrement()) @db.BigInt
+  name                  String       @unique
+  image                 String?
+  tag_id                BigInt
+  status                PluginStatus @default(active)
+  config                Json?
+  meta                  Json?
+  plugin_placeholder_id BigInt       @unique @db.BigInt
+  owner_ref             String?
+
+  // relations
+  tag             Tag               @relation(fields: [tag_id], references: [id])
+  placeholder     PluginPlaceholder @relation(fields: [plugin_placeholder_id], references: [id])
+  plugin_settings PluginSetting[]
+  plugin_versions PluginVersion[]
+  logs            PluginAuditLog[]
+  authors         PluginAuthor[]
+  issues          PluginIssue[]
+
+  @@index([tag_id])
+  @@map("plugins")
+}
+
+// PLUGIN↔AUTHOR (pivot)
+///@guarded:plugin_id,author_id
+///@fillable:plugin_id,author_id,role
+model PluginAuthor {
+  plugin_id  BigInt
+  author_id  BigInt
+  role       AuthorRole @default(contributor)
+  created_at DateTime   @default(now())
+
+  plugin Plugin @relation(fields: [plugin_id], references: [id])
+  author Author @relation(fields: [author_id], references: [id])
+
+  @@id([plugin_id, author_id])
+  @@index([author_id])
+  @@map("plugin_author")
+}
+
+// PLUGIN SETTINGS (unchanged)
+///@guarded:id
+///@fillable:plugin_id,key,value,type
+model PluginSetting {
+  id         BigInt                 @id @default(autoincrement()) @db.BigInt
+  plugin_id  BigInt                 @db.BigInt
+  key        String
+  value      String                 @db.LongText
+  type       PluginSettingValueType @default(string)
+  created_at DateTime               @default(now())
+  updated_at DateTime               @updatedAt
+
+  plugin Plugin @relation(fields: [plugin_id], references: [id], onDelete: Cascade)
+
+  @@unique([plugin_id, key])
+  @@index([plugin_id])
+  @@map("plugin_settings")
+}
+
+// PLUGIN VERSIONS (unchanged structure; authors are on Plugin/Zip)
+///@guarded:id
+///@fillable:plugin_id,version,archive_url,manifest,validation_report,status
+model PluginVersion {
+  id                BigInt           @id @default(autoincrement()) @db.BigInt
+  plugin_id         BigInt
+  version           String
+  archive_url       String
+  manifest          Json?
+  validation_report Json?
+  status            ValidationStatus @default(unchecked)
+  created_at        DateTime         @default(now())
+  updated_at        DateTime         @updatedAt
+
+  plugin Plugin @relation(fields: [plugin_id], references: [id])
+
+  @@index([plugin_id])
+  @@map("plugin_versions")
+}
+
+// PLUGIN ZIP FILES (now tied to Author instead of string)
+///@guarded:id
+///@fillable:placeholder_id,path,meta,status,validation_status,uploaded_by_author_id
+model PluginZip {
+  id                    BigInt           @id @default(autoincrement()) @db.BigInt
+  placeholder_id        BigInt
+  path                  String           @db.Text
+  meta                  Json             @default("{}")
+  status                PluginStatus     @default(active)
+  validation_status     ValidationStatus @default(unchecked)
+  uploaded_by_author_id BigInt?
+  created_at            DateTime         @default(now())
+  updated_at            DateTime         @updatedAt
+
+  placeholder PluginPlaceholder @relation(fields: [placeholder_id], references: [id])
+  uploadedBy  Author?           @relation(fields: [uploaded_by_author_id], references: [id])
+
+  @@index([placeholder_id])
+  @@index([uploaded_by_author_id])
+  @@map("plugin_zips")
+}
+
+// PLUGIN TOKENS (associate to Author optionally)
+///@guarded:id
+///@fillable:plugin_placeholder_id,token_hash,expires_at,last_used,revoked,author_id
+model PluginToken {
+  id                    BigInt    @id @default(autoincrement()) @db.BigInt
+  plugin_placeholder_id BigInt
+  token_hash            String    @unique
+  expires_at            DateTime
+  last_used             DateTime?
+  revoked               Boolean   @default(false)
+  author_id             BigInt?
+  created_at            DateTime  @default(now())
+
+  placeholder PluginPlaceholder? @relation(fields: [plugin_placeholder_id], references: [id])
+  author      Author?            @relation(fields: [author_id], references: [id])
+
+  @@index([plugin_placeholder_id])
+  @@index([author_id])
+  @@map("plugin_tokens")
+}
+
+// PLUGIN ISSUES (reintroduced; author-based)
+///@guarded:id
+///@fillable:plugin_id,reporter_id,type,description,status,severity,meta
+model PluginIssue {
+  id          BigInt      @id @default(autoincrement()) @db.BigInt
+  plugin_id   BigInt
+  reporter_id BigInt
+  type        String
+  description String      @db.Text
+  status      IssueStatus @default(open)
+  severity    String? /// optional (low|med|high|critical or free-form)
+  meta        Json?
+  created_at  DateTime    @default(now())
+  updated_at  DateTime    @updatedAt
+
+  plugin   Plugin               @relation(fields: [plugin_id], references: [id])
+  reporter Author               @relation("IssueReporter", fields: [reporter_id], references: [id])
+  messages PluginIssueMessage[]
+
+  @@index([plugin_id])
+  @@index([reporter_id])
+  @@map("plugin_issues")
+}
+
+// PLUGIN ISSUE MESSAGES (author-based)
+///@guarded:id
+///@fillable:issue_id,author_id,message
+model PluginIssueMessage {
+  id         BigInt   @id @default(autoincrement()) @db.BigInt
+  issue_id   BigInt
+  author_id  BigInt
+  message    String   @db.Text
+  created_at DateTime @default(now())
+
+  issue  PluginIssue @relation(fields: [issue_id], references: [id])
+  author Author      @relation(fields: [author_id], references: [id])
+
+  @@index([issue_id])
+  @@index([author_id])
+  @@map("plugin_issue_messages")
+}
+
+// AUDIT LOGS (global; add optional author)
+///@guarded:id
+///@fillable:actor,actor_author_id,action,context
+model AuditLog {
+  id              BigInt   @id @default(autoincrement()) @db.BigInt
+  actor           String?
+  actor_author_id BigInt?
+  action          String
+  context         Json?
+  created_at      DateTime @default(now())
+
+  actorAuthor Author? @relation("AuditActor", fields: [actor_author_id], references: [id])
+
+  @@index([actor_author_id])
+  @@map("audit_logs")
+}
+
+// DB/FILE/NOTIFICATION/MODULE PERMISSIONS (unchanged)
+///@guarded:id
+///@fillable:tag_id,model,select,insert,update,grouped_queries,truncate,delete,hidden_fields,writable_fields,limited,limit_type,limit_value
+model PluginDbPermission {
+  id              BigInt   @id @default(autoincrement()) @db.BigInt
+  tag_id          BigInt
+  model           String
+  select          Boolean  @default(false)
+  insert          Boolean  @default(false)
+  update          Boolean  @default(false)
+  grouped_queries Boolean  @default(false)
+  truncate        Boolean  @default(false)
+  delete          Boolean  @default(false)
+  hidden_fields   Json?
+  writable_fields Json?
+  limited         Boolean  @default(false)
+  limit_type      String?
+  limit_value     String?
+  created_at      DateTime @default(now())
+  updated_at      DateTime @updatedAt
+
+  tag Tag @relation(fields: [tag_id], references: [id])
+
+  @@unique([tag_id, model])
+  @@index([tag_id])
+  @@map("plugin_db_permissions")
+}
+
+///@guarded:id
+///@fillable:tag_id,file_path,read,write,execute,limited,limit_type,limit_value
+model PluginFilePermission {
+  id          BigInt   @id @default(autoincrement()) @db.BigInt
+  tag_id      BigInt
+  file_path   String
+  read        Boolean  @default(false)
+  write       Boolean  @default(false)
+  execute     Boolean  @default(false)
+  limited     Boolean  @default(false)
+  limit_type  String?
+  limit_value String?
+  created_at  DateTime @default(now())
+  updated_at  DateTime @updatedAt
+
+  tag Tag @relation(fields: [tag_id], references: [id])
+
+  @@unique([tag_id, file_path])
+  @@index([tag_id])
+  @@map("plugin_file_permissions")
+}
+
+///@guarded:id
+///@fillable:tag_id,channel,send,receive,limited,limit_type,limit_value
+model PluginNotificationPermission {
+  id          BigInt   @id @default(autoincrement()) @db.BigInt
+  tag_id      BigInt
+  channel     String
+  send        Boolean  @default(false)
+  receive     Boolean  @default(false)
+  limited     Boolean  @default(false)
+  limit_type  String?
+  limit_value String?
+  created_at  DateTime @default(now())
+  updated_at  DateTime @updatedAt
+
+  tag Tag @relation(fields: [tag_id], references: [id])
+
+  @@unique([tag_id, channel])
+  @@index([tag_id])
+  @@map("plugin_notification_permissions")
+}
+
+///@guarded:id
+///@fillable:tag_id,module,access,permissions,limited,limit_type,limit_value
+model PluginModulePermission {
+  id          BigInt   @id @default(autoincrement()) @db.BigInt
+  tag_id      BigInt
+  module      String
+  access      Boolean  @default(false)
+  permissions Json
+  limited     Boolean  @default(false)
+  limit_type  String?
+  limit_value String?
+  created_at  DateTime @default(now())
+  updated_at  DateTime @updatedAt
+
+  tag Tag @relation(fields: [tag_id], references: [id])
+
+  @@unique([tag_id, module])
+  @@index([tag_id])
+  @@map("plugin_module_permissions")
+}
+
+// PLUGIN AUDIT LOGS (per-plugin; add optional author)
+///@guarded:id
+///@fillable:plugin_id,actor,actor_author_id,type,action,resource,context
+model PluginAuditLog {
+  id              BigInt   @id @default(autoincrement()) @db.BigInt
+  plugin_id       BigInt
+  actor           String?
+  actor_author_id BigInt?
+  type            String
+  action          String
+  resource        String
+  context         Json?
+  created_at      DateTime @default(now())
+
+  plugin      Plugin  @relation(fields: [plugin_id], references: [id])
+  actorAuthor Author? @relation("PluginAuditActor", fields: [actor_author_id], references: [id])
+
+  @@index([plugin_id])
+  @@index([actor_author_id])
+  @@map("plugin_audit_logs")
+}
+
+// PLACEHOLDERS (unchanged except optional link to authors kept via tokens/zips)
+///@guarded:id
+///@fillable:slug,name,unique_key,owner_ref,meta
+model PluginPlaceholder {
+  id         BigInt   @id @default(autoincrement()) @db.BigInt
+  slug       String   @unique
+  name       String
+  unique_key String   @unique
+  owner_ref  String?
+  meta       Json?
+  created_at DateTime @default(now())
+  updated_at DateTime @updatedAt
+
+  tokens     PluginToken[]
+  signatures PluginSignature[]
+  zips       PluginZip[]
+  plugin     Plugin?
+
+  @@map("placeholders")
+}
+
+// SIGNATURES (unchanged)
+///@guarded:id
+///@fillable:placeholder_id,host_domain,owner_host,plugin_key,signature
+model PluginSignature {
+  id             BigInt   @id @default(autoincrement()) @db.BigInt
+  placeholder_id BigInt
+  host_domain    String
+  owner_host     String
+  plugin_key     String
+  signature      String
+  created_at     DateTime @default(now())
+  updated_at     DateTime @updatedAt
+
+  placeholder PluginPlaceholder @relation(fields: [placeholder_id], references: [id])
+
+  @@index([placeholder_id])
+  @@map("plugin_signatures")
+}
+
+// Enums
+enum KeyPurpose {
+  packager_sign
+  installer_verify
+}
+
+// Model
+///@guarded:id
+///@fillable:purpose,public_pem,private_pem,fingerprint,created_at,rotated_at
+model HostKey {
+  id          BigInt     @id @default(autoincrement()) @db.BigInt
+  purpose     KeyPurpose
+  public_pem  String     @db.Text
+  private_pem String?    @db.Text
+  fingerprint String     @unique
+  created_at  DateTime   @default(now())
+  rotated_at  DateTime?
+
+  @@map("host_keys")
+}

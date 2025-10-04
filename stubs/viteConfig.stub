@@ -1,0 +1,52 @@
+// vite.config.js
+import {defineConfig} from 'vite';
+import react from '@vitejs/plugin-react';
+import tailwindcss from '@tailwindcss/vite';
+import origTygerPrep from 'tyger-plugin-prep';
+import {resolve} from 'node:path';
+import {generatePluginInputs} from './resources/embed/vite.input.js';
+
+const inertiaEntry = 'resources/inertia/ts/app.tsx';
+const integrations = generatePluginInputs('resources/embed/ts');
+const embedRoot = resolve('resources/embed/ts');
+
+/** Only rewrite files that live inside embedRoot */
+function scopedTygerPrep() {
+    const prep = origTygerPrep();
+    return {
+        ...prep,
+        transform(code, id, ...rest) {
+            if (!id.startsWith(embedRoot)) return null;   // skip SPA & shared
+            return prep.transform.call(this, code, id, ...rest);
+        },
+    };
+}
+
+export default defineConfig({
+    plugins: [tailwindcss(), react(), scopedTygerPrep()],
+
+    build: {
+        outDir: 'public/build',
+        emptyOutDir: true,
+        manifest: true,
+        rollupOptions: {
+            external: ['react', 'react/jsx-runtime'],
+            input: {inertia: inertiaEntry, ...integrations},
+            output: {
+                format: 'es',
+                entryFileNames: (chunk) =>
+                    chunk.name === 'inertia'
+                        ? 'spa/[name].[hash].js'
+                        : 'integrations/[name].[hash].js',
+            },
+        },
+    },
+
+    resolve: {
+        alias: {
+            '@main': resolve('resources/inertia/ts'),
+            '@embed': resolve('resources/embed/ts'),
+            '@shared': resolve('resources/shared/ts'),     // ← shared components live here
+        },
+    },
+});
