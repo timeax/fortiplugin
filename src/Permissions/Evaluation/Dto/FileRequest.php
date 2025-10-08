@@ -3,7 +3,9 @@ declare(strict_types=1);
 
 namespace Timeax\FortiPlugin\Permissions\Evaluation\Dto;
 
-final readonly class FileRequest
+use Timeax\FortiPlugin\Permissions\Contracts\PermissionRequestInterface;
+
+final readonly class FileRequest implements PermissionRequestInterface
 {
     public function __construct(
         public string $action,   // read|write|append|delete|mkdir|rmdir|list

@@ -289,33 +289,6 @@ enum RoutePermissionStatus {
   revoked
 }
 
-/// @fillable(plugin_id, route_id, status, guard, meta, approved_at)
-model PluginRoutePermission {
-  id        BigInt @id @default(autoincrement())
-  plugin_id BigInt
-  plugin    Plugin @relation(fields: [plugin_id], references: [id])
-
-  /// The JSON-declared route `id` (unique per plugin).
-  route_id String
-
-  /// Current permission state.
-  status RoutePermissionStatus @default(pending)
-
-  /// Optional: lock the guard used when writing this route.
-  guard String?
-
-  /// Host-defined metadata (notes, expiresAt, reasons, etc.).
-  meta Json?
-
-  approved_at DateTime?
-  created_at  DateTime  @default(now())
-  updated_at  DateTime  @updatedAt
-
-  @@unique([plugin_id, route_id])
-  @@index([plugin_id, status])
-  @@map("plugin_route_permissions")
-}
-
 // PLUGIN AUDIT LOGS (per-plugin; add optional author)
 ///@guarded:id
 ///@fillable:plugin_id,actor,actor_author_id,type,action,resource,context

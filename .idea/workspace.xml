@@ -5,7 +5,43 @@
   </component>
   <component name="ChangeListManager">
     <list default="true" id="eaf4cbc6-d298-4694-b042-183ced7c77f7" name="Changes" comment="">
-      <change beforePath="$PROJECT_DIR$/README.md" beforeDir="false" afterPath="$PROJECT_DIR$/README.md" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/Permissions/Contracts/PermissionRequestInterface.php" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/prisma/permissions.prisma" beforeDir="false" afterPath="$PROJECT_DIR$/prisma/permissions.prisma" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/prisma/schema.prisma" beforeDir="false" afterPath="$PROJECT_DIR$/prisma/schema.prisma" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/schema/manifest.schema.json" beforeDir="false" afterPath="$PROJECT_DIR$/schema/manifest.schema.json" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/Permissions/Contracts/PermissionCheckerInterface.php" beforeDir="false" afterPath="$PROJECT_DIR$/src/Permissions/Contracts/PermissionCheckerInterface.php" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/Permissions/Contracts/PermissionIngestorInterface.php" beforeDir="false" afterPath="$PROJECT_DIR$/src/Permissions/Contracts/PermissionIngestorInterface.php" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/Permissions/Contracts/PermissionRepositoryInterface.php" beforeDir="false" afterPath="$PROJECT_DIR$/src/Permissions/Contracts/PermissionRepositoryInterface.php" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/Permissions/Contracts/PermissionServiceInterface.php" beforeDir="false" afterPath="$PROJECT_DIR$/src/Permissions/Contracts/PermissionServiceInterface.php" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/Permissions/Evaluation/CodecChecker.php" beforeDir="false" afterPath="$PROJECT_DIR$/src/Permissions/Evaluation/CodecChecker.php" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/Permissions/Evaluation/DbChecker.php" beforeDir="false" afterPath="$PROJECT_DIR$/src/Permissions/Evaluation/DbChecker.php" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/Permissions/Evaluation/Dto/CodecRequest.php" beforeDir="false" afterPath="$PROJECT_DIR$/src/Permissions/Evaluation/Dto/CodecRequest.php" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/Permissions/Evaluation/Dto/DbRequest.php" beforeDir="false" afterPath="$PROJECT_DIR$/src/Permissions/Evaluation/Dto/DbRequest.php" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/Permissions/Evaluation/Dto/FileRequest.php" beforeDir="false" afterPath="$PROJECT_DIR$/src/Permissions/Evaluation/Dto/FileRequest.php" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/Permissions/Evaluation/Dto/ModuleRequest.php" beforeDir="false" afterPath="$PROJECT_DIR$/src/Permissions/Evaluation/Dto/ModuleRequest.php" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/Permissions/Evaluation/Dto/NetworkRequest.php" beforeDir="false" afterPath="$PROJECT_DIR$/src/Permissions/Evaluation/Dto/NetworkRequest.php" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/Permissions/Evaluation/Dto/NotifyRequest.php" beforeDir="false" afterPath="$PROJECT_DIR$/src/Permissions/Evaluation/Dto/NotifyRequest.php" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/Permissions/Evaluation/Dto/Result.php" beforeDir="false" afterPath="$PROJECT_DIR$/src/Permissions/Evaluation/Dto/Result.php" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/Permissions/Evaluation/Dto/RouteWriteRequest.php" beforeDir="false" afterPath="$PROJECT_DIR$/src/Permissions/Evaluation/Dto/RouteWriteRequest.php" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/Permissions/Evaluation/FileChecker.php" beforeDir="false" afterPath="$PROJECT_DIR$/src/Permissions/Evaluation/FileChecker.php" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/Permissions/Evaluation/ModuleChecker.php" beforeDir="false" afterPath="$PROJECT_DIR$/src/Permissions/Evaluation/ModuleChecker.php" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/Permissions/Evaluation/NetworkChecker.php" beforeDir="false" afterPath="$PROJECT_DIR$/src/Permissions/Evaluation/NetworkChecker.php" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/Permissions/Evaluation/NotificationChecker.php" beforeDir="false" afterPath="$PROJECT_DIR$/src/Permissions/Evaluation/NotificationChecker.php" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/Permissions/Evaluation/PermissionService.php" beforeDir="false" afterPath="$PROJECT_DIR$/src/Permissions/Evaluation/PermissionService.php" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/Permissions/Evaluation/RouteChecker.php" beforeDir="false" afterPath="$PROJECT_DIR$/src/Permissions/Evaluation/RouteChecker.php" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/Permissions/Ingestion/CodecIngestor.php" beforeDir="false" afterPath="$PROJECT_DIR$/src/Permissions/Ingestion/CodecIngestor.php" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/Permissions/Ingestion/DbIngestor.php" beforeDir="false" afterPath="$PROJECT_DIR$/src/Permissions/Ingestion/DbIngestor.php" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/Permissions/Ingestion/Dto/RuleIngestResult.php" beforeDir="false" afterPath="$PROJECT_DIR$/src/Permissions/Ingestion/Dto/RuleIngestResult.php" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/Permissions/Ingestion/FileIngestor.php" beforeDir="false" afterPath="$PROJECT_DIR$/src/Permissions/Ingestion/FileIngestor.php" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/Permissions/Ingestion/ModuleIngestor.php" beforeDir="false" afterPath="$PROJECT_DIR$/src/Permissions/Ingestion/ModuleIngestor.php" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/Permissions/Ingestion/NaturalKeyBuilder.php" beforeDir="false" afterPath="$PROJECT_DIR$/src/Permissions/Ingestion/NaturalKeyBuilder.php" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/Permissions/Ingestion/NetworkIngestor.php" beforeDir="false" afterPath="$PROJECT_DIR$/src/Permissions/Ingestion/NetworkIngestor.php" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/Permissions/Ingestion/NotificationIngestor.php" beforeDir="false" afterPath="$PROJECT_DIR$/src/Permissions/Ingestion/NotificationIngestor.php" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/Permissions/Ingestion/PermissionIngestor.php" beforeDir="false" afterPath="$PROJECT_DIR$/src/Permissions/Ingestion/PermissionIngestor.php" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/Permissions/Policy/ConditionsEvaluator.php" beforeDir="false" afterPath="$PROJECT_DIR$/src/Permissions/Policy/ConditionsEvaluator.php" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/Permissions/Policy/TimeWindowEvaluator.php" beforeDir="false" afterPath="$PROJECT_DIR$/src/Permissions/Policy/TimeWindowEvaluator.php" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/Permissions/Registry/PermissionRegistry.php" beforeDir="false" afterPath="$PROJECT_DIR$/src/Permissions/Registry/PermissionRegistry.php" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -22,7 +58,7 @@
     <option name="RECENT_GIT_ROOT_PATH" value="$PROJECT_DIR$" />
   </component>
   <component name="NamedScopeManager">
-    <scope name="Work" pattern="file[fortiplugin]:src//*||file[fortiplugin]:prisma//*||file[fortiplugin]:stubs//*" />
+    <scope name="Work" pattern="file[fortiplugin]:src//*||file[fortiplugin]:prisma//*||file[fortiplugin]:stubs//*||file[fortiplugin]:config//*||file[fortiplugin]:schema//*||file[fortiplugin]:routes//*||file[fortiplugin]:test//*" />
   </component>
   <component name="PhpWorkspaceProjectConfiguration" interpreter_name="PHP">
     <include_path>
@@ -149,27 +185,27 @@
     <option name="hideEmptyMiddlePackages" value="true" />
     <option name="showLibraryContents" value="true" />
   </component>
-  <component name="PropertiesComponent">{
-  &quot;keyToString&quot;: {
-    &quot;ModuleVcsDetector.initialDetectionPerformed&quot;: &quot;true&quot;,
-    &quot;RunOnceActivity.ShowReadmeOnStart&quot;: &quot;true&quot;,
-    &quot;RunOnceActivity.TerminalTabsStorage.copyFrom.TerminalArrangementManager.252&quot;: &quot;true&quot;,
-    &quot;RunOnceActivity.git.unshallow&quot;: &quot;true&quot;,
-    &quot;git-widget-placeholder&quot;: &quot;main&quot;,
-    &quot;ignore.virus.scanning.warn.message&quot;: &quot;true&quot;,
-    &quot;junie.onboarding.icon.badge.shown&quot;: &quot;true&quot;,
-    &quot;last_opened_file_path&quot;: &quot;C:/Users/David/OneDrive/Documents/GitHub/fortiplugin/src/Lib&quot;,
-    &quot;node.js.detected.package.eslint&quot;: &quot;true&quot;,
-    &quot;node.js.detected.package.tslint&quot;: &quot;true&quot;,
-    &quot;node.js.selected.package.eslint&quot;: &quot;(autodetect)&quot;,
-    &quot;node.js.selected.package.tslint&quot;: &quot;(autodetect)&quot;,
-    &quot;nodejs_package_manager_path&quot;: &quot;npm&quot;,
-    &quot;npm.db.executor&quot;: &quot;Run&quot;,
-    &quot;settings.editor.selected.configurable&quot;: &quot;project.scopes&quot;,
-    &quot;to.speed.mode.migration.done&quot;: &quot;true&quot;,
-    &quot;vue.rearranger.settings.migration&quot;: &quot;true&quot;
+  <component name="PropertiesComponent"><![CDATA[{
+  "keyToString": {
+    "ModuleVcsDetector.initialDetectionPerformed": "true",
+    "RunOnceActivity.ShowReadmeOnStart": "true",
+    "RunOnceActivity.TerminalTabsStorage.copyFrom.TerminalArrangementManager.252": "true",
+    "RunOnceActivity.git.unshallow": "true",
+    "git-widget-placeholder": "main",
+    "ignore.virus.scanning.warn.message": "true",
+    "junie.onboarding.icon.badge.shown": "true",
+    "last_opened_file_path": "D:/Projects/GitHub/fortiplugin",
+    "node.js.detected.package.eslint": "true",
+    "node.js.detected.package.tslint": "true",
+    "node.js.selected.package.eslint": "(autodetect)",
+    "node.js.selected.package.tslint": "(autodetect)",
+    "nodejs_package_manager_path": "npm",
+    "npm.db.executor": "Run",
+    "settings.editor.selected.configurable": "project.scopes",
+    "to.speed.mode.migration.done": "true",
+    "vue.rearranger.settings.migration": "true"
   }
-}</component>
+}]]></component>
   <component name="RecentsManager">
     <key name="CopyFile.RECENT_KEYS">
       <recent name="C:\Users\David\OneDrive\Documents\GitHub\fortiplugin\src\Lib" />
@@ -201,7 +237,7 @@
   <component name="SharedIndexes">
     <attachedChunks>
       <set>
-        <option value="bundled-php-predefined-a98d8de5180a-f0a8ef430dfa-com.jetbrains.php.sharedIndexes-PS-252.26199.163" />
+        <option value="bundled-php-predefined-a98d8de5180a-9b563d34894c-com.jetbrains.php.sharedIndexes-PS-252.26830.95" />
       </set>
     </attachedChunks>
   </component>
@@ -217,6 +253,7 @@
       <workItem from="1759482168526" duration="1446000" />
       <workItem from="1759497054887" duration="336000" />
       <workItem from="1759497402962" duration="3948000" />
+      <workItem from="1759941592297" duration="3882000" />
     </task>
     <servers />
   </component>

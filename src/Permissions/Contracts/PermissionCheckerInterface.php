@@ -18,9 +18,9 @@ interface PermissionCheckerInterface
      * Check a request against a plugin's capabilities (often via cache).
      *
      * @param int   $pluginId
-     * @param array $request  Type-specific request payload (see PermissionServiceInterface docblocks).
+     * @param PermissionRequestInterface $request  Type-specific request payload (see PermissionServiceInterface docblocks).
      * @param array $context  guard/env/settings etc.
      * @return array Standard result: ['allowed'=>bool,'reason'=>?string,'matched'=>?['type'=>string,'id'=>int],'context'=>?array]
      */
-    public function check(int $pluginId, array $request, array $context = []): array;
+    public function check(int $pluginId, PermissionRequestInterface $request, array $context = []): array;
 }

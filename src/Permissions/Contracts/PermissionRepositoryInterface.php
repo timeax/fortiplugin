@@ -1,4 +1,4 @@
-<?php
+<?php /** @noinspection PhpUnused */
 declare(strict_types=1);
 
 namespace Timeax\FortiPlugin\Permissions\Contracts;
@@ -53,4 +53,25 @@ interface PermissionRepositoryInterface
      * @return array|null e.g., ['status'=>'approved','guard'=>?string,'meta'=>?array,'approved_at'=>?string]
      */
     public function routePermission(int $pluginId, string $routeId): ?array;
+
+    // Add to PermissionRepositoryInterface
+
+    /**
+     * Upsert a concrete permission (by natural key) and attach it to a plugin.
+     * Should be idempotent.
+     *
+     * @param int $pluginId
+     * @param string $type One of: db|file|notification|module|network|codec
+     * @param string $naturalKey Stable key (from NaturalKeyBuilder), UNIQUE per table
+     * @param array $attributes Fields for the concrete row (e.g., hosts/methods..., or file actions...)
+     * @param array $meta Optional: ['constraints'=>array,'audit'=>array,'active'=>bool,'justification'=>?string]
+     * @return array{permission_id:int,permission_type:string,concrete_id:int,concrete_type:string,created:bool}
+     */
+    public function upsertForPlugin(
+        int    $pluginId,
+        string $type,
+        string $naturalKey,
+        array  $attributes,
+        array  $meta = []
+    ): array;
 }

@@ -3,7 +3,9 @@ declare(strict_types=1);
 
 namespace Timeax\FortiPlugin\Permissions\Evaluation\Dto;
 
-final readonly class DbRequest
+use Timeax\FortiPlugin\Permissions\Contracts\PermissionRequestInterface;
+
+final readonly class DbRequest implements PermissionRequestInterface
 {
     /** @param string[]|null $columns */
     public function __construct(

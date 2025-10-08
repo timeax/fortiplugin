@@ -3,7 +3,9 @@ declare(strict_types=1);
 
 namespace Timeax\FortiPlugin\Permissions\Evaluation\Dto;
 
-final class NetworkRequest
+use Timeax\FortiPlugin\Permissions\Contracts\PermissionRequestInterface;
+
+final class NetworkRequest implements PermissionRequestInterface
 {
     /** @param array<string,string>|null $headers */
     public function __construct(

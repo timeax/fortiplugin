@@ -3,7 +3,9 @@ declare(strict_types=1);
 
 namespace Timeax\FortiPlugin\Permissions\Evaluation\Dto;
 
-final readonly class CodecRequest
+use Timeax\FortiPlugin\Permissions\Contracts\PermissionRequestInterface;
+
+final readonly class CodecRequest implements PermissionRequestInterface
 {
     public function __construct(
         public string $method,    // e.g. 'json_encode','unserialize',...

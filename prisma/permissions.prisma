@@ -11,6 +11,16 @@ enum PermissionType {
 }
 
 /// ===========================
+/// Route approval enum (as you defined)
+/// ===========================
+enum RoutePermissionStatus {
+  pending
+  approved
+  denied
+  revoked
+}
+
+/// ===========================
 /// Optional bundles (tags)
 /// ===========================
 
@@ -33,6 +43,7 @@ model PermissionTag {
 }
 
 /// Assign a tag to a plugin (plugins inherit all tag items)
+/// Host can time-window the entire tag assignment.
 ///@guarded:id
 ///@fillable:plugin_id,tag_id,active,limited,limit_type,limit_value
 model PluginPermissionTag {
@@ -59,15 +70,21 @@ model PluginPermissionTag {
 }
 
 /// Tag → Concrete permission (polymorphic)
+/// Allows per-item constraints/audit at the tag layer.
 ///@guarded:id
-///@fillable:tag_id,permission_type,permission_id
+///@fillable:tag_id,permission_type,permission_id,constraints,audit
 model PermissionTagItem {
   id              BigInt         @id @default(autoincrement()) @db.BigInt
   tag_id          BigInt
   permission_type PermissionType
   permission_id   BigInt         @db.BigInt
-  created_at      DateTime       @default(now())
-  updated_at      DateTime       @updatedAt
+
+  // Assignment-level metadata (host managed)
+  constraints Json?
+  audit       Json?
+
+  created_at DateTime @default(now())
+  updated_at DateTime @updatedAt
 
   tag PermissionTag @relation(fields: [tag_id], references: [id])
 
@@ -81,8 +98,9 @@ model PermissionTagItem {
 /// ===========================
 
 /// Plugin → Concrete permission (polymorphic)
+/// Includes constraints/audit at the direct assignment level.
 ///@guarded:id
-///@fillable:plugin_id,permission_type,permission_id,active,limited,limit_type,limit_value
+///@fillable:plugin_id,permission_type,permission_id,active,limited,limit_type,limit_value,constraints,audit
 model PluginPermission {
   id              BigInt         @id @default(autoincrement()) @db.BigInt
   plugin_id       BigInt
@@ -95,6 +113,10 @@ model PluginPermission {
   limit_type  String?
   limit_value String?
 
+  // Assignment-level metadata (host managed)
+  constraints Json?
+  audit       Json?
+
   created_at DateTime @default(now())
   updated_at DateTime @updatedAt
 
@@ -106,21 +128,28 @@ model PluginPermission {
 }
 
 /// ===========================
-/// Concrete permissions (unchanged intent, strict action parity)
+/// Concrete permissions (strict action parity)
 /// ===========================
 
 /// DB — actions: select, insert, update, delete, truncate, grouped_queries
-///@guarded:id,permissions
-///@fillable:model,table,readable_columns,writable_columns,limited,limit_type,limit_value
+///@guarded:id,permissions,natural_key
+///@fillable:natural_key,model,table,readable_columns,writable_columns,limited,limit_type,limit_value
 model DbPermission {
-  id          BigInt  @id @default(autoincrement()) @db.BigInt
-  model       String? // alias/FQCN
+  id BigInt @id @default(autoincrement()) @db.BigInt
+
+  /// Deterministic natural key (e.g., hash of model/table/columns/action-set)
+  natural_key String @unique
+
+  model String? // alias/FQCN (host-catalog validated if provided)
+  table String? // optional raw table name
+
   // Boolean map: { select, insert, update, delete, truncate, grouped_queries }
   permissions Json // SERVICE-MANAGED
 
   readable_columns Json?
   writable_columns Json?
 
+  // Host-only window
   limited     Boolean @default(false)
   limit_type  String?
   limit_value String?
@@ -132,16 +161,21 @@ model DbPermission {
 }
 
 /// FILE — actions: read, write, append, delete, mkdir, rmdir, list
-///@guarded:id,permissions
-///@fillable:base_dir,paths,limited,limit_type,limit_value
+///@guarded:id,permissions,natural_key
+///@fillable:natural_key,base_dir,paths,limited,limit_type,limit_value
 model FilePermission {
-  id       BigInt @id @default(autoincrement()) @db.BigInt
+  id BigInt @id @default(autoincrement()) @db.BigInt
+
+  /// Deterministic natural key (e.g., hash of base_dir/paths/action-set)
+  natural_key String @unique
+
   base_dir String
   paths    Json // ["**/*","logs/*",...]
 
   // Boolean map: { read, write, append, delete, mkdir, rmdir, list }
   permissions Json // SERVICE-MANAGED
 
+  // Host-only window
   limited     Boolean @default(false)
   limit_type  String?
   limit_value String?
@@ -153,10 +187,14 @@ model FilePermission {
 }
 
 /// NOTIFY — actions: send, receive
-///@guarded:id,permissions
-///@fillable:channel,templates_allowed,recipients_allowed,limited,limit_type,limit_value
+///@guarded:id,permissions,natural_key
+///@fillable:natural_key,channel,templates_allowed,recipients_allowed,limited,limit_type,limit_value
 model NotificationPermission {
-  id      BigInt @id @default(autoincrement()) @db.BigInt
+  id BigInt @id @default(autoincrement()) @db.BigInt
+
+  /// Deterministic natural key (e.g., hash of channel/templates/recipients/action-set)
+  natural_key String @unique
+
   channel String // host-defined alias
 
   // Boolean map: { send, receive }
@@ -165,6 +203,7 @@ model NotificationPermission {
   templates_allowed  Json?
   recipients_allowed Json?
 
+  // Host-only window
   limited     Boolean @default(false)
   limit_type  String?
   limit_value String?
@@ -176,14 +215,19 @@ model NotificationPermission {
 }
 
 /// MODULE — single action: call → access flag
-///@guarded:id
-///@fillable:module,apis,access,limited,limit_type,limit_value
+///@guarded:id,natural_key
+///@fillable:natural_key,module,apis,access,limited,limit_type,limit_value
 model ModulePermission {
-  id     BigInt  @id @default(autoincrement()) @db.BigInt
+  id BigInt @id @default(autoincrement()) @db.BigInt
+
+  /// Deterministic natural key (e.g., hash of module/apis)
+  natural_key String @unique
+
   module String // alias or FQCN (host-catalog validated)
   apis   Json // ["createToken","revokeToken",...]
   access Boolean @default(false) // action: call
 
+  // Host-only window
   limited     Boolean @default(false)
   limit_type  String?
   limit_value String?
@@ -195,30 +239,34 @@ model ModulePermission {
 }
 
 /// NETWORK — single action: request → access flag
-///@guarded:id
+/// NOTE: natural key is `rule_key` (kept as-is).
+///@guarded:id,rule_key
 ///@fillable:rule_key,label,hosts,methods,schemes,ports,paths,headers_allowed,ips_allowed,auth_via_host_secret,access,limited,limit_type,limit_value
 model NetworkPermission {
-  id       BigInt  @id @default(autoincrement()) @db.BigInt
+  id BigInt @id @default(autoincrement()) @db.BigInt
+
   /// Deterministic fingerprint for this rule (e.g., sha1 over hosts/methods/schemes/ports/paths).
-  rule_key String  @unique
+  natural_key String @unique
+
   /// Optional human-readable label for admins/reviewers.
-  label    String?
+  label String?
+
   /// Gate for network egress via the host HTTP client.
-  access   Boolean @default(false)
+  access Boolean @default(false)
 
   /// Allowlists (manifest `target` fields)
-  hosts           Json // array of host patterns (e.g., ["api.stripe.com","*.example.com"])
-  methods         Json // array of HTTP methods (e.g., ["GET","POST"])
-  schemes         Json? // array of schemes; typically ["https"]
-  ports           Json? // array of ports; typically [443]
-  paths           Json? // array of path prefixes/regexes
-  headers_allowed Json? // array of allowed header names/patterns
-  ips_allowed     Json? // array of IPv4/IPv6 if you permit raw IPs (discouraged)
+  hosts           Json // ["api.stripe.com","*.example.com"]
+  methods         Json // ["GET","POST"]
+  schemes         Json?
+  ports           Json?
+  paths           Json?
+  headers_allowed Json?
+  ips_allowed     Json?
 
   /// Secrets policy: if true, the host injects credentials; plugins don't supply secrets.
   auth_via_host_secret Boolean @default(true)
 
-  /// Time-bounded approval (NOT quotas)
+  // Host-only window
   limited     Boolean @default(false)
   limit_type  String? // "until" | "ttl" | "rrule" | "schedule"
   limit_value String? // ISO-8601 instant/duration, RRULE, or schedule id
@@ -230,15 +278,19 @@ model NetworkPermission {
 }
 
 /// CODEC/OBFUSCATOR — single action: invoke → access flag
-/// allowed = { methods?: string[], groups?: string[], options?: {...} }
-///@guarded:id
-///@fillable:module,allowed,access,limited,limit_type,limit_value
+///@guarded:id,natural_key
+///@fillable:natural_key,module,allowed,access,limited,limit_type,limit_value
 model CodecPermission {
-  id      BigInt  @id @default(autoincrement()) @db.BigInt
+  id BigInt @id @default(autoincrement()) @db.BigInt
+
+  /// Deterministic natural key (e.g., hash of allowed+access)
+  natural_key String @unique
+
   module  String  @default("codec")
   allowed Json? // validated against Obfuscator catalog
   access  Boolean @default(false) // action: invoke
 
+  // Host-only window
   limited     Boolean @default(false)
   limit_type  String?
   limit_value String?
@@ -250,9 +302,40 @@ model CodecPermission {
 }
 
 /// ===========================
+/// Per-route approvals (as provided)
+/// ===========================
+
+/// @fillable(plugin_id, route_id, status, guard, meta, approved_at)
+model PluginRoutePermission {
+  id        BigInt @id @default(autoincrement())
+  plugin_id BigInt
+  plugin    Plugin @relation(fields: [plugin_id], references: [id])
+
+  /// The JSON-declared route `id` (unique per plugin).
+  route_id String
+
+  /// Current permission state.
+  status RoutePermissionStatus @default(pending)
+
+  /// Optional: lock the guard used when writing this route.
+  guard String?
+
+  /// Host-defined metadata (notes, expiresAt, reasons, etc.).
+  meta Json?
+
+  approved_at DateTime?
+  created_at  DateTime  @default(now())
+  updated_at  DateTime  @updatedAt
+
+  @@unique([plugin_id, route_id])
+  @@index([plugin_id, status])
+  @@map("plugin_route_permissions")
+}
+
+/// ===========================
 /// Plugin (links to pivots)
 /// ===========================
-///@fillable:name,image,tag_id,status,config,meta,plugin_placeholder_id,owner_ref
+/// NOTE: Assuming PluginStatus enum & other related models already exist.
 model Plugin {
   id                    BigInt       @id @default(autoincrement()) @db.BigInt
   name                  String       @unique
@@ -263,7 +346,7 @@ model Plugin {
   plugin_placeholder_id BigInt       @unique @db.BigInt
   owner_ref             String?
 
-  // existing relations...
+  // existing relations (assumed to exist)
   placeholder     PluginPlaceholder @relation(fields: [plugin_placeholder_id], references: [id])
   plugin_settings PluginSetting[]
   plugin_versions PluginVersion[]
@@ -275,7 +358,7 @@ model Plugin {
   plugin_permissions PluginPermission[]
   permission_tags    PluginPermissionTag[]
 
-  // per-route approvals (unchanged)
+  // per-route approvals
   routes PluginRoutePermission[]
 
   created_at DateTime @default(now())
