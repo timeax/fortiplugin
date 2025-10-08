@@ -1,0 +1,242 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://yourdomain.com/schemas/fortiplugin.routes.schema.json",
+  "title": "FortiPluginRouteFile",
+  "type": "object",
+  "properties": {
+    "group": { "$ref": "#/definitions/GroupOptions" },
+    "routes": {
+      "type": "array",
+      "items": { "$ref": "#/definitions/RouteNode" },
+      "minItems": 1
+    }
+  },
+  "required": ["routes"],
+  "additionalProperties": false,
+  "definitions": {
+    "HttpVerb": {
+      "type": "string",
+      "enum": ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS", "HEAD", "ANY", "MATCH"]
+    },
+    "ControllerRef": {
+      "type": "object",
+      "properties": {
+        "class": {
+          "type": "string",
+          "pattern": "^[A-Z][A-Za-z0-9_\\\\]+$"
+        },
+        "method": {
+          "type": "string",
+          "pattern": "^[A-Za-z_][A-Za-z0-9_]*$"
+        }
+      },
+      "required": ["class"],
+      "additionalProperties": false
+    },
+    "WhereConstraints": {
+      "type": "object",
+      "additionalProperties": { "type": "string" }
+    },
+    "GroupOptions": {
+      "type": "object",
+      "properties": {
+        "prefix": { "type": "string" },
+        "namePrefix": { "type": "string" },
+        "domain": { "type": "string" },
+        "middleware": {
+          "type": "array",
+          "items": { "type": "string" }
+        }
+      },
+      "additionalProperties": false
+    },
+
+    "BaseRouteProps": {
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "desc": { "type": "string" },
+        "name": { "type": "string" },
+        "middleware": {
+          "type": "array",
+          "items": { "type": "string" }
+        },
+        "where": { "$ref": "#/definitions/WhereConstraints" },
+        "domain": { "type": "string" },
+        "prefix": { "type": "string" }
+      },
+      "required": ["id", "desc"],
+      "additionalProperties": false
+    },
+
+    "HttpRouteCore": {
+      "type": "object",
+      "properties": {
+        "type": { "const": "http" },
+        "method": {
+          "oneOf": [
+            { "$ref": "#/definitions/HttpVerb" },
+            {
+              "type": "array",
+              "items": { "$ref": "#/definitions/HttpVerb" },
+              "minItems": 1
+            }
+          ]
+        },
+        "path": { "type": "string" },
+        "action": {
+          "oneOf": [
+            { "$ref": "#/definitions/ControllerRef" },
+            {
+              "type": "string",
+              "pattern": "^[A-Z][A-Za-z0-9_\\\\]+@[A-Za-z_][A-Za-z0-9_]*$"
+            }
+          ]
+        }
+      },
+      "required": ["type", "method", "path", "action"],
+      "additionalProperties": false
+    },
+    "HttpRoute": {
+      "allOf": [
+        { "$ref": "#/definitions/BaseRouteProps" },
+        { "$ref": "#/definitions/HttpRouteCore" }
+      ]
+    },
+
+    "ResourceRouteCore": {
+      "type": "object",
+      "properties": {
+        "type": { "enum": ["resource", "apiResource"] },
+        "name": { "type": "string" },
+        "controller": {
+          "type": "string",
+          "pattern": "^[A-Z][A-Za-z0-9_\\\\]+$"
+        },
+        "only": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "enum": ["index", "create", "store", "show", "edit", "update", "destroy"]
+          }
+        },
+        "except": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "enum": ["index", "create", "store", "show", "edit", "update", "destroy"]
+          }
+        },
+        "parameters": {
+          "type": "object",
+          "additionalProperties": { "type": "string" }
+        },
+        "names": {
+          "type": "object",
+          "additionalProperties": { "type": "string" }
+        },
+        "shallow": { "type": "boolean" }
+      },
+      "required": ["type", "name", "controller"],
+      "additionalProperties": false
+    },
+    "ResourceRoute": {
+      "allOf": [
+        { "$ref": "#/definitions/BaseRouteProps" },
+        { "$ref": "#/definitions/ResourceRouteCore" }
+      ]
+    },
+
+    "RedirectRouteCore": {
+      "type": "object",
+      "properties": {
+        "type": { "const": "redirect" },
+        "path": { "type": "string" },
+        "to": { "type": "string" },
+        "status": { "type": "integer", "minimum": 100, "maximum": 599 }
+      },
+      "required": ["type", "path", "to"],
+      "additionalProperties": false
+    },
+    "RedirectRoute": {
+      "allOf": [
+        { "$ref": "#/definitions/BaseRouteProps" },
+        { "$ref": "#/definitions/RedirectRouteCore" }
+      ]
+    },
+
+    "ViewRouteCore": {
+      "type": "object",
+      "properties": {
+        "type": { "const": "view" },
+        "path": { "type": "string" },
+        "view": { "type": "string" },
+        "data": { "type": "object", "additionalProperties": true }
+      },
+      "required": ["type", "path", "view"],
+      "additionalProperties": false
+    },
+    "ViewRoute": {
+      "allOf": [
+        { "$ref": "#/definitions/BaseRouteProps" },
+        { "$ref": "#/definitions/ViewRouteCore" }
+      ]
+    },
+
+    "FallbackRouteCore": {
+      "type": "object",
+      "properties": {
+        "type": { "const": "fallback" },
+        "action": {
+          "oneOf": [
+            { "$ref": "#/definitions/ControllerRef" },
+            {
+              "type": "string",
+              "pattern": "^[A-Z][A-Za-z0-9_\\\\]+@[A-Za-z_][A-Za-z0-9_]*$"
+            }
+          ]
+        }
+      },
+      "required": ["type", "action"],
+      "additionalProperties": false
+    },
+    "FallbackRoute": {
+      "allOf": [
+        { "$ref": "#/definitions/BaseRouteProps" },
+        { "$ref": "#/definitions/FallbackRouteCore" }
+      ]
+    },
+
+    "GroupRouteCore": {
+      "type": "object",
+      "properties": {
+        "type": { "const": "group" },
+        "group": { "$ref": "#/definitions/GroupOptions" },
+        "routes": {
+          "type": "array",
+          "items": { "$ref": "#/definitions/RouteNode" },
+          "minItems": 1
+        }
+      },
+      "required": ["type", "routes"],
+      "additionalProperties": false
+    },
+    "GroupRoute": {
+      "allOf": [
+        { "$ref": "#/definitions/BaseRouteProps" },
+        { "$ref": "#/definitions/GroupRouteCore" }
+      ]
+    },
+
+    "RouteNode": {
+      "oneOf": [
+        { "$ref": "#/definitions/HttpRoute" },
+        { "$ref": "#/definitions/ResourceRoute" },
+        { "$ref": "#/definitions/RedirectRoute" },
+        { "$ref": "#/definitions/ViewRoute" },
+        { "$ref": "#/definitions/FallbackRoute" },
+        { "$ref": "#/definitions/GroupRoute" }
+      ]
+    }
+  }
+}

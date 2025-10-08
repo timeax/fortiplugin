@@ -1,18 +1,21 @@
-<?php
+<?php /** @noinspection PhpUnusedParameterInspection */
 
 namespace Timeax\FortiPlugin\Http\Controllers;
 
+use Illuminate\Contracts\Filesystem\FileNotFoundException;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Routing\Controller;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Str;
+use JsonException;
 use Timeax\FortiPlugin\Models\Author;
 use Timeax\FortiPlugin\Models\PluginPlaceholder;
 use Timeax\FortiPlugin\Models\PluginSignature;
 use Timeax\FortiPlugin\Models\PluginToken;
 use Timeax\FortiPlugin\Services\HostKeyService;
 use Timeax\FortiPlugin\Services\PolicyService;
+use Timeax\FortiPlugin\Services\SigningService;
 use Timeax\FortiPlugin\Support\FortiGates;
 
 final class PackagerController extends Controller
@@ -24,6 +27,10 @@ final class PackagerController extends Controller
     {
     }
 
+    /**
+     * @throws FileNotFoundException
+     * @throws JsonException
+     */
     public function handshake(Request $request): JsonResponse
     {
         Gate::authorize(FortiGates::PACKAGER_FETCH_POLICY);
@@ -43,7 +50,10 @@ final class PackagerController extends Controller
         ]);
     }
 
-    /** First handshake (make command): create placeholder + issue placeholder token */
+    /** First handshake (make command): create placeholder + issue placeholder token
+     * @throws JsonException
+     * @throws FileNotFoundException
+     */
     public function init(Request $request): JsonResponse
     {
         Gate::authorize(FortiGates::PLACEHOLDER_CREATE);
@@ -97,8 +107,21 @@ final class PackagerController extends Controller
                 'name' => $placeholder->name,
                 'key' => $placeholder->unique_key,
             ],
-            'token' => $raw, // raw once; client must store securely
+            'token' => $raw, // raw once; the client must store securely
             'expires_at' => now()->addDays(7)->toIso8601String(),
+            'signature_block' => SigningService::makeSignature(
+                author: [
+                    'name' => $author?->name,
+                    'email' => $author?->email,
+                    'website' => $author?->website,
+                ],
+                hostDomain: $request->getHost() ?: parse_url($request->fullUrl(), PHP_URL_HOST),
+                policy: $this->policy->snapshot(),
+                pluginInfo: [
+                    'name' => $name,
+                    'slug' => $slug,
+                ]
+            )
         ]);
     }
 

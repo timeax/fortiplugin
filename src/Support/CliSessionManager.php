@@ -10,10 +10,12 @@ use SodiumException;
 
 class CliSessionManager
 {
+    // Timeax\FortiPlugin\Support\CliSessionManager
+
     protected static function sessionsPath(): string
     {
         $home = getenv('HOME') ?: getenv('USERPROFILE');
-        return $home . DIRECTORY_SEPARATOR . '.secure-plugin' . DIRECTORY_SEPARATOR . 'sessions.json';
+        return $home . DIRECTORY_SEPARATOR . '.fortiplugin' . DIRECTORY_SEPARATOR . 'sessions.json';
     }
 
     /**

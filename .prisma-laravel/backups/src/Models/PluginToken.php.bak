@@ -2,12 +2,14 @@
 
 namespace Timeax\FortiPlugin\Models;
 
+use Illuminate\Database\Eloquent\Casts\AsArrayObject;
 use Illuminate\Database\Eloquent\Model;
 
 /**
  * @property int $id
  * @property int $plugin_placeholder_id
  * @property string $token_hash
+ * @property array $meta
  * @property \Carbon\Carbon $expires_at
  * @property \Carbon\Carbon|null $last_used
  * @property bool $revoked
@@ -23,6 +25,7 @@ class PluginToken extends Model
 	protected $fillable = [
 		"plugin_placeholder_id",
 		"token_hash",
+		"meta",
 		"expires_at",
 		"last_used",
 		"revoked",
@@ -32,6 +35,7 @@ class PluginToken extends Model
 	protected $guarded = ["id", "id"];
 
 	protected $casts = [
+		"meta" => AsArrayObject::class,
 		"expires_at" => "datetime",
 		"last_used" => "datetime",
 		"created_at" => "datetime",

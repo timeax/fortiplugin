@@ -23,6 +23,7 @@ use Illuminate\Database\Eloquent\Model;
  * @property \Illuminate\Support\Collection<int, PluginAuditLog::class> $logs
  * @property \Illuminate\Support\Collection<int, Author::class> $authors
  * @property \Illuminate\Support\Collection<int, PluginIssue::class> $issues
+ * @property \Illuminate\Support\Collection<int, PluginRoutePermission::class> $routes
  */
 class Plugin extends Model
 {
@@ -91,5 +92,10 @@ class Plugin extends Model
 	public function issues()
 	{
 		return $this->hasMany(PluginIssue::class, "plugin_id", "id");
+	}
+
+	public function routes()
+	{
+		return $this->hasMany(PluginRoutePermission::class, "plugin_id", "id");
 	}
 }

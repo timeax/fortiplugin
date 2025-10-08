@@ -70,27 +70,6 @@ enum IssueStatus {
 
 // ─── MODELS ───────────────────────────────────────────────
 
-// TAGS (unchanged)
-///@guarded:id
-///@fillable:name,is_system,status
-model Tag {
-  id         BigInt       @id @default(autoincrement()) @db.BigInt
-  name       String       @unique
-  is_system  Boolean      @default(false)
-  status     PluginStatus @default(active)
-  created_at DateTime     @default(now())
-  updated_at DateTime     @updatedAt
-
-  plugins Plugin[]
-
-  pluginNotificationPermissions PluginNotificationPermission[]
-  pluginModulePermissions       PluginModulePermission[]
-  pluginFilePermissions         PluginFilePermission[]
-  pluginDbPermissions           PluginDbPermission[]
-
-  @@map("tags")
-}
-
 // AUTHORS (new)
 ///@hidden:password
 ///@guarded:id
@@ -141,33 +120,6 @@ model AuthorToken {
 
   @@index([author_id])
   @@map("author_tokens")
-}
-
-// PLUGINS
-///@guarded:id
-///@fillable:name,image,tag_id,status,config,meta,plugin_placeholder_id,owner_ref
-model Plugin {
-  id                    BigInt       @id @default(autoincrement()) @db.BigInt
-  name                  String       @unique
-  image                 String?
-  tag_id                BigInt
-  status                PluginStatus @default(active)
-  config                Json?
-  meta                  Json?
-  plugin_placeholder_id BigInt       @unique @db.BigInt
-  owner_ref             String?
-
-  // relations
-  tag             Tag               @relation(fields: [tag_id], references: [id])
-  placeholder     PluginPlaceholder @relation(fields: [plugin_placeholder_id], references: [id])
-  plugin_settings PluginSetting[]
-  plugin_versions PluginVersion[]
-  logs            PluginAuditLog[]
-  authors         PluginAuthor[]
-  issues          PluginIssue[]
-
-  @@index([tag_id])
-  @@map("plugins")
 }
 
 // PLUGIN↔AUTHOR (pivot)
@@ -255,6 +207,7 @@ model PluginToken {
   id                    BigInt    @id @default(autoincrement()) @db.BigInt
   plugin_placeholder_id BigInt
   token_hash            String    @unique
+  meta                  Json ///@fillable
   expires_at            DateTime
   last_used             DateTime?
   revoked               Boolean   @default(false)
@@ -328,96 +281,39 @@ model AuditLog {
   @@map("audit_logs")
 }
 
-// DB/FILE/NOTIFICATION/MODULE PERMISSIONS (unchanged)
-///@guarded:id
-///@fillable:tag_id,model,select,insert,update,grouped_queries,truncate,delete,hidden_fields,writable_fields,limited,limit_type,limit_value
-model PluginDbPermission {
-  id              BigInt   @id @default(autoincrement()) @db.BigInt
-  tag_id          BigInt
-  model           String
-  select          Boolean  @default(false)
-  insert          Boolean  @default(false)
-  update          Boolean  @default(false)
-  grouped_queries Boolean  @default(false)
-  truncate        Boolean  @default(false)
-  delete          Boolean  @default(false)
-  hidden_fields   Json?
-  writable_fields Json?
-  limited         Boolean  @default(false)
-  limit_type      String?
-  limit_value     String?
-  created_at      DateTime @default(now())
-  updated_at      DateTime @updatedAt
-
-  tag Tag @relation(fields: [tag_id], references: [id])
-
-  @@unique([tag_id, model])
-  @@index([tag_id])
-  @@map("plugin_db_permissions")
+/// Approval record for writing a specific route (by `route_id`)
+enum RoutePermissionStatus {
+  pending
+  approved
+  denied
+  revoked
 }
 
-///@guarded:id
-///@fillable:tag_id,file_path,read,write,execute,limited,limit_type,limit_value
-model PluginFilePermission {
-  id          BigInt   @id @default(autoincrement()) @db.BigInt
-  tag_id      BigInt
-  file_path   String
-  read        Boolean  @default(false)
-  write       Boolean  @default(false)
-  execute     Boolean  @default(false)
-  limited     Boolean  @default(false)
-  limit_type  String?
-  limit_value String?
-  created_at  DateTime @default(now())
-  updated_at  DateTime @updatedAt
+/// @fillable(plugin_id, route_id, status, guard, meta, approved_at)
+model PluginRoutePermission {
+  id        BigInt @id @default(autoincrement())
+  plugin_id BigInt
+  plugin    Plugin @relation(fields: [plugin_id], references: [id])
 
-  tag Tag @relation(fields: [tag_id], references: [id])
+  /// The JSON-declared route `id` (unique per plugin).
+  route_id String
 
-  @@unique([tag_id, file_path])
-  @@index([tag_id])
-  @@map("plugin_file_permissions")
-}
+  /// Current permission state.
+  status RoutePermissionStatus @default(pending)
 
-///@guarded:id
-///@fillable:tag_id,channel,send,receive,limited,limit_type,limit_value
-model PluginNotificationPermission {
-  id          BigInt   @id @default(autoincrement()) @db.BigInt
-  tag_id      BigInt
-  channel     String
-  send        Boolean  @default(false)
-  receive     Boolean  @default(false)
-  limited     Boolean  @default(false)
-  limit_type  String?
-  limit_value String?
-  created_at  DateTime @default(now())
-  updated_at  DateTime @updatedAt
+  /// Optional: lock the guard used when writing this route.
+  guard String?
 
-  tag Tag @relation(fields: [tag_id], references: [id])
+  /// Host-defined metadata (notes, expiresAt, reasons, etc.).
+  meta Json?
 
-  @@unique([tag_id, channel])
-  @@index([tag_id])
-  @@map("plugin_notification_permissions")
-}
+  approved_at DateTime?
+  created_at  DateTime  @default(now())
+  updated_at  DateTime  @updatedAt
 
-///@guarded:id
-///@fillable:tag_id,module,access,permissions,limited,limit_type,limit_value
-model PluginModulePermission {
-  id          BigInt   @id @default(autoincrement()) @db.BigInt
-  tag_id      BigInt
-  module      String
-  access      Boolean  @default(false)
-  permissions Json
-  limited     Boolean  @default(false)
-  limit_type  String?
-  limit_value String?
-  created_at  DateTime @default(now())
-  updated_at  DateTime @updatedAt
-
-  tag Tag @relation(fields: [tag_id], references: [id])
-
-  @@unique([tag_id, module])
-  @@index([tag_id])
-  @@map("plugin_module_permissions")
+  @@unique([plugin_id, route_id])
+  @@index([plugin_id, status])
+  @@map("plugin_route_permissions")
 }
 
 // PLUGIN AUDIT LOGS (per-plugin; add optional author)

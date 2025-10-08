@@ -1,0 +1,718 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://yourdomain.com/schemas/plugin-permissions.schema.json",
+  "title": "FortiPlugin Permissions Manifest",
+  "description": "Declarative capabilities for plugins. No limits or time constraints are expressed here.",
+  "type": "object",
+  "properties": {
+    "required_permissions": {
+      "type": "array",
+      "description": "Rules that MUST be granted for the plugin to install/boot.",
+      "items": {
+        "$ref": "#/definitions/PermissionRule"
+      }
+    },
+    "optional_permissions": {
+      "type": "array",
+      "description": "Rules that MAY be granted later to unlock functionality.",
+      "items": {
+        "$ref": "#/definitions/PermissionRule"
+      }
+    }
+  },
+  "required": [
+    "required_permissions"
+  ],
+  "additionalProperties": false,
+  "definitions": {
+    "Effect": {
+      "type": "string",
+      "enum": [
+        "allow",
+        "deny"
+      ],
+      "default": "allow",
+      "description": "ALLOW by default. DENY rules carve exceptions and take precedence at evaluation time."
+    },
+    "AuditConfig": {
+      "type": "object",
+      "properties": {
+        "log": {
+          "type": "string",
+          "enum": [
+            "always",
+            "on_deny",
+            "never"
+          ],
+          "default": "always"
+        },
+        "redact_fields": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "uniqueItems": true
+        },
+        "tags": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "uniqueItems": true
+        }
+      },
+      "additionalProperties": false
+    },
+    "Conditions": {
+      "type": "object",
+      "properties": {
+        "setting_link": {
+          "oneOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "number"
+            }
+          ]
+        },
+        "guard": {
+          "type": "string"
+        },
+        "env": {
+          "type": "object",
+          "properties": {
+            "allow": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              },
+              "uniqueItems": true
+            },
+            "deny": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              },
+              "uniqueItems": true
+            }
+          },
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": false
+    },
+    "RuleCommon": {
+      "type": "object",
+      "properties": {
+        "conditions": {
+          "$ref": "#/definitions/Conditions"
+        },
+        "audit": {
+          "$ref": "#/definitions/AuditConfig"
+        },
+        "justification": {
+          "type": "string"
+        },
+        "effect": {
+          "$ref": "#/definitions/Effect"
+        }
+      },
+      "additionalProperties": false
+    },
+    "PathPattern": {
+      "type": "string",
+      "pattern": "^(?!.*\\.\\.)[A-Za-z0-9._/*@:-]+$",
+      "description": "Relative path/pattern; '..' not allowed."
+    },
+    "HostPattern": {
+      "type": "string",
+      "pattern": "^([a-z0-9.-]+|\\*\\.[a-z0-9.-]+)$",
+      "description": "Hostname or wildcard subdomain (e.g., 'api.example.com' or '*.stripe.com')."
+    },
+    "HttpMethod": {
+      "type": "string",
+      "enum": [
+        "GET",
+        "POST",
+        "PUT",
+        "PATCH",
+        "DELETE",
+        "HEAD",
+        "OPTIONS"
+      ]
+    },
+    "DbTarget": {
+      "oneOf": [
+        {
+          "type": "object",
+          "properties": {
+            "model": {
+              "type": "string",
+              "description": "FQCN or known alias"
+            },
+            "columns": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              },
+              "uniqueItems": true
+            }
+          },
+          "required": [
+            "model"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "table": {
+              "type": "string"
+            },
+            "columns": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              },
+              "uniqueItems": true
+            }
+          },
+          "required": [
+            "table"
+          ],
+          "additionalProperties": false
+        }
+      ]
+    },
+    "DbActions": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "enum": [
+          "select",
+          "insert",
+          "update",
+          "delete",
+          "truncate",
+          "transaction"
+        ]
+      },
+      "minItems": 1,
+      "uniqueItems": true
+    },
+    "DbRule": {
+      "allOf": [
+        {
+          "$ref": "#/definitions/RuleCommon"
+        },
+        {
+          "type": "object",
+          "properties": {
+            "type": {
+              "const": "db"
+            },
+            "target": {
+              "$ref": "#/definitions/DbTarget"
+            },
+            "actions": {
+              "$ref": "#/definitions/DbActions"
+            }
+          },
+          "required": [
+            "type",
+            "target",
+            "actions"
+          ],
+          "additionalProperties": false
+        }
+      ]
+    },
+    "FileTarget": {
+      "type": "object",
+      "properties": {
+        "base_dir": {
+          "type": "string",
+          "description": "Logical root chosen by host (e.g., 'plugin_data', 'storage_plugin/{slug}', 'temp')"
+        },
+        "paths": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/PathPattern"
+          },
+          "minItems": 1,
+          "uniqueItems": true
+        },
+        "follow_symlinks": {
+          "type": "boolean",
+          "default": false
+        }
+      },
+      "required": [
+        "base_dir",
+        "paths"
+      ],
+      "additionalProperties": false
+    },
+    "FileActions": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "enum": [
+          "read",
+          "write",
+          "append",
+          "delete",
+          "mkdir",
+          "rmdir",
+          "list"
+        ]
+      },
+      "minItems": 1,
+      "uniqueItems": true
+    },
+    "FileRule": {
+      "allOf": [
+        {
+          "$ref": "#/definitions/RuleCommon"
+        },
+        {
+          "type": "object",
+          "properties": {
+            "type": {
+              "const": "file"
+            },
+            "target": {
+              "$ref": "#/definitions/FileTarget"
+            },
+            "actions": {
+              "$ref": "#/definitions/FileActions"
+            }
+          },
+          "required": [
+            "type",
+            "target",
+            "actions"
+          ],
+          "additionalProperties": false
+        }
+      ]
+    },
+    "NetworkTarget": {
+      "type": "object",
+      "properties": {
+        "hosts": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/HostPattern"
+          },
+          "minItems": 1,
+          "uniqueItems": true
+        },
+        "schemes": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "enum": [
+              "https",
+              "http"
+            ]
+          },
+          "default": [
+            "https"
+          ],
+          "uniqueItems": true
+        },
+        "ports": {
+          "type": "array",
+          "items": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 65535
+          },
+          "default": [
+            443
+          ],
+          "uniqueItems": true
+        },
+        "paths": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "uniqueItems": true
+        },
+        "methods": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/HttpMethod"
+          },
+          "minItems": 1,
+          "uniqueItems": true
+        },
+        "headers_allowed": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "uniqueItems": true
+        },
+        "auth_via_host_secret": {
+          "type": "boolean",
+          "default": true
+        },
+        "ips_allowed": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "format": "ipv4"
+          },
+          "description": "Discouraged; prefer hostnames."
+        }
+      },
+      "required": [
+        "hosts",
+        "methods"
+      ],
+      "additionalProperties": false
+    },
+    "NetworkActions": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "enum": [
+          "request"
+        ]
+      },
+      "minItems": 1,
+      "uniqueItems": true
+    },
+    "NetworkRule": {
+      "allOf": [
+        {
+          "$ref": "#/definitions/RuleCommon"
+        },
+        {
+          "type": "object",
+          "properties": {
+            "type": {
+              "const": "network"
+            },
+            "target": {
+              "$ref": "#/definitions/NetworkTarget"
+            },
+            "actions": {
+              "$ref": "#/definitions/NetworkActions"
+            }
+          },
+          "required": [
+            "type",
+            "target",
+            "actions"
+          ],
+          "additionalProperties": false
+        }
+      ]
+    },
+    "NotifyTarget": {
+      "type": "object",
+      "properties": {
+        "channels": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "enum": [
+              "email",
+              "sms",
+              "push",
+              "slack",
+              "webhook"
+            ]
+          },
+          "minItems": 1,
+          "uniqueItems": true
+        },
+        "templates": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "uniqueItems": true
+        },
+        "recipients": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "uniqueItems": true,
+          "description": "Recipient scopes/aliases (host-defined)."
+        }
+      },
+      "required": [
+        "channels"
+      ],
+      "additionalProperties": false
+    },
+    "NotifyActions": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "enum": [
+          "send"
+        ]
+      },
+      "minItems": 1,
+      "uniqueItems": true
+    },
+    "NotifyRule": {
+      "allOf": [
+        {
+          "$ref": "#/definitions/RuleCommon"
+        },
+        {
+          "type": "object",
+          "properties": {
+            "type": {
+              "const": "notify"
+            },
+            "target": {
+              "$ref": "#/definitions/NotifyTarget"
+            },
+            "actions": {
+              "$ref": "#/definitions/NotifyActions"
+            }
+          },
+          "required": [
+            "type",
+            "target",
+            "actions"
+          ],
+          "additionalProperties": false
+        }
+      ]
+    },
+    "ModuleTarget": {
+      "type": "object",
+      "properties": {
+        "plugin": {
+          "type": "string",
+          "description": "Target plugin/module slug"
+        },
+        "apis": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "minItems": 1,
+          "uniqueItems": true
+        }
+      },
+      "required": [
+        "plugin",
+        "apis"
+      ],
+      "additionalProperties": false
+    },
+    "ModuleActions": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "enum": [
+          "call",
+          "publish",
+          "subscribe"
+        ]
+      },
+      "minItems": 1,
+      "uniqueItems": true
+    },
+    "ModuleRule": {
+      "allOf": [
+        {
+          "$ref": "#/definitions/RuleCommon"
+        },
+        {
+          "type": "object",
+          "properties": {
+            "type": {
+              "const": "module"
+            },
+            "target": {
+              "$ref": "#/definitions/ModuleTarget"
+            },
+            "actions": {
+              "$ref": "#/definitions/ModuleActions"
+            }
+          },
+          "required": [
+            "type",
+            "target",
+            "actions"
+          ],
+          "additionalProperties": false
+        }
+      ]
+    },
+    "CodecGroup": {
+      "type": "string",
+      "enum": [
+        "encoding",
+        "compression",
+        "hash",
+        "crypto",
+        "serialize",
+        "obfuscation"
+      ]
+    },
+    "CodecMethodName": {
+      "type": "string",
+      "pattern": "^[a-z0-9_]+$",
+      "description": "Canonical wrapper name (e.g., base64_encode, json_decode, gzencode, hash_hmac, openssl_encrypt, serialize, unserialize, obfuscate, deobfuscate)."
+    },
+    "CodecTarget": {
+      "type": "string",
+      "const": "codec",
+      "description": "Fixed capability target for codec/obfuscator methods."
+    },
+    "CodecActions": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "enum": [
+          "invoke"
+        ]
+      },
+      "minItems": 1,
+      "uniqueItems": true
+    },
+    "CodecRule": {
+      "allOf": [
+        {
+          "$ref": "#/definitions/RuleCommon"
+        },
+        {
+          "type": "object",
+          "properties": {
+            "type": {
+              "const": "codec"
+            },
+            "target": {
+              "$ref": "#/definitions/CodecTarget"
+            },
+            "actions": {
+              "$ref": "#/definitions/CodecActions"
+            },
+            "methods": {
+              "description": "\"*\" for all, or an allow-list of method names.",
+              "oneOf": [
+                {
+                  "const": "*"
+                },
+                {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/definitions/CodecMethodName"
+                  },
+                  "minItems": 1,
+                  "uniqueItems": true
+                }
+              ]
+            },
+            "groups": {
+              "type": "array",
+              "items": {
+                "$ref": "#/definitions/CodecGroup"
+              },
+              "uniqueItems": true
+            },
+            "options": {
+              "type": "object",
+              "properties": {
+                "allow_unserialize_classes": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  },
+                  "uniqueItems": true,
+                  "description": "Whitelist for unserialize(). Empty list means no classes allowed."
+                }
+              },
+              "additionalProperties": false
+            }
+          },
+          "required": [
+            "type",
+            "target",
+            "actions"
+          ],
+          "additionalProperties": false,
+          "allOf": [
+            {
+              "anyOf": [
+                {
+                  "required": [
+                    "methods"
+                  ]
+                },
+                {
+                  "required": [
+                    "groups"
+                  ]
+                }
+              ]
+            },
+            {
+              "if": {
+                "properties": {
+                  "methods": {
+                    "type": "array",
+                    "contains": {
+                      "const": "unserialize"
+                    }
+                  }
+                },
+                "required": [
+                  "methods"
+                ]
+              },
+              "then": {
+                "required": [
+                  "options"
+                ],
+                "properties": {
+                  "options": {
+                    "required": [
+                      "allow_unserialize_classes"
+                    ]
+                  }
+                }
+              }
+            }
+          ]
+        }
+      ]
+    },
+    "PermissionRule": {
+      "oneOf": [
+        {
+          "$ref": "#/definitions/DbRule"
+        },
+        {
+          "$ref": "#/definitions/FileRule"
+        },
+        {
+          "$ref": "#/definitions/NetworkRule"
+        },
+        {
+          "$ref": "#/definitions/NotifyRule"
+        },
+        {
+          "$ref": "#/definitions/ModuleRule"
+        },
+        {
+          "$ref": "#/definitions/CodecRule"
+        }
+      ]
+    }
+  }
+}

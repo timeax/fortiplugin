@@ -707,4 +707,70 @@ class Obfuscator
             'mcrypt_decrypt' => 'mcryptDecrypt',
         ];
     }
+
+    /**
+     * Grouped list of available wrappers, categorized by purpose.
+     * Static variant of available().
+     */
+    public static function availableGroups(): array
+    {
+        return [
+            'encoding' => [
+                'base64_encode' => 'encodeBase64',
+                'base64_decode' => 'decodeBase64',
+                'json_encode' => 'encodeJson',
+                'json_decode' => 'decodeJson',
+                'bin2hex' => 'encodeHex',
+                'hex2bin' => 'decodeHex',
+                'urlencode' => 'encodeUrl',
+                'urldecode' => 'decodeUrl',
+                'rawurlencode' => 'rawEncodeUrl',
+                'rawurldecode' => 'rawDecodeUrl',
+                'convert_uuencode' => 'convertUuEncode',
+                'convert_uudecode' => 'convertUuDecode',
+                'pack' => 'pack',
+                'unpack' => 'unpack',
+                'chr' => 'chr',
+                'ord' => 'ord',
+            ],
+            'compression' => [
+                'gzencode' => 'compressGz',
+                'gzdecode' => 'decompressGz',
+                'gzdeflate' => 'deflateCompress',
+                'gzinflate' => 'deflateDecompress',
+                'bzcompress' => 'compressBz',
+                'bzdecompress' => 'decompressBz',
+                'zlib_encode' => 'zlibEncode',
+                'zlib_decode' => 'zlibDecode',
+                'deflate_init' => 'deflateInit',
+                'deflate_add' => 'deflateAdd',
+                'inflate_init' => 'inflateInit',
+                'inflate_add' => 'inflateAdd',
+            ],
+            'hash' => [
+                'md5' => 'md5',
+                'sha1' => 'sha1',
+                'hash' => 'hash',
+                'hash_hmac' => 'hashHmac',
+            ],
+            'crypto' => [
+                'openssl_encrypt' => 'opensslEncryptWithIv',
+                'openssl_decrypt' => 'opensslDecryptWithIv',
+                'mcrypt_encrypt' => 'mcryptEncrypt',
+                'mcrypt_decrypt' => 'mcryptDecrypt',
+            ],
+            'serialize' => [
+                'serialize' => 'encodeSerialize',
+                'unserialize' => 'decodeSerialize',
+            ],
+            'obfuscation' => [
+                'str_rot13' => 'rot13',
+                'strrev' => 'reverseString',
+                'addslashes' => 'addSlashes',
+                'stripslashes' => 'stripSlashes',
+                'quotemeta' => 'quoteMeta',
+                'strip_tags' => 'stripTags',
+            ],
+        ];
+    }
 }

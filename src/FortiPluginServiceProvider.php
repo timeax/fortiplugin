@@ -3,6 +3,7 @@
 namespace Timeax\FortiPlugin;
 
 use Illuminate\Support\ServiceProvider;
+use Timeax\FortiPlugin\Permissions\Bootstrap\FortiPermissions;
 use Timeax\FortiPlugin\Support\FortiGates;
 use Timeax\FortiPlugin\Support\FortiGateRegistrar;
 use Timeax\FortiPlugin\Support\PublishConfig;
@@ -12,6 +13,7 @@ class FortiPluginServiceProvider extends ServiceProvider
     public function register(): void
     {
         $this->mergeConfigFrom(__DIR__ . '/../config/fortiplugin.php', 'fortiplugin');
+        FortiPermissions::register($this->app);
     }
 
     public function boot(): void
@@ -34,4 +36,5 @@ class FortiPluginServiceProvider extends ServiceProvider
             __DIR__ . '/../database/migrations' => database_path('migrations'),
         ], 'fortiplugin-migrations');
     }
+
 }

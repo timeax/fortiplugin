@@ -1,0 +1,25 @@
+<?php
+/**
+ * FortiPlugin routes autoloader.
+ * Scans the configured output root and requires each plugin's routes/{slug}/index.php.
+ */
+
+$root = (string) config('fortiplugin.routes.output_root', base_path('routes'));
+$root = rtrim($root, DIRECTORY_SEPARATOR);
+
+// If the root is something like base_path('routes'), plugins live under routes/{slug}
+// We only scan **directories** and look for index.php inside them.
+if (!is_dir($root)) {
+    return;
+}
+
+$it = new DirectoryIterator($root);
+foreach ($it as $entry) {
+    if ($entry->isDot() || !$entry->isDir()) {
+        continue;
+    }
+    $index = $entry->getPathname() . DIRECTORY_SEPARATOR . 'index.php';
+    if (is_file($index)) {
+        require $index;
+    }
+}

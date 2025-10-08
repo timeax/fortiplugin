@@ -1,0 +1,285 @@
+/// ===========================
+/// Polymorphic enum
+/// ===========================
+enum PermissionType {
+  db
+  file
+  notification
+  module
+  network
+  codec // obfuscator
+}
+
+/// ===========================
+/// Optional bundles (tags)
+/// ===========================
+
+///@guarded:id
+///@fillable:name,description,is_system,status
+model PermissionTag {
+  id          BigInt       @id @default(autoincrement()) @db.BigInt
+  name        String       @unique
+  description String?
+  is_system   Boolean      @default(false)
+  status      PluginStatus @default(active)
+  created_at  DateTime     @default(now())
+  updated_at  DateTime     @updatedAt
+
+  // assignments
+  plugins PluginPermissionTag[]
+  items   PermissionTagItem[]
+
+  @@map("permission_tags")
+}
+
+/// Assign a tag to a plugin (plugins inherit all tag items)
+///@guarded:id
+///@fillable:plugin_id,tag_id,active,limited,limit_type,limit_value
+model PluginPermissionTag {
+  id        BigInt  @id @default(autoincrement()) @db.BigInt
+  plugin_id BigInt
+  tag_id    BigInt
+  active    Boolean @default(true)
+
+  // Host-only approval window (not from manifest)
+  limited     Boolean @default(false)
+  limit_type  String?
+  limit_value String?
+
+  created_at DateTime @default(now())
+  updated_at DateTime @updatedAt
+
+  plugin Plugin        @relation(fields: [plugin_id], references: [id])
+  tag    PermissionTag @relation(fields: [tag_id], references: [id])
+
+  @@unique([plugin_id, tag_id])
+  @@index([plugin_id])
+  @@index([tag_id])
+  @@map("plugin_permission_tags")
+}
+
+/// Tag → Concrete permission (polymorphic)
+///@guarded:id
+///@fillable:tag_id,permission_type,permission_id
+model PermissionTagItem {
+  id              BigInt         @id @default(autoincrement()) @db.BigInt
+  tag_id          BigInt
+  permission_type PermissionType
+  permission_id   BigInt         @db.BigInt
+  created_at      DateTime       @default(now())
+  updated_at      DateTime       @updatedAt
+
+  tag PermissionTag @relation(fields: [tag_id], references: [id])
+
+  @@unique([tag_id, permission_type, permission_id])
+  @@index([tag_id])
+  @@map("permission_tag_items")
+}
+
+/// ===========================
+/// Direct plugin assignments
+/// ===========================
+
+/// Plugin → Concrete permission (polymorphic)
+///@guarded:id
+///@fillable:plugin_id,permission_type,permission_id,active,limited,limit_type,limit_value
+model PluginPermission {
+  id              BigInt         @id @default(autoincrement()) @db.BigInt
+  plugin_id       BigInt
+  permission_type PermissionType
+  permission_id   BigInt         @db.BigInt
+  active          Boolean        @default(true)
+
+  // Host-only approval window (not from manifest)
+  limited     Boolean @default(false)
+  limit_type  String?
+  limit_value String?
+
+  created_at DateTime @default(now())
+  updated_at DateTime @updatedAt
+
+  plugin Plugin @relation(fields: [plugin_id], references: [id])
+
+  @@unique([plugin_id, permission_type, permission_id])
+  @@index([plugin_id])
+  @@map("plugin_permissions")
+}
+
+/// ===========================
+/// Concrete permissions (unchanged intent, strict action parity)
+/// ===========================
+
+/// DB — actions: select, insert, update, delete, truncate, grouped_queries
+///@guarded:id,permissions
+///@fillable:model,table,readable_columns,writable_columns,limited,limit_type,limit_value
+model DbPermission {
+  id          BigInt  @id @default(autoincrement()) @db.BigInt
+  model       String? // alias/FQCN
+  // Boolean map: { select, insert, update, delete, truncate, grouped_queries }
+  permissions Json // SERVICE-MANAGED
+
+  readable_columns Json?
+  writable_columns Json?
+
+  limited     Boolean @default(false)
+  limit_type  String?
+  limit_value String?
+
+  created_at DateTime @default(now())
+  updated_at DateTime @updatedAt
+
+  @@map("db_permissions")
+}
+
+/// FILE — actions: read, write, append, delete, mkdir, rmdir, list
+///@guarded:id,permissions
+///@fillable:base_dir,paths,limited,limit_type,limit_value
+model FilePermission {
+  id       BigInt @id @default(autoincrement()) @db.BigInt
+  base_dir String
+  paths    Json // ["**/*","logs/*",...]
+
+  // Boolean map: { read, write, append, delete, mkdir, rmdir, list }
+  permissions Json // SERVICE-MANAGED
+
+  limited     Boolean @default(false)
+  limit_type  String?
+  limit_value String?
+
+  created_at DateTime @default(now())
+  updated_at DateTime @updatedAt
+
+  @@map("file_permissions")
+}
+
+/// NOTIFY — actions: send, receive
+///@guarded:id,permissions
+///@fillable:channel,templates_allowed,recipients_allowed,limited,limit_type,limit_value
+model NotificationPermission {
+  id      BigInt @id @default(autoincrement()) @db.BigInt
+  channel String // host-defined alias
+
+  // Boolean map: { send, receive }
+  permissions Json // SERVICE-MANAGED
+
+  templates_allowed  Json?
+  recipients_allowed Json?
+
+  limited     Boolean @default(false)
+  limit_type  String?
+  limit_value String?
+
+  created_at DateTime @default(now())
+  updated_at DateTime @updatedAt
+
+  @@map("notification_permissions")
+}
+
+/// MODULE — single action: call → access flag
+///@guarded:id
+///@fillable:module,apis,access,limited,limit_type,limit_value
+model ModulePermission {
+  id     BigInt  @id @default(autoincrement()) @db.BigInt
+  module String // alias or FQCN (host-catalog validated)
+  apis   Json // ["createToken","revokeToken",...]
+  access Boolean @default(false) // action: call
+
+  limited     Boolean @default(false)
+  limit_type  String?
+  limit_value String?
+
+  created_at DateTime @default(now())
+  updated_at DateTime @updatedAt
+
+  @@map("module_permissions")
+}
+
+/// NETWORK — single action: request → access flag
+///@guarded:id
+///@fillable:rule_key,label,hosts,methods,schemes,ports,paths,headers_allowed,ips_allowed,auth_via_host_secret,access,limited,limit_type,limit_value
+model NetworkPermission {
+  id       BigInt  @id @default(autoincrement()) @db.BigInt
+  /// Deterministic fingerprint for this rule (e.g., sha1 over hosts/methods/schemes/ports/paths).
+  rule_key String  @unique
+  /// Optional human-readable label for admins/reviewers.
+  label    String?
+  /// Gate for network egress via the host HTTP client.
+  access   Boolean @default(false)
+
+  /// Allowlists (manifest `target` fields)
+  hosts           Json // array of host patterns (e.g., ["api.stripe.com","*.example.com"])
+  methods         Json // array of HTTP methods (e.g., ["GET","POST"])
+  schemes         Json? // array of schemes; typically ["https"]
+  ports           Json? // array of ports; typically [443]
+  paths           Json? // array of path prefixes/regexes
+  headers_allowed Json? // array of allowed header names/patterns
+  ips_allowed     Json? // array of IPv4/IPv6 if you permit raw IPs (discouraged)
+
+  /// Secrets policy: if true, the host injects credentials; plugins don't supply secrets.
+  auth_via_host_secret Boolean @default(true)
+
+  /// Time-bounded approval (NOT quotas)
+  limited     Boolean @default(false)
+  limit_type  String? // "until" | "ttl" | "rrule" | "schedule"
+  limit_value String? // ISO-8601 instant/duration, RRULE, or schedule id
+
+  created_at DateTime @default(now())
+  updated_at DateTime @updatedAt
+
+  @@map("network_permissions")
+}
+
+/// CODEC/OBFUSCATOR — single action: invoke → access flag
+/// allowed = { methods?: string[], groups?: string[], options?: {...} }
+///@guarded:id
+///@fillable:module,allowed,access,limited,limit_type,limit_value
+model CodecPermission {
+  id      BigInt  @id @default(autoincrement()) @db.BigInt
+  module  String  @default("codec")
+  allowed Json? // validated against Obfuscator catalog
+  access  Boolean @default(false) // action: invoke
+
+  limited     Boolean @default(false)
+  limit_type  String?
+  limit_value String?
+
+  created_at DateTime @default(now())
+  updated_at DateTime @updatedAt
+
+  @@map("codec_permissions")
+}
+
+/// ===========================
+/// Plugin (links to pivots)
+/// ===========================
+///@fillable:name,image,tag_id,status,config,meta,plugin_placeholder_id,owner_ref
+model Plugin {
+  id                    BigInt       @id @default(autoincrement()) @db.BigInt
+  name                  String       @unique
+  image                 String?
+  status                PluginStatus @default(active)
+  config                Json?
+  meta                  Json?
+  plugin_placeholder_id BigInt       @unique @db.BigInt
+  owner_ref             String?
+
+  // existing relations...
+  placeholder     PluginPlaceholder @relation(fields: [plugin_placeholder_id], references: [id])
+  plugin_settings PluginSetting[]
+  plugin_versions PluginVersion[]
+  logs            PluginAuditLog[]
+  authors         PluginAuthor[]
+  issues          PluginIssue[]
+
+  // direct + tag bundles
+  plugin_permissions PluginPermission[]
+  permission_tags    PluginPermissionTag[]
+
+  // per-route approvals (unchanged)
+  routes PluginRoutePermission[]
+
+  created_at DateTime @default(now())
+  updated_at DateTime @updatedAt
+
+  @@map("plugins")
+}
