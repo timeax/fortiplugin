@@ -6,9 +6,9 @@ namespace Timeax\FortiPlugin\Permissions\Ingestion;
 use JsonException;
 use Timeax\FortiPlugin\Permissions\Contracts\PermissionIngestorInterface;
 use Timeax\FortiPlugin\Permissions\Contracts\PermissionRepositoryInterface;
+use Timeax\FortiPlugin\Permissions\Ingestion\Dto\ModuleUpsertDto;
 use Timeax\FortiPlugin\Permissions\Ingestion\Dto\RuleIngestResult;
 use Timeax\FortiPlugin\Permissions\Ingestion\Traits\HasIngestionMeta;
-use Timeax\FortiPlugin\Permissions\Repositories\Dto\ModuleUpsertDto;
 
 /**
  * Persists type=module rules (module plugin + APIs) and ensures assignment (idempotent).

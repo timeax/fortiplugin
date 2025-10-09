@@ -1,4 +1,5 @@
-<?php /** @noinspection PhpSameParameterValueInspection */
+<?php /** @noinspection PhpUnnecessaryCurlyVarSyntaxInspection */
+/** @noinspection PhpSameParameterValueInspection */
 
 /** @noinspection PhpUndefinedClassInspection */
 

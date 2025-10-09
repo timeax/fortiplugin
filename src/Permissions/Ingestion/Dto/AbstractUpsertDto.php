@@ -1,7 +1,7 @@
 <?php
 declare(strict_types=1);
 
-namespace Timeax\FortiPlugin\Permissions\Repositories\Dto;
+namespace Timeax\FortiPlugin\Permissions\Ingestion\Dto;
 
 use JsonException;
 use Timeax\FortiPlugin\Permissions\Cache\KeyBuilder;
