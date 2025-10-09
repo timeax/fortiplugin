@@ -7,13 +7,17 @@ use JsonException;
 use Timeax\FortiPlugin\Permissions\Contracts\PermissionIngestorInterface;
 use Timeax\FortiPlugin\Permissions\Contracts\PermissionRepositoryInterface;
 use Timeax\FortiPlugin\Permissions\Ingestion\Dto\RuleIngestResult;
+use Timeax\FortiPlugin\Permissions\Ingestion\Traits\HasIngestionMeta;
+use Timeax\FortiPlugin\Permissions\Repositories\Dto\NotificationUpsertDto;
 
 /**
- * Persists type=notification rules (channels/templates/recipients)
- * and ensures assignment.
+ * Persists type=notification rules (channels/templates/recipients) and ensures assignment.
+ * Uses NotificationUpsertDto so attributes & natural key are canonicalized in one place.
  */
 final class NotificationIngestor implements PermissionIngestorInterface
 {
+    use HasIngestionMeta;
+
     public function type(): string
     {
         return 'notification';
@@ -28,35 +32,24 @@ final class NotificationIngestor implements PermissionIngestorInterface
         PermissionRepositoryInterface $repo
     ): RuleIngestResult
     {
-        $target = (array)($rule['target'] ?? []);
-        $actions = (array)($rule['actions'] ?? []);
+        // Build DTO from the already-normalized rule (validator has shaped target/actions)
+        $dto = NotificationUpsertDto::fromNormalized($rule);
 
-        $natural = NaturalKeyBuilder::notification($target, $actions);
+        // Pivot-level metadata (not stored on the concrete)
+        $this->setMetaRule($rule);
+        $meta = $this->getMeta();
 
-        $attrs = [
-            'channels' => (array)($target['channels'] ?? []),
-            'templates' => (array)($target['templates'] ?? []),
-            'recipients' => (array)($target['recipients'] ?? []),
-            'send' => in_array('send', $actions, true),
-        ];
-
-        $meta = [
-            'actions' => $actions,
-            'audit' => $rule['audit'] ?? null,
-            'conditions' => $rule['conditions'] ?? null,
-            'justification' => $rule['justification'] ?? null,
-        ];
-
-        $res = $repo->upsertForPlugin($pluginId, 'notification', $natural, $attrs, $meta);
+        // Repo returns: permission_id, permission_type, concrete_id, concrete_type, created, warning
+        $res = $repo->upsertForPlugin($pluginId, $dto, $meta);
 
         return new RuleIngestResult(
-            'notification',
-            $natural,
-            (int)($res['concrete_id'] ?? 0),
-            (string)($res['concrete_type'] ?? ''),
-            (bool)($res['created'] ?? false),
-            (bool)($res['assigned'] ?? true),
-            null
+            type: 'notification',
+            natural_key: $dto->naturalKey(),
+            concrete_id: (int)($res['concrete_id'] ?? 0),
+            concrete_Type: (string)($res['concrete_type'] ?? ''),
+            created: (bool)($res['created'] ?? false),
+            assigned: true,
+            warning: $res['warning'] ?? null
         );
     }
 }

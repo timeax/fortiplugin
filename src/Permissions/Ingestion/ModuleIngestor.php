@@ -7,55 +7,49 @@ use JsonException;
 use Timeax\FortiPlugin\Permissions\Contracts\PermissionIngestorInterface;
 use Timeax\FortiPlugin\Permissions\Contracts\PermissionRepositoryInterface;
 use Timeax\FortiPlugin\Permissions\Ingestion\Dto\RuleIngestResult;
+use Timeax\FortiPlugin\Permissions\Ingestion\Traits\HasIngestionMeta;
+use Timeax\FortiPlugin\Permissions\Repositories\Dto\ModuleUpsertDto;
 
 /**
- * Persists type=module rules (module plugin + apis) and ensures assignment.
+ * Persists type=module rules (module plugin + APIs) and ensures assignment (idempotent).
  */
 final class ModuleIngestor implements PermissionIngestorInterface
 {
-    public function type(): string { return 'module'; }
+    use HasIngestionMeta;
+
+    public function type(): string
+    {
+        return 'module';
+    }
 
     /**
      * @throws JsonException
      */
     public function ingest(
-        int $pluginId,
-        array $rule,
+        int                           $pluginId,
+        array                         $rule,
         PermissionRepositoryInterface $repo
-    ): RuleIngestResult {
-        $target  = (array)($rule['target'] ?? []);
-        $actions = (array)($rule['actions'] ?? []);
+    ): RuleIngestResult
+    {
+        // Build the Upsert DTO from the already-normalized rule
+        $dto = ModuleUpsertDto::fromNormalized($rule);
 
-        $natural = NaturalKeyBuilder::module($target, $actions);
+        // Assignment-level metadata stored on the pivot, not the concrete
+        $this->setMetaRule($rule);
+        $meta = $this->getMeta();
 
-        $attrs = [
-            'plugin'       => (string)($target['plugin_fqcn'] ?? $target['plugin'] ?? ''),
-            'plugin_alias' => $target['plugin_alias'] ?? null,
-            'plugin_docs'  => $target['plugin_docs'] ?? null,
-            'apis'         => (array)($target['apis'] ?? []),
-
-            'call'         => in_array('call',      $actions, true),
-            'publish'      => in_array('publish',   $actions, true),
-            'subscribe'    => in_array('subscribe', $actions, true),
-        ];
-
-        $meta = [
-            'actions'       => $actions,
-            'audit'         => $rule['audit'] ?? null,
-            'conditions'    => $rule['conditions'] ?? null,
-            'justification' => $rule['justification'] ?? null,
-        ];
-
-        $res = $repo->upsertForPlugin($pluginId, 'module', $natural, $attrs, $meta);
+        // The repository handles the actual upsert and assignment
+        // Returns: permission_id, permission_type, concrete_id, concrete_type, created, warning
+        $res = $repo->upsertForPlugin($pluginId, $dto, $meta);
 
         return new RuleIngestResult(
-            'module',
-            $natural,
-            (int)($res['concrete_id'] ?? 0),
-            (string)($res['concrete_type'] ?? ''),
-            (bool)($res['created'] ?? false),
-            (bool)($res['assigned'] ?? true),
-            null
+            type: 'module',
+            natural_key: $dto->naturalKey(),
+            concrete_id: (int)($res['concrete_id'] ?? 0),
+            concrete_Type: (string)($res['concrete_type'] ?? ''),
+            created: (bool)($res['created'] ?? false),
+            assigned: true,
+            warning: $res['warning'] ?? null
         );
     }
 }

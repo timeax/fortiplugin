@@ -1,4 +1,4 @@
-<?php
+<?php /** @noinspection GrazieInspection */
 declare(strict_types=1);
 
 namespace Timeax\FortiPlugin\Permissions\Evaluation;
@@ -8,6 +8,7 @@ use DateTimeInterface;
 use JsonException;
 use Throwable;
 use Timeax\FortiPlugin\Permissions\Cache\KeyBuilder;
+use Timeax\FortiPlugin\Permissions\Contracts\AuditEmitterInterface;
 use Timeax\FortiPlugin\Permissions\Contracts\CapabilityCacheInterface;
 use Timeax\FortiPlugin\Permissions\Contracts\PermissionRepositoryInterface;
 use Timeax\FortiPlugin\Permissions\Contracts\PermissionRequestInterface;
@@ -30,13 +31,18 @@ use Timeax\FortiPlugin\Permissions\Registry\PermissionRegistry;
 
 final readonly class PermissionService implements PermissionServiceInterface
 {
+    use PermissionServiceUpsertTrait, PermissionServiceListTrait;
+
     public function __construct(
         private PermissionRepositoryInterface $repo,
         private CapabilityCacheInterface      $cache,
         private PermissionIngestor            $ingestor,
         private PermissionRegistry            $registry,
-        private TimeWindowEvaluator           $windowEval
-    ) {}
+        private TimeWindowEvaluator           $windowEval,
+        private AuditEmitterInterface         $audit
+    )
+    {
+    }
 
     /* ----------------------- ingestion/cache ----------------------- */
 
@@ -181,20 +187,79 @@ final readonly class PermissionService implements PermissionServiceInterface
         try {
             $checker = $this->registry->checkerFor($type);
         } catch (Throwable) {
-            return $this->deny(['type' => $type]);
+            $result = $this->deny(['type' => $type]);
+            // no matched assignment → no manifest-driven redactions
+            $this->audit->record('check', $type, $pluginId, $request->toArray(), $result, [
+                'redact_fields' => [],
+                'tags' => ['runtime', 'checker_missing'],
+            ]);
+            return $result;
         }
-        return $checker->check($pluginId, $request, $context);
+
+        $result = $checker->check($pluginId, $request, $context);
+
+        // Pull redact_fields/tags from the matched assignment’s audit metadata (manifest-driven).
+        $options = $this->auditOptionsForMatched($pluginId, $type, $result);
+
+        $this->audit->record('check', $type, $pluginId, $request->toArray(), $result, $options);
+
+        return $result;
+    }
+
+    /**
+     * Derives ['redact_fields'=>string[], 'tags'=>string[]|null] from the matched capability
+     * in the warmed cache. If nothing matches, returns empty defaults.
+     */
+    private function auditOptionsForMatched(int $pluginId, string $type, array $decision): array
+    {
+        $redact = [];
+        $tags = null;
+
+        $match = $decision['matched'] ?? null;
+        if (!is_array($match) || !isset($match['id'])) {
+            return ['redact_fields' => $redact, 'tags' => $tags];
+        }
+
+        $caps = $this->cache->get($pluginId);
+        if (!is_array($caps) || !isset($caps[$type]) || !is_array($caps[$type])) {
+            return ['redact_fields' => $redact, 'tags' => $tags];
+        }
+
+        $wantedId = (int)$match['id'];
+
+        // Find the capability entry that granted/denied the check.
+        foreach ($caps[$type] as $entry) {
+            if ((int)($entry['id'] ?? 0) !== $wantedId) {
+                continue;
+            }
+            $audit = $entry['audit'] ?? null;
+            if (is_array($audit)) {
+                if (!empty($audit['redact_fields']) && is_array($audit['redact_fields'])) {
+                    // ensure strings, unique, lower-cased paths for the Redactor
+                    $redact = array_values(array_unique(array_map(
+                        static fn($s) => strtolower((string)$s),
+                        $audit['redact_fields']
+                    )));
+                }
+                if (!empty($audit['tags']) && is_array($audit['tags'])) {
+                    $tags = array_values(array_unique(array_map('strval', $audit['tags'])));
+                }
+            }
+            break;
+        }
+
+        return ['redact_fields' => $redact, 'tags' => $tags];
     }
 
     private function detectType(PermissionRequestInterface $request): ?string
     {
         return match (true) {
-            $request instanceof DbRequest         => 'db',
-            $request instanceof FileRequest       => 'file',
-            $request instanceof NotifyRequest     => 'notification',
-            $request instanceof ModuleRequest     => 'module',
-            $request instanceof NetworkRequest    => 'network',
-            $request instanceof CodecRequest      => 'codec',
+            $request instanceof DbRequest => 'db',
+            $request instanceof FileRequest => 'file',
+            $request instanceof NotifyRequest => 'notification',
+            $request instanceof ModuleRequest => 'module',
+            $request instanceof NetworkRequest => 'network',
+            $request instanceof CodecRequest => 'codec',
             $request instanceof RouteWriteRequest => 'route',
             default => null,
         };
@@ -231,7 +296,7 @@ final readonly class PermissionService implements PermissionServiceInterface
         $merged = [];
         $put = static function (array $row, string $source) use (&$merged): void {
             $type = (string)($row['type'] ?? '');
-            $id   = (int)($row['id'] ?? 0);
+            $id = (int)($row['id'] ?? 0);
             if ($type === '' || $id <= 0) {
                 return;
             }
@@ -242,8 +307,12 @@ final readonly class PermissionService implements PermissionServiceInterface
             $row['source'] = $source;
             $merged[$k] = $row;
         };
-        foreach ($direct as $row) { $put($row, 'direct'); }
-        foreach ($viaTag as $row) { $put($row, 'tag'); }
+        foreach ($direct as $row) {
+            $put($row, 'direct');
+        }
+        foreach ($viaTag as $row) {
+            $put($row, 'tag');
+        }
 
         if ($merged === []) {
             return [];
@@ -254,9 +323,9 @@ final readonly class PermissionService implements PermissionServiceInterface
         $assignByType = [];
         foreach ($merged as $a) {
             if (!($a['active'] ?? true)) continue;
-            $t  = (string)$a['type'];
+            $t = (string)$a['type'];
             $id = (int)$a['id'];
-            $idsByType[$t][]    = $id;
+            $idsByType[$t][] = $id;
             $assignByType[$t][] = $a;
         }
         foreach ($idsByType as &$list) {
@@ -275,23 +344,23 @@ final readonly class PermissionService implements PermissionServiceInterface
         foreach ($assignByType as $t => $rows) {
             $entries = [];
             foreach ($rows as $a) {
-                $id   = (int)$a['id'];
-                $row  = $concreteByType[$t][$id] ?? null;
+                $id = (int)$a['id'];
+                $row = $concreteByType[$t][$id] ?? null;
                 if ($row === null) continue;
 
                 // time window
-                $window    = $a['window'] ?? null; // ['limited'=>bool,'type'=>?string,'value'=>?string]
+                $window = $a['window'] ?? null; // ['limited'=>bool,'type'=>?string,'value'=>?string]
                 $startedAt = $this->parseWhen($a['started_at'] ?? $a['created_at'] ?? null);
                 if (!$this->windowEval->isActive(is_array($window) ? $window : null, $startedAt)) {
                     continue;
                 }
 
                 $entries[] = [
-                    'id'          => $id,
-                    'row'         => $row,
+                    'id' => $id,
+                    'row' => $row,
                     'constraints' => $a['constraints'] ?? null,
-                    'audit'       => $a['audit'] ?? null,
-                    'active'      => true,
+                    'audit' => $a['audit'] ?? null,
+                    'active' => true,
                 ];
             }
 
@@ -321,9 +390,19 @@ final readonly class PermissionService implements PermissionServiceInterface
     {
         return [
             'allowed' => false,
-            'reason'  => 'checker_unavailable',
+            'reason' => 'checker_unavailable',
             'matched' => null,
             'context' => $ctx ?: null
         ];
+    }
+
+    protected function repo(): PermissionRepositoryInterface
+    {
+        return $this->repo;
+    }
+
+    protected function cache(): CapabilityCacheInterface
+    {
+        return $this->cache;
     }
 }

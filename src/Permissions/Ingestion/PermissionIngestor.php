@@ -56,6 +56,14 @@ final readonly class PermissionIngestor
                         continue;
                     }
 
+                    // Mark required permission constraint based on the bucket
+                    if ($bucket === 'required_permissions') {
+                        if (!isset($rule['constraints']) || !is_array($rule['constraints'])) {
+                            $rule['constraints'] = [];
+                        }
+                        $rule['constraints']['required'] = true;
+                    }
+
                     $dto = $ingestor->ingest($pluginId, $rule, $this->repo);
                     $items[] = $dto;
 

@@ -1,4 +1,4 @@
-<?php
+<?php /** @noinspection ALL */
 declare(strict_types=1);
 
 namespace Timeax\FortiPlugin\Permissions\Evaluation;
@@ -8,12 +8,14 @@ use Timeax\FortiPlugin\Permissions\Contracts\ConditionsEvaluatorInterface;
 use Timeax\FortiPlugin\Permissions\Contracts\PermissionCheckerInterface;
 use Timeax\FortiPlugin\Permissions\Contracts\PermissionRequestInterface;
 use Timeax\FortiPlugin\Permissions\Evaluation\Dto\FileRequest;
+use Timeax\FortiPlugin\Permissions\Matchers\PathMatcher;
 
 final readonly class FileChecker implements PermissionCheckerInterface
 {
     public function __construct(
         private CapabilityCacheInterface     $cache,
-        private ConditionsEvaluatorInterface $conditions
+        private ConditionsEvaluatorInterface $conditions,
+        private PathMatcher                  $paths
     ) {}
 
     public function type(): string { return 'file'; }
@@ -30,35 +32,44 @@ final readonly class FileChecker implements PermissionCheckerInterface
         }
 
         $action = $request->action;
-        $path   = $request->path;
+        $candidate = $request->path;
 
         foreach ($caps['file'] as $e) {
             if (!($e['active'] ?? true)) continue;
             $row = $e['row'] ?? null;
-            if (!$row || empty($row[$action])) continue;
+            if (!$row) continue;
             if (!$this->conditionsOk($e['constraints'] ?? null, $context)) continue;
 
-            $base    = rtrim(str_replace('\\', '/', (string)($row['base_dir'] ?? '')), '/');
-            $allowed = isset($row['paths']) && is_array($row['paths']) ? $row['paths'] : [];
+            // 1) action enabled?
+            if (!$this->actionEnabled($row, $action)) continue;
 
-            if ($this->isPathAllowed($base, $allowed, $path)) {
-                return $this->allow($e['id'], ['action' => $action, 'path' => $path, 'base' => $base]);
+            // 2) sandbox & pattern checks
+            $base      = (string)($row['base_dir'] ?? '');
+            $patterns  = isset($row['paths']) && is_array($row['paths']) ? $row['paths'] : [];
+            $follow    = (bool)($row['follow_symlinks'] ?? false);
+
+            $verdict = $this->paths->match($base, $candidate, $patterns, $follow);
+            if ($verdict['ok']) {
+                return $this->allow(
+                    $e['id'],
+                    [
+                        'action'     => $action,
+                        'normalized' => $verdict['normalized'] ?? null,
+                        'matched'    => $verdict['matched'] ?? null,
+                    ]
+                );
             }
         }
 
-        return $this->deny('no_match', ['path' => $path]);
+        return $this->deny('no_match', ['path' => $candidate]);
     }
 
-    private function isPathAllowed(string $base, array $allowedPatterns, string $candidate): bool
+    private function actionEnabled(array $row, string $action): bool
     {
-        $cand = str_replace('\\','/', $candidate);
-        foreach ($allowedPatterns as $pat) {
-            $pre = ltrim(str_replace('\\','/', (string)$pat), '/');
-            $prefix = $base !== '' ? "{$base}/{$pre}" : $pre;
-            if ($prefix === '' || $prefix === '/') return true;
-            if (str_starts_with($cand, $prefix)) return true;
+        if (isset($row['permissions']) && is_array($row['permissions'])) {
+            return !empty($row['permissions'][$action]);
         }
-        return false;
+        return !empty($row[$action]);
     }
 
     private function conditionsOk(?array $conds, array $ctx): bool

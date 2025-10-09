@@ -7,13 +7,17 @@ use JsonException;
 use Timeax\FortiPlugin\Permissions\Contracts\PermissionIngestorInterface;
 use Timeax\FortiPlugin\Permissions\Contracts\PermissionRepositoryInterface;
 use Timeax\FortiPlugin\Permissions\Ingestion\Dto\RuleIngestResult;
+use Timeax\FortiPlugin\Permissions\Ingestion\Traits\HasIngestionMeta;
+use Timeax\FortiPlugin\Permissions\Repositories\Dto\DbUpsertDto;
 
 /**
  * Turns a normalized type=db rule into a concrete DB permission row
- * and ensures the plugin→permission assignment.
+ * and ensures the plugin→permission assignment (idempotent).
  */
 final class DbIngestor implements PermissionIngestorInterface
 {
+    use HasIngestionMeta;
+
     public function type(): string { return 'db'; }
 
     /**
@@ -24,40 +28,25 @@ final class DbIngestor implements PermissionIngestorInterface
         array $rule,
         PermissionRepositoryInterface $repo
     ): RuleIngestResult {
-        $target  = (array)($rule['target'] ?? []);
-        $actions = (array)($rule['actions'] ?? []);
+        // Build the Upsert DTO directly from the already-normalized rule
+        $dto = DbUpsertDto::fromNormalized($rule);
 
-        $natural = NaturalKeyBuilder::db($target, $actions);
+        // Build assignment-level metadata via shared trait
+        $this->setMetaRule($rule);
+        $meta = $this->getMeta();
 
-        $attrs = [
-            'model'       => $target['model']  ?? null,    // FQCN if present
-            'table'       => $target['table']  ?? null,    // when table-based
-            'columns'     => $target['columns']?? null,    // string[]|null
-            'select'      => in_array('select',      $actions, true),
-            'insert'      => in_array('insert',      $actions, true),
-            'update'      => in_array('update',      $actions, true),
-            'delete'      => in_array('delete',      $actions, true),
-            'truncate'    => in_array('truncate',    $actions, true),
-            'transaction' => in_array('transaction', $actions, true),
-        ];
-
-        $meta = [
-            'actions'       => $actions,
-            'audit'         => $rule['audit'] ?? null,
-            'conditions'    => $rule['conditions'] ?? null,
-            'justification' => $rule['justification'] ?? null,
-        ];
-
-        $res = $repo->upsertForPlugin($pluginId, 'db', $natural, $attrs, $meta);
+        // Repo performs: find-or-create concrete by natural key, then ensure pivot
+        // Returns: permission_id, permission_type, concrete_id, concrete_type, created, warning
+        $res = $repo->upsertForPlugin($pluginId, $dto, $meta);
 
         return new RuleIngestResult(
-            'db',
-            $natural,
-            (int)($res['concrete_id'] ?? 0),
-            (string)($res['concrete_type'] ?? ''),
-            (bool)($res['created'] ?? false),
-            (bool)($res['assigned'] ?? true),
-            null
+            type:          'db',
+            natural_key:   $dto->naturalKey(),
+            concrete_id:   (int)($res['concrete_id'] ?? 0),
+            concrete_Type: (string)($res['concrete_type'] ?? ''),
+            created:       (bool)($res['created'] ?? false),
+            assigned:      true, // ensure() is idempotent
+            warning:       $res['warning'] ?? null
         );
     }
 }

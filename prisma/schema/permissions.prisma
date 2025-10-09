@@ -106,7 +106,7 @@ model PluginPermission {
   plugin_id       BigInt
   permission_type PermissionType
   permission_id   BigInt         @db.BigInt
-  active          Boolean        @default(true)
+  active          Boolean        @default(false)
 
   // Host-only approval window (not from manifest)
   limited     Boolean @default(false)
@@ -149,11 +149,6 @@ model DbPermission {
   readable_columns Json?
   writable_columns Json?
 
-  // Host-only window
-  limited     Boolean @default(false)
-  limit_type  String?
-  limit_value String?
-
   created_at DateTime @default(now())
   updated_at DateTime @updatedAt
 
@@ -174,11 +169,6 @@ model FilePermission {
 
   // Boolean map: { read, write, append, delete, mkdir, rmdir, list }
   permissions Json // SERVICE-MANAGED
-
-  // Host-only window
-  limited     Boolean @default(false)
-  limit_type  String?
-  limit_value String?
 
   created_at DateTime @default(now())
   updated_at DateTime @updatedAt
@@ -203,11 +193,6 @@ model NotificationPermission {
   templates_allowed  Json?
   recipients_allowed Json?
 
-  // Host-only window
-  limited     Boolean @default(false)
-  limit_type  String?
-  limit_value String?
-
   created_at DateTime @default(now())
   updated_at DateTime @updatedAt
 
@@ -226,11 +211,6 @@ model ModulePermission {
   module String // alias or FQCN (host-catalog validated)
   apis   Json // ["createToken","revokeToken",...]
   access Boolean @default(false) // action: call
-
-  // Host-only window
-  limited     Boolean @default(false)
-  limit_type  String?
-  limit_value String?
 
   created_at DateTime @default(now())
   updated_at DateTime @updatedAt
@@ -266,11 +246,6 @@ model NetworkPermission {
   /// Secrets policy: if true, the host injects credentials; plugins don't supply secrets.
   auth_via_host_secret Boolean @default(true)
 
-  // Host-only window
-  limited     Boolean @default(false)
-  limit_type  String? // "until" | "ttl" | "rrule" | "schedule"
-  limit_value String? // ISO-8601 instant/duration, RRULE, or schedule id
-
   created_at DateTime @default(now())
   updated_at DateTime @updatedAt
 
@@ -289,11 +264,6 @@ model CodecPermission {
   module  String  @default("codec")
   allowed Json? // validated against Obfuscator catalog
   access  Boolean @default(false) // action: invoke
-
-  // Host-only window
-  limited     Boolean @default(false)
-  limit_type  String?
-  limit_value String?
 
   created_at DateTime @default(now())
   updated_at DateTime @updatedAt

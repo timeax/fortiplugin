@@ -281,14 +281,6 @@ model AuditLog {
   @@map("audit_logs")
 }
 
-/// Approval record for writing a specific route (by `route_id`)
-enum RoutePermissionStatus {
-  pending
-  approved
-  denied
-  revoked
-}
-
 // PLUGIN AUDIT LOGS (per-plugin; add optional author)
 ///@guarded:id
 ///@fillable:plugin_id,actor,actor_author_id,type,action,resource,context

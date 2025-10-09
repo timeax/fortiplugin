@@ -10,48 +10,34 @@ use Illuminate\Database\Eloquent\Model;
  * @property int $id
  * @property string $name
  * @property string|null $image
- * @property int $tag_id
  * @property PluginStatus::class $status
  * @property array|null $config
  * @property array|null $meta
  * @property int $plugin_placeholder_id
  * @property string|null $owner_ref
- * @property Tag::class $tag
+ * @property \Carbon\Carbon $created_at
+ * @property \Carbon\Carbon $updated_at
  * @property PluginPlaceholder::class $placeholder
  * @property \Illuminate\Support\Collection<int, PluginSetting::class> $plugin_settings
  * @property \Illuminate\Support\Collection<int, PluginVersion::class> $plugin_versions
  * @property \Illuminate\Support\Collection<int, PluginAuditLog::class> $logs
  * @property \Illuminate\Support\Collection<int, Author::class> $authors
  * @property \Illuminate\Support\Collection<int, PluginIssue::class> $issues
+ * @property \Illuminate\Support\Collection<int, PluginPermission::class> $plugin_permissions
+ * @property \Illuminate\Support\Collection<int, PluginPermissionTag::class> $permission_tags
  * @property \Illuminate\Support\Collection<int, PluginRoutePermission::class> $routes
  */
 class Plugin extends Model
 {
 	protected $table = "scpl_plugins";
 
-	protected $fillable = [
-		"name",
-		"image",
-		"tag_id",
-		"status",
-		"config",
-		"meta",
-		"plugin_placeholder_id",
-		"owner_ref",
-	];
-
-	protected $guarded = ["id", "id"];
-
 	protected $casts = [
 		"status" => PluginStatus::class,
 		"config" => AsArrayObject::class,
 		"meta" => AsArrayObject::class,
+		"created_at" => "datetime",
+		"updated_at" => "datetime",
 	];
-
-	public function tag()
-	{
-		return $this->belongsTo(Tag::class, "tag_id", "id");
-	}
 
 	public function placeholder()
 	{
@@ -92,6 +78,16 @@ class Plugin extends Model
 	public function issues()
 	{
 		return $this->hasMany(PluginIssue::class, "plugin_id", "id");
+	}
+
+	public function plugin_permissions()
+	{
+		return $this->hasMany(PluginPermission::class, "plugin_id", "id");
+	}
+
+	public function permission_tags()
+	{
+		return $this->hasMany(PluginPermissionTag::class, "plugin_id", "id");
 	}
 
 	public function routes()

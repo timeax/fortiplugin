@@ -1,6 +1,6 @@
 {
   "scripts": {
-    "db": "npx prisma generate"
+    "db": "bash merge-prisma.sh"
   },
   "devDependencies": {
     "prisma-laravel-migrate": "^0.2.9"

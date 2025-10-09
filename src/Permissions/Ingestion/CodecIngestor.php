@@ -7,12 +7,17 @@ use JsonException;
 use Timeax\FortiPlugin\Permissions\Contracts\PermissionIngestorInterface;
 use Timeax\FortiPlugin\Permissions\Contracts\PermissionRepositoryInterface;
 use Timeax\FortiPlugin\Permissions\Ingestion\Dto\RuleIngestResult;
+use Timeax\FortiPlugin\Permissions\Ingestion\Traits\HasIngestionMeta;
+use Timeax\FortiPlugin\Permissions\Repositories\Dto\CodecUpsertDto;
 
 /**
  * Persists type=codec (obfuscator) rules and ensures assignment.
+ * Input rule is assumed already schema-validated & normalized.
  */
 final class CodecIngestor implements PermissionIngestorInterface
 {
+    use HasIngestionMeta;
+
     public function type(): string
     {
         return 'codec';
@@ -27,35 +32,24 @@ final class CodecIngestor implements PermissionIngestorInterface
         PermissionRepositoryInterface $repo
     ): RuleIngestResult
     {
-        $actions = (array)($rule['actions'] ?? []);
+        // Build the Upsert DTO from the normalized rule
+        $dto = CodecUpsertDto::fromNormalized($rule);
 
-        $natural = NaturalKeyBuilder::codec($rule);
+        // Assignment-level meta stored at the pivot (not in the concrete row)
+        $this->setMetaRule($rule);
+        $meta = $this->getMeta();
 
-        $attrs = [
-            'invoke' => in_array('invoke', $actions, true),
-            'methods' => $rule['methods'] ?? null, // "*" or string[]
-            'groups' => $rule['groups'] ?? null, // string[]
-            'resolved_methods' => $rule['resolved_methods'] ?? null, // "*" or string[]
-            'options' => $rule['options'] ?? null, // e.g. allow_unserialize_classes
-        ];
-
-        $meta = [
-            'actions' => $actions,
-            'audit' => $rule['audit'] ?? null,
-            'conditions' => $rule['conditions'] ?? null,
-            'justification' => $rule['justification'] ?? null,
-        ];
-
-        $res = $repo->upsertForPlugin($pluginId, 'codec', $natural, $attrs, $meta);
+        // Repo returns: permission_id, permission_type, concrete_id, concrete_type, created, warning
+        $res = $repo->upsertForPlugin($pluginId, $dto, $meta);
 
         return new RuleIngestResult(
-            'codec',
-            $natural,
-            (int)($res['concrete_id'] ?? 0),
-            (string)($res['concrete_type'] ?? ''),
-            (bool)($res['created'] ?? false),
-            (bool)($res['assigned'] ?? true),
-            null
+            type: 'codec',
+            natural_key: $dto->naturalKey(),
+            concrete_id: (int)($res['concrete_id'] ?? 0),
+            concrete_Type: (string)($res['concrete_type'] ?? ''),
+            created: (bool)($res['created'] ?? false),
+            assigned: true,                        // ensure() is idempotent; treat as linked
+            warning: $res['warning'] ?? null
         );
     }
 }

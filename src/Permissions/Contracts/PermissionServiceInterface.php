@@ -5,6 +5,7 @@ namespace Timeax\FortiPlugin\Permissions\Contracts;
 
 use Timeax\FortiPlugin\Permissions\Evaluation\Dto\Result;
 use Timeax\FortiPlugin\Permissions\Ingestion\Dto\IngestSummary;
+use Timeax\FortiPlugin\Permissions\Ingestion\Dto\RuleIngestResult;
 
 /**
  * Facade-friendly service for ingesting manifests and answering runtime checks.
@@ -121,4 +122,15 @@ interface PermissionServiceInterface
      * @return Result The result of the permission evaluation.
      */
     public function can(int $pluginId, PermissionRequestInterface $request, array $context): Result;
+
+    /**
+     * Upsert a concrete permission row (by its natural key) and ensure the plugin assignment.
+     * Wraps the repository, emits an ingest audit, and refreshes the capability cache.
+     *
+     * @param int $pluginId
+     * @param UpsertDtoInterface $dto   Concrete-type DTO (db/file/notification/module/network/codec)
+     * @param array $meta               Optional assignment metadata: ['constraints'=>array, 'audit'=>array, 'active'=>bool, 'justification'=>?string]
+     * @return RuleIngestResult
+     */
+    public function upsert(int $pluginId, UpsertDtoInterface $dto, array $meta = []): RuleIngestResult;
 }

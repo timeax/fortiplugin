@@ -38,16 +38,17 @@ final class KeyBuilder
      * @throws JsonException
      */
     public static function fromAssignments(
-        int $pluginId,
-        array $directMorphs,
-        array $tagMorphs,
-        array $concrete = [],
-        array $catalogs = [],
+        int    $pluginId,
+        array  $directMorphs,
+        array  $tagMorphs,
+        array  $concrete = [],
+        array  $catalogs = [],
         string $algo = 'sha256'
-    ): string {
+    ): string
+    {
         $payload = [
-            'plugin'   => $pluginId,
-            'direct'   => self::normalize($directMorphs),
+            'plugin' => $pluginId,
+            'direct' => self::normalize($directMorphs),
             'via_tags' => self::normalize($tagMorphs),
             'concrete' => self::normalize($concrete),
             'catalogs' => self::normalize($catalogs),
@@ -62,7 +63,6 @@ final class KeyBuilder
      * - list arrays: normalize values, then sort by JSON value
      * - scalars left as-is (but ints/bools normalized to their type)
      * @throws JsonException
-     * @throws JsonException
      */
     public static function normalize(mixed $value): mixed
     {
@@ -74,7 +74,7 @@ final class KeyBuilder
             return $value->format('c');
         }
         if (is_object($value)) {
-            $value = (array) $value;
+            $value = (array)$value;
         }
         if (!is_array($value)) {
             // Normalize numeric strings if they were numbers? Keep original types to avoid surprises.

@@ -16,11 +16,6 @@ return new class extends Migration {
 			$table->string("name");
 			$table->string("image")->nullable();
 			$table
-				->foreignId("tag_id")
-				->constrained("tags", "id")
-				->onDelete("no action")
-				->onUpdate("no action");
-			$table
 				->enum("status", ["active", "inactive", "archived"])
 				->default("active");
 			$table->json("config")->nullable();
@@ -31,7 +26,7 @@ return new class extends Migration {
 				->onDelete("no action")
 				->onUpdate("no action");
 			$table->string("owner_ref")->nullable();
-			$table->index("tag_id");
+			$table->timestamps();
 		});
 	}
 

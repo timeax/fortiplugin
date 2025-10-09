@@ -7,13 +7,17 @@ use JsonException;
 use Timeax\FortiPlugin\Permissions\Contracts\PermissionIngestorInterface;
 use Timeax\FortiPlugin\Permissions\Contracts\PermissionRepositoryInterface;
 use Timeax\FortiPlugin\Permissions\Ingestion\Dto\RuleIngestResult;
+use Timeax\FortiPlugin\Permissions\Ingestion\Traits\HasIngestionMeta;
+use Timeax\FortiPlugin\Permissions\Repositories\Dto\NetworkUpsertDto;
 
 /**
- * Persists type=network rules (egress allowlist) and ensures assignment.
- * Natural key is your stable rule_key.
+ * Persists type=network rules (egress allowlist) and ensures assignment (idempotent).
+ * Uses NetworkUpsertDto so attributes & natural key are canonicalized in one place.
  */
 final class NetworkIngestor implements PermissionIngestorInterface
 {
+    use HasIngestionMeta;
+
     public function type(): string
     {
         return 'network';
@@ -28,41 +32,24 @@ final class NetworkIngestor implements PermissionIngestorInterface
         PermissionRepositoryInterface $repo
     ): RuleIngestResult
     {
-        $target = (array)($rule['target'] ?? []);
-        $actions = (array)($rule['actions'] ?? []);
+        // Build DTO from the already-normalized rule (target/actions/options resolved by validator)
+        $dto = NetworkUpsertDto::fromNormalized($rule);
 
-        $natural = NaturalKeyBuilder::network($target, $actions); // deterministic rule_key
+        // Pivot-level metadata (not stored on the concrete)
+        $this->setMetaRule($rule);
+        $meta = $this->getMeta();
 
-        $attrs = [
-            'natural_key' => $natural,
-            'access' => in_array('request', $actions, true),
-            'hosts' => (array)($target['hosts'] ?? []),
-            'methods' => array_values(array_map('strtoupper', (array)($target['methods'] ?? []))),
-            'schemes' => (array)($target['schemes'] ?? ['https']),
-            'ports' => (array)($target['ports'] ?? []),
-            'paths' => (array)($target['paths'] ?? []),
-            'headers_allowed' => (array)($target['headers_allowed'] ?? []),
-            'ips_allowed' => (array)($target['ips_allowed'] ?? []),
-            'auth_via_host_secret' => (bool)($target['auth_via_host_secret'] ?? true),
-        ];
-
-        $meta = [
-            'actions' => $actions,
-            'audit' => $rule['audit'] ?? null,
-            'conditions' => $rule['conditions'] ?? null,
-            'justification' => $rule['justification'] ?? null,
-        ];
-
-        $res = $repo->upsertForPlugin($pluginId, 'network', $natural, $attrs, $meta);
+        // Repo returns: permission_id, permission_type, concrete_id, concrete_type, created, warning
+        $res = $repo->upsertForPlugin($pluginId, $dto, $meta);
 
         return new RuleIngestResult(
-            'network',
-            $natural,
-            (int)($res['concrete_id'] ?? 0),
-            (string)($res['concrete_type'] ?? ''),
-            (bool)($res['created'] ?? false),
-            (bool)($res['assigned'] ?? true),
-            null
+            type:          'network',
+            natural_key:   $dto->naturalKey(),
+            concrete_id:   (int)($res['concrete_id'] ?? 0),
+            concrete_Type: (string)($res['concrete_type'] ?? ''),
+            created:       (bool)($res['created'] ?? false),
+            assigned:      true,
+            warning:       $res['warning'] ?? null
         );
     }
 }
