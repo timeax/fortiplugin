@@ -1,6 +1,6 @@
 <?php
 
-use PHPUnit\Framework\TestCase;
+use Orchestra\Testbench\TestCase;
 use Timeax\FortiPlugin\Core\Security\PermissionManifestValidator;
 
 class PermissionManifestValidatorTest extends TestCase
@@ -35,7 +35,7 @@ class PermissionManifestValidatorTest extends TestCase
                 'oops' => true,
             ]);
         });
-        $this->assertStringContainsString('$.: unknown field(s): oops', $msg);
+        $this->assertStringContainsString('$: unknown field(s): oops', $msg);
     }
 
     public function testRequiresRequiredPermissionsArray()
