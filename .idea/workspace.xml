@@ -4,45 +4,7 @@
     <option name="autoReloadType" value="SELECTIVE" />
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="eaf4cbc6-d298-4694-b042-183ced7c77f7" name="Changes" comment="">
-      <change afterPath="$PROJECT_DIR$/src/Permissions/Contracts/PermissionRequestInterface.php" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/prisma/permissions.prisma" beforeDir="false" afterPath="$PROJECT_DIR$/prisma/permissions.prisma" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/prisma/schema.prisma" beforeDir="false" afterPath="$PROJECT_DIR$/prisma/schema.prisma" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/schema/manifest.schema.json" beforeDir="false" afterPath="$PROJECT_DIR$/schema/manifest.schema.json" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/Permissions/Contracts/PermissionCheckerInterface.php" beforeDir="false" afterPath="$PROJECT_DIR$/src/Permissions/Contracts/PermissionCheckerInterface.php" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/Permissions/Contracts/PermissionIngestorInterface.php" beforeDir="false" afterPath="$PROJECT_DIR$/src/Permissions/Contracts/PermissionIngestorInterface.php" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/Permissions/Contracts/PermissionRepositoryInterface.php" beforeDir="false" afterPath="$PROJECT_DIR$/src/Permissions/Contracts/PermissionRepositoryInterface.php" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/Permissions/Contracts/PermissionServiceInterface.php" beforeDir="false" afterPath="$PROJECT_DIR$/src/Permissions/Contracts/PermissionServiceInterface.php" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/Permissions/Evaluation/CodecChecker.php" beforeDir="false" afterPath="$PROJECT_DIR$/src/Permissions/Evaluation/CodecChecker.php" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/Permissions/Evaluation/DbChecker.php" beforeDir="false" afterPath="$PROJECT_DIR$/src/Permissions/Evaluation/DbChecker.php" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/Permissions/Evaluation/Dto/CodecRequest.php" beforeDir="false" afterPath="$PROJECT_DIR$/src/Permissions/Evaluation/Dto/CodecRequest.php" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/Permissions/Evaluation/Dto/DbRequest.php" beforeDir="false" afterPath="$PROJECT_DIR$/src/Permissions/Evaluation/Dto/DbRequest.php" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/Permissions/Evaluation/Dto/FileRequest.php" beforeDir="false" afterPath="$PROJECT_DIR$/src/Permissions/Evaluation/Dto/FileRequest.php" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/Permissions/Evaluation/Dto/ModuleRequest.php" beforeDir="false" afterPath="$PROJECT_DIR$/src/Permissions/Evaluation/Dto/ModuleRequest.php" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/Permissions/Evaluation/Dto/NetworkRequest.php" beforeDir="false" afterPath="$PROJECT_DIR$/src/Permissions/Evaluation/Dto/NetworkRequest.php" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/Permissions/Evaluation/Dto/NotifyRequest.php" beforeDir="false" afterPath="$PROJECT_DIR$/src/Permissions/Evaluation/Dto/NotifyRequest.php" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/Permissions/Evaluation/Dto/Result.php" beforeDir="false" afterPath="$PROJECT_DIR$/src/Permissions/Evaluation/Dto/Result.php" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/Permissions/Evaluation/Dto/RouteWriteRequest.php" beforeDir="false" afterPath="$PROJECT_DIR$/src/Permissions/Evaluation/Dto/RouteWriteRequest.php" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/Permissions/Evaluation/FileChecker.php" beforeDir="false" afterPath="$PROJECT_DIR$/src/Permissions/Evaluation/FileChecker.php" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/Permissions/Evaluation/ModuleChecker.php" beforeDir="false" afterPath="$PROJECT_DIR$/src/Permissions/Evaluation/ModuleChecker.php" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/Permissions/Evaluation/NetworkChecker.php" beforeDir="false" afterPath="$PROJECT_DIR$/src/Permissions/Evaluation/NetworkChecker.php" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/Permissions/Evaluation/NotificationChecker.php" beforeDir="false" afterPath="$PROJECT_DIR$/src/Permissions/Evaluation/NotificationChecker.php" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/Permissions/Evaluation/PermissionService.php" beforeDir="false" afterPath="$PROJECT_DIR$/src/Permissions/Evaluation/PermissionService.php" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/Permissions/Evaluation/RouteChecker.php" beforeDir="false" afterPath="$PROJECT_DIR$/src/Permissions/Evaluation/RouteChecker.php" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/Permissions/Ingestion/CodecIngestor.php" beforeDir="false" afterPath="$PROJECT_DIR$/src/Permissions/Ingestion/CodecIngestor.php" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/Permissions/Ingestion/DbIngestor.php" beforeDir="false" afterPath="$PROJECT_DIR$/src/Permissions/Ingestion/DbIngestor.php" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/Permissions/Ingestion/Dto/RuleIngestResult.php" beforeDir="false" afterPath="$PROJECT_DIR$/src/Permissions/Ingestion/Dto/RuleIngestResult.php" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/Permissions/Ingestion/FileIngestor.php" beforeDir="false" afterPath="$PROJECT_DIR$/src/Permissions/Ingestion/FileIngestor.php" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/Permissions/Ingestion/ModuleIngestor.php" beforeDir="false" afterPath="$PROJECT_DIR$/src/Permissions/Ingestion/ModuleIngestor.php" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/Permissions/Ingestion/NaturalKeyBuilder.php" beforeDir="false" afterPath="$PROJECT_DIR$/src/Permissions/Ingestion/NaturalKeyBuilder.php" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/Permissions/Ingestion/NetworkIngestor.php" beforeDir="false" afterPath="$PROJECT_DIR$/src/Permissions/Ingestion/NetworkIngestor.php" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/Permissions/Ingestion/NotificationIngestor.php" beforeDir="false" afterPath="$PROJECT_DIR$/src/Permissions/Ingestion/NotificationIngestor.php" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/Permissions/Ingestion/PermissionIngestor.php" beforeDir="false" afterPath="$PROJECT_DIR$/src/Permissions/Ingestion/PermissionIngestor.php" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/Permissions/Policy/ConditionsEvaluator.php" beforeDir="false" afterPath="$PROJECT_DIR$/src/Permissions/Policy/ConditionsEvaluator.php" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/Permissions/Policy/TimeWindowEvaluator.php" beforeDir="false" afterPath="$PROJECT_DIR$/src/Permissions/Policy/TimeWindowEvaluator.php" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/Permissions/Registry/PermissionRegistry.php" beforeDir="false" afterPath="$PROJECT_DIR$/src/Permissions/Registry/PermissionRegistry.php" afterDir="false" />
-    </list>
+    <list default="true" id="eaf4cbc6-d298-4694-b042-183ced7c77f7" name="Changes" comment="" />
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
     <option name="HIGHLIGHT_NON_ACTIVE_CHANGELIST" value="false" />
@@ -53,6 +15,13 @@
     <execution>
       <executable path="composer" />
     </execution>
+  </component>
+  <component name="FileTemplateManagerImpl">
+    <option name="RECENT_TEMPLATES">
+      <list>
+        <option value="PHP File" />
+      </list>
+    </option>
   </component>
   <component name="Git.Settings">
     <option name="RECENT_GIT_ROOT_PATH" value="$PROJECT_DIR$" />
@@ -172,6 +141,21 @@
       <path value="$PROJECT_DIR$/vendor/tijsverkoyen/css-to-inline-styles" />
       <path value="$PROJECT_DIR$/vendor/voku/portable-ascii" />
       <path value="$PROJECT_DIR$/vendor/dragonmantank/cron-expression" />
+      <path value="$PROJECT_DIR$/vendor/nunomaduro/collision" />
+      <path value="$PROJECT_DIR$/vendor/laravel/tinker" />
+      <path value="$PROJECT_DIR$/vendor/orchestra/testbench-core" />
+      <path value="$PROJECT_DIR$/vendor/orchestra/workbench" />
+      <path value="$PROJECT_DIR$/vendor/orchestra/sidekick" />
+      <path value="$PROJECT_DIR$/vendor/orchestra/testbench" />
+      <path value="$PROJECT_DIR$/vendor/laravel/pail" />
+      <path value="$PROJECT_DIR$/vendor/filp/whoops" />
+      <path value="$PROJECT_DIR$/vendor/fakerphp/faker" />
+      <path value="$PROJECT_DIR$/vendor/hamcrest/hamcrest-php" />
+      <path value="$PROJECT_DIR$/vendor/symfony/yaml" />
+      <path value="$PROJECT_DIR$/vendor/mockery/mockery" />
+      <path value="$PROJECT_DIR$/vendor/orchestra/canvas" />
+      <path value="$PROJECT_DIR$/vendor/orchestra/canvas-core" />
+      <path value="$PROJECT_DIR$/vendor/psy/psysh" />
     </include_path>
   </component>
   <component name="ProjectColorInfo">{
@@ -188,6 +172,8 @@
   <component name="PropertiesComponent"><![CDATA[{
   "keyToString": {
     "ModuleVcsDetector.initialDetectionPerformed": "true",
+    "PHPUnit.PermissionManifestValidatorTest.executor": "Run",
+    "PHPUnit.PermissionManifestValidatorTest.testRejectsUnknownTopLevelKeys.executor": "Debug",
     "RunOnceActivity.ShowReadmeOnStart": "true",
     "RunOnceActivity.TerminalTabsStorage.copyFrom.TerminalArrangementManager.252": "true",
     "RunOnceActivity.git.unshallow": "true",
@@ -201,6 +187,7 @@
     "node.js.selected.package.tslint": "(autodetect)",
     "nodejs_package_manager_path": "npm",
     "npm.db.executor": "Run",
+    "php.override.implement.member.chooser.php.doc": "NONE",
     "settings.editor.selected.configurable": "project.scopes",
     "to.speed.mode.migration.done": "true",
     "vue.rearranger.settings.migration": "true"
@@ -208,16 +195,26 @@
 }]]></component>
   <component name="RecentsManager">
     <key name="CopyFile.RECENT_KEYS">
+      <recent name="D:\Projects\GitHub\fortiplugin" />
       <recent name="C:\Users\David\OneDrive\Documents\GitHub\fortiplugin\src\Lib" />
       <recent name="C:\Users\David\OneDrive\Documents\GitHub\fortiplugin\src" />
       <recent name="C:\Users\David\OneDrive\Documents\GitHub\fortiplugin" />
       <recent name="C:\Users\David\OneDrive\Documents\GitHub\fortiplugin\prisma" />
     </key>
     <key name="MoveFile.RECENT_KEYS">
+      <recent name="D:\Projects\GitHub\fortiplugin\prisma\schema" />
       <recent name="C:\Users\David\OneDrive\Documents\GitHub\fortiplugin\src" />
     </key>
   </component>
-  <component name="RunManager">
+  <component name="RunManager" selected="PHPUnit.PermissionManifestValidatorTest">
+    <configuration name="PermissionManifestValidatorTest" type="PHPUnitRunConfigurationType" factoryName="PHPUnit" temporary="true">
+      <TestRunner class="PermissionManifestValidatorTest" file="$PROJECT_DIR$/test/PermissionManifestValidatorTest.php" scope="Class" />
+      <method v="2" />
+    </configuration>
+    <configuration name="PermissionManifestValidatorTest.testRejectsUnknownTopLevelKeys" type="PHPUnitRunConfigurationType" factoryName="PHPUnit" temporary="true">
+      <TestRunner class="PermissionManifestValidatorTest" file="$PROJECT_DIR$/test/PermissionManifestValidatorTest.php" method="testRejectsUnknownTopLevelKeys" scope="Method" />
+      <method v="2" />
+    </configuration>
     <configuration name="db" type="js.build_tools.npm" temporary="true" nameIsGenerated="true">
       <package-json value="$PROJECT_DIR$/package.json" />
       <command value="run" />
@@ -230,6 +227,8 @@
     </configuration>
     <recent_temporary>
       <list>
+        <item itemvalue="PHPUnit.PermissionManifestValidatorTest" />
+        <item itemvalue="PHPUnit.PermissionManifestValidatorTest.testRejectsUnknownTopLevelKeys" />
         <item itemvalue="npm.db" />
       </list>
     </recent_temporary>
