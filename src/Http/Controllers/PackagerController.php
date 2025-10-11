@@ -341,7 +341,7 @@ final class PackagerController extends Controller
             'ok' => true,
         ]);
     }
-    
+
 
     /* ─────────── helpers ─────────── */
 
