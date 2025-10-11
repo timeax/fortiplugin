@@ -21,9 +21,6 @@ return new class extends Migration {
 			$table->string("base_dir");
 			$table->json("paths");
 			$table->json("permissions");
-			$table->boolean("limited")->default(false);
-			$table->string("limit_type")->nullable();
-			$table->string("limit_value")->nullable();
 			$table->timestamps();
 		});
 	}

@@ -18,9 +18,6 @@ use Illuminate\Database\Eloquent\Model;
  * @property array|null $headers_allowed
  * @property array|null $ips_allowed
  * @property bool $auth_via_host_secret
- * @property bool $limited
- * @property string|null $limit_type
- * @property string|null $limit_value
  * @property \Carbon\Carbon $created_at
  * @property \Carbon\Carbon $updated_at
  */
@@ -39,9 +36,6 @@ class NetworkPermission extends Model
 		"headers_allowed",
 		"ips_allowed",
 		"auth_via_host_secret",
-		"limited",
-		"limit_type",
-		"limit_value",
 	];
 
 	protected $guarded = ["id", "rule_key", "id"];

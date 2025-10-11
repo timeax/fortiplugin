@@ -105,10 +105,10 @@ class Encryption
     /**
      * @throws JsonException
      */
-    public static function encryptFile($inputFile, $outputFile, $encryptionKey): void
+    public static function encryptFile($inputFile, $outputFile): void
     {
         $data = file_get_contents($inputFile);
-        $encrypted = self::encrypt($data, $encryptionKey); // Pass the key explicitly
+        $encrypted = self::encrypt($data); // Pass the key explicitly
         file_put_contents($outputFile, $encrypted);
     }
 

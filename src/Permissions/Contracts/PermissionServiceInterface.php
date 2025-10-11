@@ -1,8 +1,10 @@
-<?php
+<?php /** @noinspection ALL */
 declare(strict_types=1);
 
 namespace Timeax\FortiPlugin\Permissions\Contracts;
 
+use Timeax\FortiPlugin\Permissions\Evaluation\Dto\PermissionListOptions;
+use Timeax\FortiPlugin\Permissions\Evaluation\Dto\PermissionListResult;
 use Timeax\FortiPlugin\Permissions\Evaluation\Dto\Result;
 use Timeax\FortiPlugin\Permissions\Ingestion\Dto\IngestSummary;
 use Timeax\FortiPlugin\Permissions\Ingestion\Dto\RuleIngestResult;
@@ -55,7 +57,7 @@ interface PermissionServiceInterface
      * @param array $context { guard?: string, env?: string, settings?: array, ... }
      * @return Result The standardized result.
      */
-    public function canDb(int $pluginId, string $action, array $target, array $context = []): Result;
+    public function canDb(int $pluginId, string $action, array $target, ?array $context = []): Result;
 
     /**
      * File check.
@@ -65,7 +67,7 @@ interface PermissionServiceInterface
      * @param array $context
      * @return Result The standardized result.
      */
-    public function canFile(int $pluginId, string $action, array $target, array $context = []): Result;
+    public function canFile(int $pluginId, string $action, array $target, ?array $context = []): Result;
 
     /**
      * Notification check.
@@ -75,7 +77,7 @@ interface PermissionServiceInterface
      * @param array $context
      * @return Result The standardized result.
      */
-    public function canNotify(int $pluginId, string $action, array $target, array $context = []): Result;
+    public function canNotify(int $pluginId, string $action, array $target, ?array $context = []): Result;
 
     /**
      * Host module API check (single action "call", inferred by presence).
@@ -84,7 +86,7 @@ interface PermissionServiceInterface
      * @param array $context
      * @return Result The standardized result.
      */
-    public function canModule(int $pluginId, array $target, array $context = []): Result;
+    public function canModule(int $pluginId, array $target, ?array $context = []): Result;
 
     /**
      * Network egress check (single action "request").
@@ -93,7 +95,7 @@ interface PermissionServiceInterface
      * @param array $context
      * @return Result The standardized result.
      */
-    public function canNetwork(int $pluginId, array $target, array $context = []): Result;
+    public function canNetwork(int $pluginId, array $target, ?array $context = []): Result;
 
     /**
      * Codec/Obfuscator check (single action "invoke").
@@ -102,7 +104,7 @@ interface PermissionServiceInterface
      * @param array $context
      * @return Result The standardized result.
      */
-    public function canCodec(int $pluginId, array $target, array $context = []): Result;
+    public function canCodec(int $pluginId, array $target, ?array $context = []): Result;
 
     /**
      * Install-time route write approval.
@@ -111,7 +113,7 @@ interface PermissionServiceInterface
      * @param array $context
      * @return Result The standardized result.
      */
-    public function canRouteWrite(int $pluginId, array $target, array $context = []): Result;
+    public function canRouteWrite(int $pluginId, array $target, ?array $context = []): Result;
 
     /**
      * Determines if a plugin has the specified permission based on the given request and context.
@@ -121,16 +123,33 @@ interface PermissionServiceInterface
      * @param array $context Additional contextual data relevant to the permission check.
      * @return Result The result of the permission evaluation.
      */
-    public function can(int $pluginId, PermissionRequestInterface $request, array $context): Result;
+    public function can(int $pluginId, PermissionRequestInterface $request, ?array $context = []): Result;
 
     /**
      * Upsert a concrete permission row (by its natural key) and ensure the plugin assignment.
      * Wraps the repository, emits an ingest audit, and refreshes the capability cache.
      *
      * @param int $pluginId
-     * @param UpsertDtoInterface $dto   Concrete-type DTO (db/file/notification/module/network/codec)
-     * @param array $meta               Optional assignment metadata: ['constraints'=>array, 'audit'=>array, 'active'=>bool, 'justification'=>?string]
+     * @param UpsertDtoInterface $dto Concrete-type DTO (db/file/notification/module/network/codec)
+     * @param array $meta Optional assignment metadata: ['constraints'=>array, 'audit'=>array, 'active'=>bool, 'justification'=>?string]
      * @return RuleIngestResult
      */
-    public function upsert(int $pluginId, UpsertDtoInterface $dto, array $meta = []): RuleIngestResult;
+    public function upsert(int $pluginId, UpsertDtoInterface $dto, ?array $meta = []): RuleIngestResult;
+
+    /**
+     * Validates the provided manifest to ensure it meets the required specifications.
+     *
+     * @param array $manifest The manifest data to validate.
+     * @return array The results of the validation, including any errors or warnings.
+     */
+    public function validateManifest(array $manifest): array;
+
+    /**
+     * Retrieves a list of permissions associated with a specific plugin, optionally filtered by the provided options.
+     *
+     * @param int $pluginId The unique identifier of the plugin.
+     * @param PermissionListOptions|null $options Optional parameters to filter or customize the permissions list.
+     * @return array The list of permissions for the specified plugin, potentially filtered by the options.
+     */
+    public function listPermissions(int $pluginId, ?PermissionListOptions $options = null): PermissionListResult;
 }

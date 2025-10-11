@@ -3,6 +3,8 @@ declare(strict_types=1);
 
 namespace Timeax\FortiPlugin\Permissions\Contracts;
 
+use Timeax\FortiPlugin\Enums\PermissionType;
+
 /**
  * Data access for permission morphs and concrete rows.
  * Keep this thin; business logic lives in checkers/ingestors.
@@ -70,4 +72,10 @@ interface PermissionRepositoryInterface
         UpsertDtoInterface $dto,
         array  $meta = []
     ): array;
+
+    /**
+     * Deactivate a direct plugin→permission morph (idempotent).
+     * Returns true if a row was updated (i.e., it was active and is now inactive).
+     */
+    public function deactivatePluginPermission(int $pluginId, PermissionType $type, int $permissionId): bool;
 }

@@ -1,0 +1,20 @@
+{
+  "name": "fortiplugin/#{ strtolower($PLUGIN_SLUG) }",
+  "description": "Fortified plugin system for PHP — secure packaging, validation, and install-time policy enforcement.",
+  "minimum-stability": "stable",
+  "license": "proprietary",
+  "authors": [
+    {
+      "name": "#{ $AUTHOR_NAME }",
+      "email": "#{ $AUTHOR_EMAIL }"
+    }
+  ],
+  "autoload": {
+    "psr-4": {
+      "#{ rtrim($PLUGIN_ROOT_FOLDER, '\\\\') . '\\\\' . $PLUGIN_NAME . '\\\\' }": "src/"
+    }
+  },
+  "require-dev": {
+    "roave/security-advisories": "dev-latest"
+  }
+}

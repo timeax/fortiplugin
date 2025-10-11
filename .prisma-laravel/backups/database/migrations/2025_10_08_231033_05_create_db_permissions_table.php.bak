@@ -23,9 +23,6 @@ return new class extends Migration {
 			$table->json("permissions");
 			$table->json("readable_columns")->nullable();
 			$table->json("writable_columns")->nullable();
-			$table->boolean("limited")->default(false);
-			$table->string("limit_type")->nullable();
-			$table->string("limit_value")->nullable();
 			$table->timestamps();
 		});
 	}

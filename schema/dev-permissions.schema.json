@@ -1,0 +1,462 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.timeax.dev/fortiplugin/dev.permissions.json",
+  "title": "Dev Permissions",
+  "type": "array",
+  "items": {
+    "oneOf": [
+      {
+        "$ref": "#/$defs/entry.db"
+      },
+      {
+        "$ref": "#/$defs/entry.file"
+      },
+      {
+        "$ref": "#/$defs/entry.notification"
+      },
+      {
+        "$ref": "#/$defs/entry.module"
+      },
+      {
+        "$ref": "#/$defs/entry.network"
+      },
+      {
+        "$ref": "#/$defs/entry.codec"
+      }
+    ],
+    "discriminator": {
+      "propertyName": "type",
+      "mapping": {
+        "db": "#/$defs/entry.db",
+        "file": "#/$defs/entry.file",
+        "notification": "#/$defs/entry.notification",
+        "module": "#/$defs/entry.module",
+        "network": "#/$defs/entry.network",
+        "codec": "#/$defs/entry.codec"
+      }
+    }
+  },
+  "$defs": {
+    "common": {
+      "typeProp": {
+        "type": "string",
+        "enum": [
+          "db",
+          "file",
+          "notification",
+          "module",
+          "network",
+          "codec"
+        ]
+      },
+      "requiredProp": {
+        "type": "boolean"
+      },
+      "sourceProp": {
+        "type": "string",
+        "enum": [
+          "direct",
+          "tag"
+        ],
+        "default": "direct"
+      }
+    },
+    "grants": {
+      "db": {
+        "type": "array",
+        "items": {
+          "type": "string",
+          "enum": [
+            "select",
+            "insert",
+            "update",
+            "delete",
+            "truncate",
+            "grouped_queries"
+          ]
+        },
+        "uniqueItems": true,
+        "minItems": 1
+      },
+      "file": {
+        "type": "array",
+        "items": {
+          "type": "string",
+          "enum": [
+            "read",
+            "write",
+            "append",
+            "delete",
+            "mkdir",
+            "rmdir",
+            "list"
+          ]
+        },
+        "uniqueItems": true,
+        "minItems": 1
+      },
+      "notification": {
+        "type": "array",
+        "items": {
+          "type": "string",
+          "enum": [
+            "send",
+            "receive"
+          ]
+        },
+        "uniqueItems": true,
+        "minItems": 1
+      },
+      "module": {
+        "type": "array",
+        "items": {
+          "type": "string",
+          "enum": [
+            "call"
+          ]
+        },
+        "uniqueItems": true,
+        "minItems": 1
+      },
+      "network": {
+        "type": "array",
+        "items": {
+          "type": "string",
+          "enum": [
+            "request"
+          ]
+        },
+        "uniqueItems": true,
+        "minItems": 1
+      },
+      "codec": {
+        "type": "array",
+        "items": {
+          "type": "string",
+          "enum": [
+            "invoke"
+          ]
+        },
+        "uniqueItems": true,
+        "minItems": 1
+      }
+    },
+    "meta": {
+      "db": {
+        "type": "object",
+        "properties": {
+          "model": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "table": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "columns": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "uniqueItems": true
+          }
+        },
+        "additionalProperties": false
+      },
+      "file": {
+        "type": "object",
+        "properties": {
+          "baseDir": {
+            "type": "string"
+          },
+          "paths": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "uniqueItems": true
+          }
+        },
+        "required": [
+          "baseDir"
+        ],
+        "additionalProperties": false
+      },
+      "notification": {
+        "type": "object",
+        "properties": {
+          "channel": {
+            "type": "string"
+          },
+          "templates": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "uniqueItems": true
+          },
+          "recipients": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "uniqueItems": true
+          }
+        },
+        "required": [
+          "channel"
+        ],
+        "additionalProperties": false
+      },
+      "module": {
+        "type": "object",
+        "properties": {
+          "module": {
+            "type": "string"
+          },
+          "apis": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "uniqueItems": true
+          }
+        },
+        "required": [
+          "module"
+        ],
+        "additionalProperties": false
+      },
+      "network": {
+        "type": "object",
+        "properties": {
+          "methods": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "uniqueItems": true
+          },
+          "schemes": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "uniqueItems": true
+          },
+          "hosts": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "uniqueItems": true
+          },
+          "ports": {
+            "type": "array",
+            "items": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 65535
+            },
+            "uniqueItems": true
+          },
+          "paths": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "uniqueItems": true
+          }
+        },
+        "additionalProperties": false
+      },
+      "codec": {
+        "type": "object",
+        "properties": {
+          "methods": {
+            "oneOf": [
+              {
+                "type": "string",
+                "const": "*"
+              },
+              {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                },
+                "uniqueItems": true
+              }
+            ]
+          },
+          "groups": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "uniqueItems": true
+          },
+          "options": {
+            "type": "object",
+            "additionalProperties": true
+          }
+        },
+        "additionalProperties": false
+      }
+    },
+    "entryBase": {
+      "type": "object",
+      "properties": {
+        "type": {
+          "$ref": "#/$defs/common/typeProp"
+        },
+        "grants": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "uniqueItems": true,
+          "minItems": 1
+        },
+        "meta": {
+          "type": "object"
+        },
+        "required": {
+          "$ref": "#/$defs/common/requiredProp"
+        },
+        "source": {
+          "$ref": "#/$defs/common/sourceProp"
+        }
+      },
+      "required": [
+        "type",
+        "grants",
+        "meta"
+      ],
+      "additionalProperties": false
+    },
+    "entry.db": {
+      "allOf": [
+        {
+          "$ref": "#/$defs/entryBase"
+        },
+        {
+          "properties": {
+            "type": {
+              "const": "db"
+            },
+            "grants": {
+              "$ref": "#/$defs/grants/db"
+            },
+            "meta": {
+              "$ref": "#/$defs/meta/db"
+            }
+          }
+        }
+      ]
+    },
+    "entry.file": {
+      "allOf": [
+        {
+          "$ref": "#/$defs/entryBase"
+        },
+        {
+          "properties": {
+            "type": {
+              "const": "file"
+            },
+            "grants": {
+              "$ref": "#/$defs/grants/file"
+            },
+            "meta": {
+              "$ref": "#/$defs/meta/file"
+            }
+          }
+        }
+      ]
+    },
+    "entry.notification": {
+      "allOf": [
+        {
+          "$ref": "#/$defs/entryBase"
+        },
+        {
+          "properties": {
+            "type": {
+              "const": "notification"
+            },
+            "grants": {
+              "$ref": "#/$defs/grants/notification"
+            },
+            "meta": {
+              "$ref": "#/$defs/meta/notification"
+            }
+          }
+        }
+      ]
+    },
+    "entry.module": {
+      "allOf": [
+        {
+          "$ref": "#/$defs/entryBase"
+        },
+        {
+          "properties": {
+            "type": {
+              "const": "module"
+            },
+            "grants": {
+              "$ref": "#/$defs/grants/module"
+            },
+            "meta": {
+              "$ref": "#/$defs/meta/module"
+            }
+          }
+        }
+      ]
+    },
+    "entry.network": {
+      "allOf": [
+        {
+          "$ref": "#/$defs/entryBase"
+        },
+        {
+          "properties": {
+            "type": {
+              "const": "network"
+            },
+            "grants": {
+              "$ref": "#/$defs/grants/network"
+            },
+            "meta": {
+              "$ref": "#/$defs/meta/network"
+            }
+          }
+        }
+      ]
+    },
+    "entry.codec": {
+      "allOf": [
+        {
+          "$ref": "#/$defs/entryBase"
+        },
+        {
+          "properties": {
+            "type": {
+              "const": "codec"
+            },
+            "grants": {
+              "$ref": "#/$defs/grants/codec"
+            },
+            "meta": {
+              "$ref": "#/$defs/meta/codec"
+            }
+          }
+        }
+      ]
+    }
+  }
+}

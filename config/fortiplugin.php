@@ -3,6 +3,10 @@
 return [
 
     /*
+     * PSR-4 root namespace and folder for plugins.
+     */
+    'psr4_root' => env('FORTIPLUGIN_PSR4_ROOT', 'Plugins'),
+    /*
     |--------------------------------------------------------------------------
     | Authorization / Gates
     |--------------------------------------------------------------------------
@@ -97,22 +101,21 @@ return [
     ],
 
 
-
     'validator' => [
         // Additive risk sets (host *adds* items to Forti defaults)
-        'tokens'                        => [],
-        'dangerous_functions'           => [],
-        'forbidden_namespaces'          => [],
-        'forbidden_packages'            => [],
-        'allowed_class_methods'         => [
+        'tokens' => [],
+        'dangerous_functions' => [],
+        'forbidden_namespaces' => [],
+        'forbidden_packages' => [],
+        'allowed_class_methods' => [
             // 'DB' => ['transactions','rollback','commit'],
             // 'File' => ['exists'],
         ],
 
         // Optional scanner hints (leave empty unless you need them)
-        'ignore'      => [],
-        'whitelist'   => [],
-        'scan_size'   => [],   // e.g. ['php' => 5000000]
+        'ignore' => [],
+        'whitelist' => [],
+        'scan_size' => [],   // e.g. ['php' => 5000000]
         'max_flagged' => null,
 
         /*
@@ -137,14 +140,14 @@ return [
         |       host review & narrow scopes instead of broad overrides.
         */
         'overrides' => [
-            'functions'     => [],          // e.g. ['file_get_contents']
-            'tokens'        => [],          // e.g. ['fopen']
-            'dangerous'     => [],          // e.g. ['exec']  ← HIGH RISK
-            'namespaces'    => [],          // e.g. ['Illuminate\\Support\\Facades\\Storage']
-            'packages'      => [],          // e.g. ['league/flysystem']
-            'wrappers'      => [],          // e.g. ['phar://']
+            'functions' => [],          // e.g. ['file_get_contents']
+            'tokens' => [],          // e.g. ['fopen']
+            'dangerous' => [],          // e.g. ['exec']  ← HIGH RISK
+            'namespaces' => [],          // e.g. ['Illuminate\\Support\\Facades\\Storage']
+            'packages' => [],          // e.g. ['league/flysystem']
+            'wrappers' => [],          // e.g. ['phar://']
             'magic_methods' => [],          // e.g. ['__call']
-            'classes'       => [            // per-class method allowances
+            'classes' => [            // per-class method allowances
                 // 'DB' => ['select','statement'],
                 // 'Storage' => ['put','get'],
             ],

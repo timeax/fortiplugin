@@ -12,16 +12,16 @@ class ConfigValidator
      */
     public function validate(string $pluginRoot, string $schemaPath): array
     {
-        $configFile = rtrim($pluginRoot, '/\\') . '/plugin.config.json';
+        $configFile = rtrim($pluginRoot, '/\\') . '/fortiplugin.json';
         if (!file_exists($configFile)) {
-            return ['error' => 'plugin.config.json not found'];
+            return ['error' => 'fortiplugin.json not found'];
         }
 
         $json = file_get_contents($configFile);
         $data = json_decode($json, false, 512, JSON_THROW_ON_ERROR);
 
         if (json_last_error() !== JSON_ERROR_NONE) {
-            return ['error' => 'Invalid JSON in plugin.config.json: ' . json_last_error_msg()];
+            return ['error' => 'Invalid JSON in fortiplugin.json: ' . json_last_error_msg()];
         }
 
         $schema = json_decode(file_get_contents($schemaPath), false, 512, JSON_THROW_ON_ERROR); // <-- just the decoded schema object!

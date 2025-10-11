@@ -1,10 +1,17 @@
 laravel: '@testbench'
 
 providers:
-  # - Workbench\App\Providers\WorkbenchServiceProvider
-  - Timeax\FortiPlugin\Providers\FortiPluginServiceProvider
+  - Timeax\FortiPlugin\FortiPluginServiceProvider
+
+env:
+  DB_CONNECTION: sqlite
+  DB_DATABASE: database/database.sqlite
+  QUEUE_CONNECTION: sync
+  SESSION_DRIVER: array
+  CACHE_STORE: array
 
 migrations:
+  - database/migrations
   - workbench/database/migrations
 
 seeders:

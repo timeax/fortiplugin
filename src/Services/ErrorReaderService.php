@@ -261,6 +261,23 @@ class ErrorReaderService
             'backdoor_dynamic_method_call_chain_forbidden' => 'critical',
             'dynamic_static_property_access' => 'medium',
             'config_validation_error' => 'high',
+            // ValidatorService and scanner orchestration
+            'composer.composer_file_missing' => 'high',
+            'composer.composer_file_invalid' => 'high',
+            'composer.forbidden_package_dependency' => 'high',
+            'config.schema' => 'high',
+            'config.exception' => 'high',
+            'hostconfig.error' => 'high',
+            'route.invalid' => 'high',
+            'scanner.exception' => 'high',
+            'content.exception' => 'high',
+            'token.exception' => 'high',
+            'ast.exception' => 'high',
+            'ast.violation' => 'high',
+            'scan.issue' => 'medium',
+            'suspicious_filename_unicode' => 'medium',
+            'suspicious_double_extension' => 'medium',
+            'php_payload_in_non_php' => 'high',
         ];
     }
 
@@ -557,10 +574,84 @@ class ErrorReaderService
                 'description' => 'Composer requires forbidden package {package} ({version}).',
             ],
 
+            // Prefixed composer.* variants emitted by ValidatorService
+            'composer.composer_file_missing' => [
+                'name' => 'composer.json missing',
+                'description' => 'composer.json not found at {file}.',
+            ],
+            'composer.composer_file_invalid' => [
+                'name' => 'composer.json invalid',
+                'description' => 'Invalid JSON in composer.json at {file}.',
+            ],
+            'composer.forbidden_package_dependency' => [
+                'name' => 'Forbidden composer package',
+                'description' => 'Composer requires forbidden package {package} ({version}).',
+            ],
+
             // Filesystem/content
             'read_error' => [
                 'name' => 'File read error',
                 'description' => 'Unable to read file {file}.',
+            ],
+
+            // Scanner pre-flag issues (from FileScanner)
+            'suspicious_filename_unicode' => [
+                'name' => 'Suspicious filename (Unicode control chars)',
+                'description' => 'Filename may contain bidi control characters indicating spoofing.',
+            ],
+            'suspicious_double_extension' => [
+                'name' => 'Suspicious double extension',
+                'description' => 'File name looks like a double extension (e.g. .jpg.php or .php.txt).',
+            ],
+            'php_payload_in_non_php' => [
+                'name' => 'PHP payload in non-PHP file',
+                'description' => 'PHP code payload detected in a non-PHP file.',
+            ],
+
+            // Orchestration/service emitted
+            'config.schema' => [
+                'name' => 'Config schema violation',
+                'description' => 'fortiplugin.json failed schema validation: {issue}',
+            ],
+            'config.exception' => [
+                'name' => 'Config validation exception',
+                'description' => 'Exception during config validation: {issue}',
+            ],
+            'hostconfig.error' => [
+                'name' => 'Host config error',
+                'description' => 'Host configuration validation error: {issue}',
+            ],
+            'manifest.invalid' => [
+                'name' => 'Permission manifest invalid',
+                'description' => 'Permission manifest validation failed: {issue}',
+            ],
+            'route.invalid' => [
+                'name' => 'Route file invalid',
+                'description' => 'Route file validation failed: {issue}',
+            ],
+            'scanner.exception' => [
+                'name' => 'Scanner exception',
+                'description' => 'File scanner threw an exception: {issue}',
+            ],
+            'content.exception' => [
+                'name' => 'Content validator exception',
+                'description' => 'Content validation threw an exception: {issue}',
+            ],
+            'token.exception' => [
+                'name' => 'Token analyzer exception',
+                'description' => 'TokenUsageAnalyzer threw an exception: {issue}',
+            ],
+            'ast.exception' => [
+                'name' => 'AST scanner exception',
+                'description' => 'AST scanner threw an exception: {issue}',
+            ],
+            'ast.violation' => [
+                'name' => 'AST violation',
+                'description' => '{issue}',
+            ],
+            'scan.issue' => [
+                'name' => 'Scan issue',
+                'description' => '{issue}',
             ],
         ];
     }

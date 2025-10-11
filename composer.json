@@ -22,7 +22,8 @@
         "ext-sodium": "*",
         "ext-openssl": "*",
         "ext-zlib": "*",
-        "ext-curl": "*"
+        "ext-curl": "*",
+      "ext-zip": "*"
     },
     "require-dev": {
         "roave/security-advisories": "dev-latest",
@@ -34,7 +35,8 @@
         "psr-4": {
             "Workbench\\App\\": "workbench/app/",
             "Workbench\\Database\\Factories\\": "workbench/database/factories/",
-            "Workbench\\Database\\Seeders\\": "workbench/database/seeders/"
+            "Workbench\\Database\\Seeders\\": "workbench/database/seeders/",
+            "Tests\\": "test/"
         }
     },
     "scripts": {

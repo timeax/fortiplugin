@@ -13,7 +13,7 @@ class PublishConfig
     /**
      * @throws JsonException
      */
-    public function __construct($publishPath = './publish.json', $pluginConfigPath = './plugin.config.json')
+    public function __construct($publishPath = './publish.json', $pluginConfigPath = './fortiplugin.json')
     {
         if (!file_exists($publishPath)) {
             throw new RuntimeException('publish.json not found!');
@@ -25,7 +25,7 @@ class PublishConfig
             throw new RuntimeException('publish.json missing required fields!');
         }
 
-        // Optional: Also load plugin.config.json for more info
+        // Optional: Also load fortiplugin.json for more info
         if (file_exists($pluginConfigPath)) {
             $pluginRaw = file_get_contents($pluginConfigPath);
             $this->plugin = json_decode(stripComments($pluginRaw), true, 512, JSON_THROW_ON_ERROR);

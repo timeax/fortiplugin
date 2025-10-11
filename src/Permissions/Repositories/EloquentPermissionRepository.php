@@ -193,8 +193,8 @@ final class EloquentPermissionRepository implements PermissionRepositoryInterfac
         $naturalKey = $dto->naturalKey();
         $attrs = $dto->attributes();
         $identityFields = $dto->identityFields();
-        $mutableFields  = $dto->mutableFields();
-        $modelClass     = $dto->concreteModelClass();
+        $mutableFields = $dto->mutableFields();
+        $modelClass = $dto->concreteModelClass();
 
         return DB::transaction(function () use ($pluginId, $enum, $naturalKey, $attrs, $identityFields, $mutableFields, $modelClass, $meta) {
             $concrete = $modelClass::query()->where('natural_key', $naturalKey)->first();
@@ -247,9 +247,9 @@ final class EloquentPermissionRepository implements PermissionRepositoryInterfac
 
             if (!$assignment) {
                 $assignment = new PluginPermission();
-                $assignment->plugin_id       = $pluginId;
+                $assignment->plugin_id = $pluginId;
                 $assignment->permission_type = $enum;
-                $assignment->permission_id   = (int)$concrete->getKey();
+                $assignment->permission_id = (int)$concrete->getKey();
             }
 
             if (array_key_exists('active', $meta)) {
@@ -265,15 +265,39 @@ final class EloquentPermissionRepository implements PermissionRepositoryInterfac
             $assignment->save();
 
             return [
-                'permission_id'   => (int)$concrete->getKey(),
+                'permission_id' => (int)$concrete->getKey(),
                 'permission_type' => $enum->value,
-                'concrete_id'     => (int)$concrete->getKey(),
-                'concrete_type'   => $enum->value,
-                'created'         => $created,
-                'warning'         => $warning,
+                'concrete_id' => (int)$concrete->getKey(),
+                'concrete_type' => $enum->value,
+                'created' => $created,
+                'warning' => $warning,
             ];
         });
     }
+
+    /**
+     * @throws Throwable
+     */
+    public function deactivatePluginPermission(int $pluginId, PermissionType $type, int $permissionId): bool
+    {
+        return DB::transaction(static function () use ($pluginId, $type, $permissionId): bool {
+            $row = PluginPermission::query()
+                ->where('plugin_id', $pluginId)
+                ->where('permission_type', $type) // enum cast on model
+                ->where('permission_id', $permissionId)
+                ->first();
+
+            if (!$row || $row->active === false) {
+                return false; // idempotent
+            }
+
+            $row->active = false;
+            $row->save();
+
+            return true;
+        });
+    }
+
 
     /**
      * @throws JsonException

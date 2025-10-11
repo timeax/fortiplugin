@@ -31,6 +31,8 @@ class Plugin extends Model
 {
 	protected $table = "scpl_plugins";
 
+	protected $guarded = [];
+
 	protected $casts = [
 		"status" => PluginStatus::class,
 		"config" => AsArrayObject::class,

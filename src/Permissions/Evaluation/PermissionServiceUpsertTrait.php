@@ -1,4 +1,4 @@
-<?php
+<?php /** @noinspection PhpUnusedLocalVariableInspection */
 declare(strict_types=1);
 
 namespace Timeax\FortiPlugin\Permissions\Evaluation;
@@ -25,11 +25,11 @@ trait PermissionServiceUpsertTrait
      *
      * @param int $pluginId
      * @param UpsertDtoInterface $dto
-     * @param array $meta e.g. ['constraints'=>array,'audit'=>array,'active'=>bool,'justification'=>?string]
+     * @param array|null $meta e.g. ['constraints'=>array,'audit'=>array,'active'=>bool,'justification'=>?string]
      * @return RuleIngestResult
      * @throws JsonException
      */
-    public function upsert(int $pluginId, UpsertDtoInterface $dto, array $meta = []): RuleIngestResult
+    public function upsert(int $pluginId, UpsertDtoInterface $dto, ?array $meta = []): RuleIngestResult
     {
         // 1) Persist concrete row (by natural key) + ensure plugin assignment
         $repoResult = $this->repo()->upsertForPlugin($pluginId, $dto, $meta);
@@ -95,7 +95,7 @@ trait PermissionServiceUpsertTrait
 
         try {
             $this->audit->record('ingest', $type, $pluginId, $requestPayload, $decisionPayload, $auditOptions);
-        } catch (\Throwable $e) {
+        } catch (Throwable $e) {
             // Don’t fail the operation because logging failed; surface as a warning in result if you want
             // (optional) $resultDto = new RuleIngestResult(..., warning: trim(($warning ? "$warning; " : "")."audit_error: ".$e->getMessage()));
         }

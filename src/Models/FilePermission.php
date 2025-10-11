@@ -11,9 +11,6 @@ use Illuminate\Database\Eloquent\Model;
  * @property string $base_dir
  * @property array $paths
  * @property array $permissions
- * @property bool $limited
- * @property string|null $limit_type
- * @property string|null $limit_value
  * @property \Carbon\Carbon $created_at
  * @property \Carbon\Carbon $updated_at
  */
@@ -21,14 +18,7 @@ class FilePermission extends Model
 {
 	protected $table = "scpl_file_permissions";
 
-	protected $fillable = [
-		"natural_key",
-		"base_dir",
-		"paths",
-		"limited",
-		"limit_type",
-		"limit_value",
-	];
+	protected $fillable = ["natural_key", "base_dir", "paths"];
 
 	protected $guarded = [
 		"id",

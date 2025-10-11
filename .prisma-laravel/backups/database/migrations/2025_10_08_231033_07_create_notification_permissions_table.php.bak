@@ -24,9 +24,6 @@ return new class extends Migration {
 			$table->json("permissions");
 			$table->json("templates_allowed")->nullable();
 			$table->json("recipients_allowed")->nullable();
-			$table->boolean("limited")->default(false);
-			$table->string("limit_type")->nullable();
-			$table->string("limit_value")->nullable();
 			$table->timestamps();
 		});
 	}

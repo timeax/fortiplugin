@@ -2,8 +2,11 @@
 
 namespace Timeax\FortiPlugin\Services;
 
+use JsonException;
 use RuntimeException;
+use SodiumException;
 use Timeax\FortiPlugin\Models\HostKey;
+use Timeax\FortiPlugin\Support\Encryption;
 
 final class HostKeyService
 {
@@ -33,6 +36,7 @@ final class HostKeyService
     /**
      * Sign arbitrary data with the current signing key.
      * @return array{alg:string,fingerprint:string,signature_b64:string}
+     * @throws JsonException
      */
     public function sign(string $data): array
     {
@@ -63,14 +67,17 @@ final class HostKeyService
         return [
             'alg' => (string)config('fortiplugin.keys.algo', 'RS256'),
             'fingerprint' => $key->fingerprint,
-            'signature_b64' => base64_encode($sigBin),
+            'signature_b64' => Encryption::encrypt(base64_encode($sigBin)),
         ];
     }
 
-    /** Verify a signature using a public key (by fingerprint or provided PEM). */
+    /**
+     * Verify a signature using a public key (by fingerprint or provided PEM).
+     * @throws JsonException|SodiumException
+     */
     public function verify(string $data, string $signatureB64, ?string $fingerprint = null, ?string $publicPem = null): bool
     {
-        $sig = base64_decode($signatureB64, true);
+        $sig = base64_decode(Encryption::decrypt($signatureB64), true);
         if ($sig === false) {
             return false;
         }

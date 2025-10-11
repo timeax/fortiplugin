@@ -1,140 +1,533 @@
-<?php
+<?php /** @noinspection ALL */
 #{SIGNATURE_BLOCK}
 
 declare(strict_types=1);
 
-namespace Plugins\#{PLUGIN_STUDLY}\Internal;
+namespace IGNORE;
+#{PLUGIN_NAMESPACE}\Internal;
+use Timeax\FortiPlugin\Enums\PermissionType;
 
-use Illuminate\Support\Facades\File;
-use Timeax\SecurePlugin\Contracts\ConfigInterface;
-use RuntimeException;
-
-final class Config implements ConfigInterface
+/**
+ * Dev-mode stub: permissions & host config are read from local JSON
+ * files under `.internal/`, never from the database or PermissionService.
+ *
+ * This is great for local/demo development when the host isn’t present.
+ */
+final class DevConfig implements ConfigInterface
 {
-    private static array $configData;
+    /** Cached plugin config (plugin.config.json). */
+    private static array $configData = [];
+
+    /** Runtime installation info placeholders (filled by installer stubber). */
+    private static array $info = [
+        'id' => (int)'#{PLUGIN_ID}',
+        'alias' => '#{PLUGIN_ALIAS}',
+        'name' => '#{PLUGIN_STUDLY}',
+    ];
+
+    /** Cached signature payload from `.internal/Signed` if present. */
     private static ?string $signature = null;
 
-    /**
-     * Loads and caches plugin.config.json
-     */
-    private static function loadConfig(): array
+    /** Cached dev-mode permission set from `.internal/dev.permissions.json`. */
+    private static ?array $devPerms = null;
+
+    /** Cached dev-mode host settings from `.internal/dev.host.json`. */
+    private static ?array $devHost = null;
+
+    /* ─────────────────────────────────────────────────────────────────────
+     |  Paths & load helpers
+     ───────────────────────────────────────────────────────────────────── */
+
+    private static function baseDir(): string
     {
-        if (isset(self::$configData)) {
-            return self::$configData;
-        }
-
-        $path = dirname(__DIR__) . '/plugin.config.json';
-        if (!File::exists($path)) {
-            throw new RuntimeException("Missing plugin.config.json at $path");
-        }
-
-        $json = File::get($path);
-        $data = json_decode($json, true);
-
-        if (!is_array($data)) {
-            throw new RuntimeException("Invalid plugin.config.json");
-        }
-
-        return self::$configData = $data;
+        return dirname(__DIR__); // plugin root
     }
 
+    private static function internalPath(string $name): string
+    {
+        return self::baseDir() . '/.internal/' . ltrim($name, '/');
+    }
+
+    private static function readJson(string $path, array $fallback = []): array
+    {
+        if (!is_file($path)) {
+            return $fallback;
+        }
+        $raw = @file_get_contents($path);
+        if ($raw === false) {
+            return $fallback;
+        }
+        $decoded = json_decode($raw, true);
+        return is_array($decoded) ? $decoded : $fallback;
+    }
+
+    /* ─────────────────────────────────────────────────────────────────────
+     |  ConfigInterface — core config
+     ───────────────────────────────────────────────────────────────────── */
+
+    /** @inheritDoc */
     public static function all(): array
     {
-        return self::loadConfig();
+        if (self::$configData !== []) {
+            return self::$configData;
+        }
+        $path = self::baseDir() . '/plugin.config.json';
+        return self::$configData = self::readJson($path);
     }
 
+    /** @inheritDoc */
     public static function get(string $key, mixed $default = null): mixed
     {
-        return self::loadConfig()[$key] ?? $default;
+        $data = self::all();
+        if (array_key_exists($key, $data)) {
+            return $data[$key];
+        }
+        $cursor = $data;
+        foreach (explode('.', $key) as $seg) {
+            if (is_array($cursor) && array_key_exists($seg, $cursor)) {
+                $cursor = $cursor[$seg];
+            } else {
+                return $default;
+            }
+        }
+        return $cursor;
     }
 
+    /** @inheritDoc */
     public static function getName(): string
     {
-        return (string) self::get('name', 'Unknown Plugin');
+        return (string)(self::get('name') ?? self::$info['name'] ?? 'Plugin');
     }
 
+    /** @inheritDoc */
     public static function getAlias(): string
     {
-        return (string) self::get('alias', 'unknown');
+        return (string)(self::get('alias') ?? self::$info['alias'] ?? 'plugin-alias');
     }
 
+    /** @inheritDoc */
     public static function getVersion(): string
     {
-        return (string) self::get('version', '0.0.1');
+        return (string)(self::get('version') ?? '0.0.0');
     }
 
+    /** @inheritDoc */
     public static function getDescription(): ?string
     {
-        return self::get('description');
+        $v = self::get('description');
+        return $v === null ? null : (string)$v;
     }
 
+    /** @inheritDoc */
     public static function getAuthor(): ?string
     {
-        return self::get('author');
+        $v = self::get('author');
+        return $v === null ? null : (string)$v;
     }
 
+    /** @inheritDoc */
     public static function getUiConfig(): ?array
     {
-        return self::get('uiConfig');
+        $v = self::get('ui');
+        return is_array($v) ? $v : null;
     }
 
+    /** @inheritDoc */
     public static function getHostConfig(): ?array
     {
-        return self::get('hostConfig') ?? self::get('config') ?? null;
+        $v = self::get('host');
+        return is_array($v) ? $v : null;
     }
 
+    /** @inheritDoc */
     public static function getInfo(): array
     {
-        return ['id' => null, 'alias' => null]; // Not available in dev mode
-    }
-
-    public static function getPluginId(): ?int
-    {
-        return null;
-    }
-
-    public static function getInstalledAlias(): ?string
-    {
-        return null;
-    }
-
-    public static function getRequiredPermissions(): array
-    {
-        // Not implemented in dev mode (requires manifest.json and grant logic)
-        return [];
-    }
-
-    public static function hasRequiredPermissions(): bool
-    {
-        return false;
-    }
-
-    public static function getExtraPermissions(): array
-    {
         return [
-            'db' => [],
-            'file' => [],
-            'notify' => [],
-            'module' => [],
+            'id' => is_int(self::$info['id']) ? self::$info['id'] : null,
+            'alias' => is_string(self::$info['alias']) ? self::$info['alias'] : null,
+            'name' => is_string(self::$info['name'] ?? null) ? self::$info['name'] : (self::getName() ?: null),
         ];
     }
 
-    public static function getPermission(string $type, string $target, string|array|null $permissions = null): bool
+    /** @inheritDoc */
+    public static function getPluginId(): ?int
     {
-        return false; // Not implemented in dev mode
+        return is_int(self::$info['id']) ? self::$info['id'] : null;
     }
 
+    /** @inheritDoc */
+    public static function getInstalledAlias(): ?string
+    {
+        $alias = self::$info['alias'] ?? null;
+        return is_string($alias) ? $alias : null;
+    }
+
+    /** @inheritDoc */
     public static function getSignature(): ?string
     {
         if (self::$signature !== null) {
             return self::$signature;
         }
-
-        $path = dirname(__DIR__) . '/.internal/Signed';
-        if (!File::exists($path)) {
-            return null;
+        $path = self::internalPath('Signed');
+        if (!is_file($path)) {
+            return self::$signature = null;
         }
+        $raw = @file_get_contents($path);
+        return self::$signature = ($raw === false ? null : $raw);
+    }
 
-        return self::$signature = File::get($path);
+    /* ─────────────────────────────────────────────────────────────────────
+     |  Dev-mode host settings (mocked PluginSetting)
+     ───────────────────────────────────────────────────────────────────── */
+
+    /**
+     * Load `.internal/dev.host.json` once.
+     * Shape: { "key": { "value": "...", "type": "string|number|boolean|json|file|blob" }, ... }
+     */
+    private static function hostAll(): array
+    {
+        if (self::$devHost !== null) {
+            return self::$devHost;
+        }
+        $path = self::internalPath('dev.host.json');
+        return self::$devHost = self::readJson($path);
+    }
+
+    /**
+     * Get a host setting (mocked), with basic type decoding by `type`.
+     */
+    public static function getHost(string $key, mixed $default = null): mixed
+    {
+        $all = self::hostAll();
+        if (!isset($all[$key]) || !is_array($all[$key])) {
+            return $default;
+        }
+        $entry = $all[$key];
+        $type = (string)($entry['type'] ?? 'string');
+        $value = $entry['value'] ?? null;
+
+        return match ($type) {
+            'boolean' => filter_var($value, FILTER_VALIDATE_BOOLEAN, FILTER_NULL_ON_FAILURE) ?? (bool)$value,
+            'number' => is_numeric($value) ? (0 + $value) : $default,
+            'json' => is_string($value) ? (json_decode($value, true) ?: $default) : (is_array($value) ? $value : $default),
+            default => $value,
+        };
+    }
+
+    /**
+     * Return every mocked host setting with decoded values.
+     * @return array<string,mixed>
+     */
+    public static function getHostAll(): array
+    {
+        $out = [];
+        foreach (self::hostAll() as $k => $v) {
+            $out[$k] = self::getHost($k);
+        }
+        return $out;
+    }
+
+    /* ─────────────────────────────────────────────────────────────────────
+     |  Dev-mode permission mocks & evaluation
+     ───────────────────────────────────────────────────────────────────── */
+
+    /**
+     * Load `.internal/dev.permissions.json` once.
+     *
+     * Expected shape (array of entries):
+     * [
+     *   {
+     *     "type": "network",
+     *     "grants": ["request"],                // actions granted
+     *     "meta": {                             // type-specific selector
+     *       "methods": ["GET","POST"],
+     *       "schemes": ["https"],
+     *       "hosts": ["api.stripe.com","*.timeax.dev"],
+     *       "ports": [443],
+     *       "paths": ["/v1/","/api/"]
+     *     },
+     *     "required": true,
+     *     "source": "direct"                    // optional: "direct"|"tag"
+     *   },
+     *   ...
+     * ]
+     */
+    private static function mockPerms(): array
+    {
+        if (self::$devPerms !== null) {
+            return self::$devPerms;
+        }
+        $path = self::internalPath('dev.permissions.json');
+
+        // Minimal, sensible defaults if file absent:
+        $fallback = [
+            [
+                'type' => 'module',
+                'grants' => ['call'],
+                'meta' => ['module' => 'analytics', 'apis' => ['track', 'identify']],
+                'required' => true,
+                'source' => 'direct',
+            ],
+        ];
+
+        $raw = self::readJson($path, $fallback);
+
+        // sanitize
+        $out = [];
+        foreach ($raw as $row) {
+            if (!is_array($row)) continue;
+            $type = (string)($row['type'] ?? '');
+            if ($type === '') continue;
+
+            $out[] = [
+                'type' => $type,
+                'grants' => array_values(array_unique(array_map('strval', (array)($row['grants'] ?? [])))),
+                'meta' => is_array($row['meta'] ?? null) ? $row['meta'] : [],
+                'required' => (bool)($row['required'] ?? false),
+                'source' => in_array(($row['source'] ?? 'direct'), ['direct', 'tag'], true) ? $row['source'] : 'direct',
+            ];
+        }
+        return self::$devPerms = $out;
+    }
+
+    /** @inheritDoc */
+    public static function hasPermission(
+        PermissionType|string $type,
+        string                $actionOrIntent,
+        string|array|null     $meta = null,
+        array                 $context = []
+    ): bool
+    {
+        $def = self::getPermission($type, $meta);
+        if ($def === null) {
+            return false;
+        }
+        // If a definition exists, ensure it actually grants the requested action.
+        $grants = array_map('strval', (array)($def['grants'] ?? []));
+        return in_array($actionOrIntent, $grants, true);
+    }
+
+    /** @inheritDoc */
+    public static function getPermission(
+        PermissionType|string $type,
+        string|array|null     $meta = null
+    ): ?array
+    {
+        $family = $type instanceof PermissionType ? $type->value : (string)$type;
+        $selector = self::normalizeSelector($family, $meta);
+
+        foreach (self::mockPerms() as $row) {
+            if (($row['type'] ?? '') !== $family) {
+                continue;
+            }
+            $defMeta = is_array($row['meta'] ?? null) ? $row['meta'] : [];
+            if (self::matches($family, $selector, $defMeta)) {
+                // Return a normalized copy
+                return [
+                    'type' => $family,
+                    'meta' => $defMeta,
+                    'grants' => array_values(array_unique(array_map('strval', (array)$row['grants']))),
+                    'required' => (bool)$row['required'],
+                    'source' => (string)$row['source'],
+                ];
+            }
+        }
+        return null;
+    }
+
+    /* ─────────────────────────────────────────────────────────────────────
+     |  Matching helpers (simple, but “real-ish”)
+     ───────────────────────────────────────────────────────────────────── */
+
+    private static function normalizeSelector(string $family, string|array|null $meta): array
+    {
+        $m = is_array($meta) ? $meta : (is_string($meta) ? ['value' => $meta] : []);
+        return match ($family) {
+            'db' => [
+                'model' => isset($m['model']) ? (string)$m['model'] : null,
+                'table' => isset($m['table']) ? (string)$m['table'] : null,
+                'columns' => isset($m['columns']) && is_array($m['columns']) ? array_values(array_map('strval', $m['columns'])) : null,
+            ],
+            'file' => [
+                'baseDir' => (string)($m['baseDir'] ?? ($m['base_dir'] ?? '')),
+                'path' => (string)($m['path'] ?? ''),
+            ],
+            'notification' => [
+                'channel' => (string)($m['channel'] ?? ''),
+                'template' => isset($m['template']) ? (string)$m['template'] : null,
+                'recipient' => isset($m['recipient']) ? (string)$m['recipient'] : null,
+            ],
+            'module' => [
+                'module' => (string)($m['module'] ?? ''),
+                'api' => (string)($m['api'] ?? ''),
+            ],
+            'network' => [
+                'method' => strtoupper((string)($m['method'] ?? 'GET')),
+                'url' => (string)($m['url'] ?? ''),
+            ],
+            'codec' => [
+                'method' => (string)($m['method'] ?? ''),
+                'options' => isset($m['options']) && is_array($m['options']) ? $m['options'] : null,
+            ],
+            default => $m,
+        };
+    }
+
+    private static function matches(string $family, array $sel, array $meta): bool
+    {
+        return match ($family) {
+            'db' => self::matchDb($sel, $meta),
+            'file' => self::matchFile($sel, $meta),
+            'notification' => self::matchNotify($sel, $meta),
+            'module' => self::matchModule($sel, $meta),
+            'network' => self::matchNetwork($sel, $meta),
+            'codec' => self::matchCodec($sel, $meta),
+            default => false,
+        };
+    }
+
+    /* db: match model/table + columns ⊆ allowed (if provided) */
+    private static function matchDb(array $sel, array $meta): bool
+    {
+        if (($sel['model'] ?? null) && ($meta['model'] ?? null) && $sel['model'] !== $meta['model']) {
+            return false;
+        }
+        if (($sel['table'] ?? null) && ($meta['table'] ?? null) && $sel['table'] !== $meta['table']) {
+            return false;
+        }
+        $wantCols = $sel['columns'] ?? null;
+        $haveCols = isset($meta['columns']) && is_array($meta['columns']) ? array_values(array_map('strval', $meta['columns'])) : null;
+        if ($wantCols && $haveCols) {
+            return count(array_diff($wantCols, $haveCols)) === 0;
+        }
+        return true;
+    }
+
+    /* file: simple prefix check baseDir/path against allowed paths */
+    private static function matchFile(array $sel, array $meta): bool
+    {
+        $base = rtrim(str_replace('\\', '/', (string)($meta['baseDir'] ?? $meta['base_dir'] ?? '')), '/');
+        $cand = ltrim(str_replace('\\', '/', (string)$sel['path']), '/');
+        $allowed = is_array($meta['paths'] ?? null) ? $meta['paths'] : [];
+        if ($base === '' && $allowed === []) {
+            return true;
+        }
+        foreach ($allowed as $p) {
+            $prefix = trim($base . '/' . ltrim((string)$p, '/'), '/');
+            if ($prefix === '' || $prefix === '/') return true;
+            if (str_starts_with($cand, $prefix)) return true;
+        }
+        return false;
+    }
+
+    /* notification: channel + (template/recipient) if provided */
+    private static function matchNotify(array $sel, array $meta): bool
+    {
+        if (($sel['channel'] ?? '') !== (string)($meta['channel'] ?? '')) {
+            return false;
+        }
+        if (isset($sel['template']) && is_array($meta['templates'] ?? null)) {
+            if (!in_array((string)$sel['template'], $meta['templates'], true)) return false;
+        }
+        if (isset($sel['recipient']) && is_array($meta['recipients'] ?? null)) {
+            if (!in_array((string)$sel['recipient'], $meta['recipients'], true)) return false;
+        }
+        return true;
+    }
+
+    /* module: exact module, api ∈ apis if set */
+    private static function matchModule(array $sel, array $meta): bool
+    {
+        if (($sel['module'] ?? '') !== (string)($meta['module'] ?? '')) {
+            return false;
+        }
+        $apis = is_array($meta['apis'] ?? null) ? $meta['apis'] : null;
+        if ($apis && ($sel['api'] ?? '') !== '' && !in_array($sel['api'], $apis, true)) {
+            return false;
+        }
+        return true;
+    }
+
+    /* network: very light check (scheme/host wildcard/port path prefix/method) */
+    private static function matchNetwork(array $sel, array $meta): bool
+    {
+        $parts = parse_url((string)$sel['url']) ?: [];
+        $scheme = strtolower((string)($parts['scheme'] ?? 'https'));
+        $host = strtolower((string)($parts['host'] ?? ''));
+        $port = (int)($parts['port'] ?? ($scheme === 'https' ? 443 : 80));
+        $path = (string)($parts['path'] ?? '/');
+        $method = strtoupper((string)($sel['method'] ?? 'GET'));
+
+        $okMethod = self::inList($method, (array)($meta['methods'] ?? []), true);
+        $okScheme = self::inList($scheme, (array)($meta['schemes'] ?? ['https']), false);
+        $okHost = self::hostMatches($host, (array)($meta['hosts'] ?? []));
+        $okPort = self::portMatches($port, (array)($meta['ports'] ?? []), $scheme);
+        $okPath = self::pathPrefix($path, (array)($meta['paths'] ?? []));
+
+        return $okMethod && $okScheme && $okHost && $okPort && $okPath;
+    }
+
+    /* codec: method ∈ methods (or '*' string) */
+    private static function matchCodec(array $sel, array $meta): bool
+    {
+        $m = (string)($sel['method'] ?? '');
+        $allowed = $meta['methods'] ?? null;
+        if ($allowed === '*') return $m !== '';
+        if (is_array($allowed)) return in_array($m, $allowed, true);
+        return false;
+    }
+
+    /* ── tiny match helpers ─────────────────────────────────────────── */
+
+    private static function inList(string $value, array $list, bool $upper): bool
+    {
+        if ($list === []) return true;
+        $v = $upper ? strtoupper($value) : strtolower($value);
+        foreach ($list as $a) {
+            $cmp = $upper ? strtoupper((string)$a) : strtolower((string)$a);
+            if ($cmp === $v) return true;
+        }
+        return false;
+    }
+
+    private static function hostMatches(string $host, array $patterns): bool
+    {
+        if ($patterns === []) return true;
+        $h = strtolower($host);
+        foreach ($patterns as $p) {
+            $p = strtolower((string)$p);
+            if (str_starts_with($p, '*.')) {
+                $suffix = substr($p, 1); // ".example.com"
+                if (str_ends_with($h, $suffix) && substr_count($h, '.') >= substr_count($suffix, '.')) {
+                    return true;
+                }
+            } elseif ($h === $p) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private static function portMatches(int $port, array $ports, string $scheme): bool
+    {
+        if ($ports === []) {
+            $default = $scheme === 'https' ? 443 : 80;
+            return $port === $default;
+        }
+        foreach ($ports as $p) {
+            if ((int)$p === $port) return true;
+        }
+        return false;
+    }
+
+    private static function pathPrefix(string $path, array $prefixes): bool
+    {
+        if ($prefixes === []) return true;
+        foreach ($prefixes as $pre) {
+            $pre = (string)$pre;
+            if ($pre === '' || $pre === '/') return true;
+            if (str_starts_with($path, $pre)) return true;
+        }
+        return false;
     }
 }

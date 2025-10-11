@@ -21,9 +21,6 @@ return new class extends Migration {
 			$table->string("module");
 			$table->json("apis");
 			$table->boolean("access")->default(false);
-			$table->boolean("limited")->default(false);
-			$table->string("limit_type")->nullable();
-			$table->string("limit_value")->nullable();
 			$table->timestamps();
 		});
 	}

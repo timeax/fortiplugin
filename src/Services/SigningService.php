@@ -46,7 +46,7 @@ class SigningService
         return <<<BLOCK
 /**
  *  !! AUTO-GENERATED – DO NOT EDIT !!
- *  Reads plugin.config.json during development.
+ *  Reads fortiplugin.json during development.
  *  ENCRYPTED_SIGNATURE:
  *  ----BEGIN----
  *  {$encryptedBlock}

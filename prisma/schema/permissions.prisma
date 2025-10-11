@@ -306,6 +306,7 @@ model PluginRoutePermission {
 /// Plugin (links to pivots)
 /// ===========================
 /// NOTE: Assuming PluginStatus enum & other related models already exist.
+///@guarded
 model Plugin {
   id                    BigInt       @id @default(autoincrement()) @db.BigInt
   name                  String       @unique

@@ -26,4 +26,3 @@ class ListHostsCommand extends Command
         }
     }
 }
-W

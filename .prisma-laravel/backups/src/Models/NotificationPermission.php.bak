@@ -12,9 +12,6 @@ use Illuminate\Database\Eloquent\Model;
  * @property array $permissions
  * @property array|null $templates_allowed
  * @property array|null $recipients_allowed
- * @property bool $limited
- * @property string|null $limit_type
- * @property string|null $limit_value
  * @property \Carbon\Carbon $created_at
  * @property \Carbon\Carbon $updated_at
  */
@@ -27,9 +24,6 @@ class NotificationPermission extends Model
 		"channel",
 		"templates_allowed",
 		"recipients_allowed",
-		"limited",
-		"limit_type",
-		"limit_value",
 	];
 
 	protected $guarded = [

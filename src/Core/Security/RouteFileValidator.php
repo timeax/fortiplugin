@@ -38,16 +38,16 @@ final class RouteFileValidator
             $id = $node['id'] ?? null;
             $desc = $node['desc'] ?? null;
             if (!is_string($id) || $id === '' || !is_string($desc) || $desc === '') {
-                throw new RuntimeException("Route at $filePath {$path} missing required 'id'/'desc'.");
+                throw new RuntimeException("Route at $filePath $path missing required 'id'/'desc'.");
             }
 
             // Check file-scope uniqueness
             if (isset($local[$id])) {
                 $first = $local[$id];
                 throw new RuntimeException(
-                    "Duplicate route id '{$id}' within the same file.\n" .
-                    " - First at: {$filePath} {$first}\n" .
-                    " - Again at: {$filePath} {$path}"
+                    "Duplicate route id '$id' within the same file.\n" .
+                    " - First at: $filePath $first\n" .
+                    " - Again at: $filePath $path"
                 );
             }
             $local[$id] = $path;
@@ -59,13 +59,13 @@ final class RouteFileValidator
             if (($node['type'] ?? null) === 'group') {
                 $children = $node['routes'] ?? [];
                 foreach ($children as $i => $child) {
-                    $walk($child, $path . "/routes[{$i}]");
+                    $walk($child, $path . "/routes[$i]");
                 }
             }
         };
 
         foreach ($data['routes'] as $i => $node) {
-            $walk($node, "/routes[{$i}]");
+            $walk($node, "/routes[$i]");
         }
     }
 }

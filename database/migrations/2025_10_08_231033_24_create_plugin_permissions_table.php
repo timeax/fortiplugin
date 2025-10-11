@@ -27,7 +27,7 @@ return new class extends Migration {
 				"codec",
 			]);
 			$table->bigInteger("permission_id");
-			$table->boolean("active")->default(true);
+			$table->boolean("active")->default(false);
 			$table->boolean("limited")->default(false);
 			$table->string("limit_type")->nullable();
 			$table->string("limit_value")->nullable();

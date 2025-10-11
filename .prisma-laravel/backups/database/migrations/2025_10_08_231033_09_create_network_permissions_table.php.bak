@@ -43,9 +43,6 @@ return new class extends Migration {
 				->comment(
 					"Secrets policy: if true, the host injects credentials; plugins don't supply secrets.",
 				);
-			$table->boolean("limited")->default(false);
-			$table->string("limit_type")->nullable();
-			$table->string("limit_value")->nullable();
 			$table->timestamps();
 		});
 	}

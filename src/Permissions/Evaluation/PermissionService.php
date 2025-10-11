@@ -7,6 +7,7 @@ use DateTimeImmutable;
 use DateTimeInterface;
 use JsonException;
 use Throwable;
+use Timeax\FortiPlugin\Enums\PermissionType;
 use Timeax\FortiPlugin\Permissions\Cache\KeyBuilder;
 use Timeax\FortiPlugin\Permissions\Contracts\AuditEmitterInterface;
 use Timeax\FortiPlugin\Permissions\Contracts\CapabilityCacheInterface;
@@ -26,6 +27,8 @@ use Timeax\FortiPlugin\Permissions\Evaluation\Dto\{
 };
 use Timeax\FortiPlugin\Permissions\Ingestion\Dto\IngestSummary;
 use Timeax\FortiPlugin\Permissions\Ingestion\PermissionIngestor;
+use Timeax\FortiPlugin\Permissions\Manifest\ManifestNormalizer;
+use Timeax\FortiPlugin\Permissions\Manifest\ManifestValidator;
 use Timeax\FortiPlugin\Permissions\Policy\TimeWindowEvaluator;
 use Timeax\FortiPlugin\Permissions\Registry\PermissionRegistry;
 
@@ -51,7 +54,7 @@ final readonly class PermissionService implements PermissionServiceInterface
      */
     public function ingestManifest(int $pluginId, array $manifest): IngestSummary
     {
-        $summary = $this->ingestor->ingest($pluginId, $manifest);
+        $summary = $this->ingestor->ingest($pluginId, ManifestNormalizer::normalize($manifest));
         $this->invalidateCache($pluginId);
         $this->warmCache($pluginId);
         return $summary;
@@ -75,7 +78,7 @@ final readonly class PermissionService implements PermissionServiceInterface
     /* ----------------------- typed convenience --------------------- */
 
     /** @throws JsonException */
-    public function canDb(int $pluginId, string $action, array $target, array $context = []): Result
+    public function canDb(int $pluginId, string $action, array $target, ?array $context = []): Result
     {
         $this->ensureWarm($pluginId);
         $req = new DbRequest(
@@ -88,7 +91,7 @@ final readonly class PermissionService implements PermissionServiceInterface
     }
 
     /** @throws JsonException */
-    public function canFile(int $pluginId, string $action, array $target, array $context = []): Result
+    public function canFile(int $pluginId, string $action, array $target, ?array $context = []): Result
     {
         $this->ensureWarm($pluginId);
         $req = new FileRequest($action, (string)($target['baseDir'] ?? ''), (string)($target['path'] ?? ''));
@@ -96,7 +99,7 @@ final readonly class PermissionService implements PermissionServiceInterface
     }
 
     /** @throws JsonException */
-    public function canNotify(int $pluginId, string $action, array $target, array $context = []): Result
+    public function canNotify(int $pluginId, string $action, array $target, ?array $context = []): Result
     {
         $this->ensureWarm($pluginId);
         $req = new NotifyRequest(
@@ -109,7 +112,7 @@ final readonly class PermissionService implements PermissionServiceInterface
     }
 
     /** @throws JsonException */
-    public function canModule(int $pluginId, array $target, array $context = []): Result
+    public function canModule(int $pluginId, array $target, ?array $context = []): Result
     {
         $this->ensureWarm($pluginId);
         $req = new ModuleRequest(
@@ -120,7 +123,7 @@ final readonly class PermissionService implements PermissionServiceInterface
     }
 
     /** @throws JsonException */
-    public function canNetwork(int $pluginId, array $target, array $context = []): Result
+    public function canNetwork(int $pluginId, array $target, ?array $context = []): Result
     {
         $this->ensureWarm($pluginId);
         $req = new NetworkRequest(
@@ -132,7 +135,7 @@ final readonly class PermissionService implements PermissionServiceInterface
     }
 
     /** @throws JsonException */
-    public function canCodec(int $pluginId, array $target, array $context = []): Result
+    public function canCodec(int $pluginId, array $target, ?array $context = []): Result
     {
         $this->ensureWarm($pluginId);
         $req = new CodecRequest(
@@ -143,7 +146,7 @@ final readonly class PermissionService implements PermissionServiceInterface
     }
 
     /** @throws JsonException */
-    public function canRouteWrite(int $pluginId, array $target, array $context = []): Result
+    public function canRouteWrite(int $pluginId, array $target, ?array $context = []): Result
     {
         $this->ensureWarm($pluginId);
         $req = new RouteWriteRequest(
@@ -156,7 +159,7 @@ final readonly class PermissionService implements PermissionServiceInterface
     /* ----------------------- generic DTO entry --------------------- */
 
     /** @throws JsonException */
-    public function can(int $pluginId, PermissionRequestInterface $request, array $context): Result
+    public function can(int $pluginId, PermissionRequestInterface $request, ?array $context = []): Result
     {
         $this->ensureWarm($pluginId);
 
@@ -178,6 +181,11 @@ final readonly class PermissionService implements PermissionServiceInterface
             matched: $matched,
             context: $raw['context'] ?? null
         );
+    }
+
+    public function validateManifest(array $manifest): array
+    {
+        return ManifestValidator::tryValidate($manifest);
     }
 
     /* ----------------------------- internals ----------------------- */
@@ -280,9 +288,9 @@ final readonly class PermissionService implements PermissionServiceInterface
      *  - time window filtering via TimeWindowEvaluator
      *  - bulk hydration of concretes
      *
-     * Returns the SAME shape you already use in checkers:
+     * Returns:
      * [
-     *   'db' => [ ['id'=>..,'row'=>..,'constraints'=>..,'audit'=>..,'active'=>true], ... ],
+     *   'db'   => [ ['id'=>..,'row'=>..,'constraints'=>..,'audit'=>..,'active'=>true], ... ],
      *   'file' => [ ... ],
      *   ...
      * ]
@@ -297,32 +305,49 @@ final readonly class PermissionService implements PermissionServiceInterface
         $put = static function (array $row, string $source) use (&$merged): void {
             $type = (string)($row['type'] ?? '');
             $id = (int)($row['id'] ?? 0);
-            if ($type === '' || $id <= 0) {
-                return;
-            }
+            if ($type === '' || $id <= 0) return;
+
             $k = $type . ':' . $id;
             if (isset($merged[$k]) && $merged[$k]['source'] === 'direct' && $source !== 'direct') {
-                return;
+                return; // direct wins
             }
             $row['source'] = $source;
             $merged[$k] = $row;
         };
-        foreach ($direct as $row) {
-            $put($row, 'direct');
-        }
-        foreach ($viaTag as $row) {
-            $put($row, 'tag');
-        }
+        foreach ($direct as $row) $put($row, 'direct');
+        foreach ($viaTag as $row) $put($row, 'tag');
 
-        if ($merged === []) {
-            return [];
-        }
+        if ($merged === []) return [];
 
-        // group target ids by type (only active ones)
+        // -------- NEW: pre-filter by window & deactivate direct if expired --------
+        $filtered = [];
+        foreach ($merged as $a) {
+            if (!($a['active'] ?? true)) {
+                continue;
+            }
+
+            $t = (string)$a['type'];
+            $startedAt = $this->parseWhen($a['started_at'] ?? $a['created_at'] ?? null);
+            $window = $a['window'] ?? null;
+            $isDirect = ($a['source'] ?? '') === 'direct';
+
+            if ($isDirect) {
+                // direct: check and (if expired) deactivate + skip
+                if (!$this->isDirectAssignmentUsableOrDeactivate($pluginId, $t, $a, $startedAt)) {
+                    continue;
+                }
+            } else if ($window && ($window['limited'] ?? false) && !$this->windowEval->isActive(is_array($window) ? $window : null, $startedAt)) {
+                continue; // not usable right now
+            }
+
+            $filtered[] = $a;
+        }
+        // -------------------------------------------------------------------------
+
+        // group target ids by type (only the filtered ones)
         $idsByType = [];
         $assignByType = [];
-        foreach ($merged as $a) {
-            if (!($a['active'] ?? true)) continue;
+        foreach ($filtered as $a) {
             $t = (string)$a['type'];
             $id = (int)$a['id'];
             $idsByType[$t][] = $id;
@@ -339,7 +364,7 @@ final readonly class PermissionService implements PermissionServiceInterface
             $concreteByType[$t] = $this->repo->fetchConcreteByType($t, $ids); // id => row
         }
 
-        // time window filter + assemble
+        // assemble
         $caps = [];
         foreach ($assignByType as $t => $rows) {
             $entries = [];
@@ -347,13 +372,6 @@ final readonly class PermissionService implements PermissionServiceInterface
                 $id = (int)$a['id'];
                 $row = $concreteByType[$t][$id] ?? null;
                 if ($row === null) continue;
-
-                // time window
-                $window = $a['window'] ?? null; // ['limited'=>bool,'type'=>?string,'value'=>?string]
-                $startedAt = $this->parseWhen($a['started_at'] ?? $a['created_at'] ?? null);
-                if (!$this->windowEval->isActive(is_array($window) ? $window : null, $startedAt)) {
-                    continue;
-                }
 
                 $entries[] = [
                     'id' => $id,
@@ -364,7 +382,6 @@ final readonly class PermissionService implements PermissionServiceInterface
                 ];
             }
 
-            // stable order helps caches/ETags
             usort($entries, static fn($A, $B) => ($A['id'] <=> $B['id']));
             if ($entries) {
                 $caps[$t] = $entries;
@@ -394,6 +411,80 @@ final readonly class PermissionService implements PermissionServiceInterface
             'matched' => null,
             'context' => $ctx ?: null
         ];
+    }
+
+    /**
+     * Returns true if this direct assignment should be kept; otherwise attempts
+     * to deactivate it (idempotent) and returns false.
+     */
+    private function isDirectAssignmentUsableOrDeactivate(
+        int                $pluginId,
+        string             $typeValue,       // 'db' | 'file' | ...
+        array              $assignment,       // row from repo
+        ?DateTimeInterface $startedAt = null
+    ): bool
+    {
+        // hard inactive? skip.
+        if (!($assignment['active'] ?? true)) {
+            return false;
+        }
+
+        // no window? keep.
+        $window = $assignment['window'] ?? null;
+        if (!$window || !($window['limited'] ?? false)) {
+            return true;
+        }
+
+        // still active within window? keep.
+        if ($this->windowEval->isActive(is_array($window) ? $window : null, $startedAt)) {
+            return true;
+        }
+
+        // expired → deactivate (idempotent) + audit, then drop from caps.
+        try {
+            $typeEnum = PermissionType::from($typeValue);
+            $permissionId = (int)($assignment['id'] ?? 0);
+
+            $changed = $this->repo->deactivatePluginPermission($pluginId, $typeEnum, $permissionId);
+
+            $this->audit->record(
+                'check',
+                $typeValue,
+                $pluginId,
+                [
+                    'action' => 'auto_deactivate_on_expiry',
+                    'morph' => ['type' => $typeValue, 'id' => $permissionId],
+                    'window' => $window,
+                ],
+                [
+                    'allowed' => false,
+                    'reason' => 'expired',
+                    'matched' => ['type' => $typeValue, 'id' => $permissionId],
+                    'context' => ['deactivated' => $changed],
+                ],
+                ['tags' => ['expiry', 'auto-deactivate']]
+            );
+        } catch (Throwable $e) {
+            $this->audit->record(
+                'check',
+                $typeValue,
+                $pluginId,
+                [
+                    'action' => 'auto_deactivate_on_expiry',
+                    'morph' => ['type' => $typeValue, 'id' => (int)($assignment['id'] ?? 0)],
+                    'window' => $window,
+                ],
+                [
+                    'allowed' => false,
+                    'reason' => 'expired_deactivation_failed',
+                    'matched' => null,
+                    'context' => ['error' => $e->getMessage()],
+                ],
+                ['tags' => ['expiry', 'auto-deactivate', 'error']]
+            );
+        }
+
+        return false;
     }
 
     protected function repo(): PermissionRepositoryInterface

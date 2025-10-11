@@ -7,6 +7,7 @@ use Illuminate\Filesystem\Filesystem;
 use Illuminate\Support\Arr;
 use JsonException;
 use RuntimeException;
+use Timeax\FortiPlugin\Core\PluginPolicy;
 
 final readonly class PolicyService
 {
@@ -39,6 +40,15 @@ final readonly class PolicyService
     public function hash(): string
     {
         return hash('sha256', json_encode($this->snapshot(), JSON_THROW_ON_ERROR | JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE));
+    }
+
+    /**
+     * @throws FileNotFoundException
+     * @throws JsonException
+     */
+    public function makePolicy(): PluginPolicy
+    {
+        return new PluginPolicy($this->snapshot());
     }
 
     // ---------------------------------------------------------------------

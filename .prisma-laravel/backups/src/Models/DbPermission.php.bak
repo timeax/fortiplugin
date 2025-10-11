@@ -13,9 +13,6 @@ use Illuminate\Database\Eloquent\Model;
  * @property array $permissions
  * @property array|null $readable_columns
  * @property array|null $writable_columns
- * @property bool $limited
- * @property string|null $limit_type
- * @property string|null $limit_value
  * @property \Carbon\Carbon $created_at
  * @property \Carbon\Carbon $updated_at
  */
@@ -29,9 +26,6 @@ class DbPermission extends Model
 		"table",
 		"readable_columns",
 		"writable_columns",
-		"limited",
-		"limit_type",
-		"limit_value",
 	];
 
 	protected $guarded = [
