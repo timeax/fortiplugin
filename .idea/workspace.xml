@@ -4,7 +4,9 @@
     <option name="autoReloadType" value="SELECTIVE" />
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="eaf4cbc6-d298-4694-b042-183ced7c77f7" name="Changes" comment="" />
+    <list default="true" id="eaf4cbc6-d298-4694-b042-183ced7c77f7" name="Changes" comment="">
+      <change beforePath="$PROJECT_DIR$/src/Http/Controllers/PackagerController.php" beforeDir="false" afterPath="$PROJECT_DIR$/src/Http/Controllers/PackagerController.php" afterDir="false" />
+    </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
     <option name="HIGHLIGHT_NON_ACTIVE_CHANGELIST" value="false" />
@@ -172,6 +174,8 @@
   <component name="PropertiesComponent"><![CDATA[{
   "keyToString": {
     "ModuleVcsDetector.initialDetectionPerformed": "true",
+    "PHPUnit.EncryptionTest.executor": "Run",
+    "PHPUnit.EncryptionTest.test_decrypt_returns_null_when_keymap_missing.executor": "Run",
     "PHPUnit.PermissionManifestValidatorTest.executor": "Run",
     "PHPUnit.PermissionManifestValidatorTest.testRejectsUnknownTopLevelKeys.executor": "Debug",
     "RunOnceActivity.ShowReadmeOnStart": "true",
@@ -180,6 +184,15 @@
     "git-widget-placeholder": "main",
     "ignore.virus.scanning.warn.message": "true",
     "junie.onboarding.icon.badge.shown": "true",
+    "laravel_idea.dialogs.code_generation:createConsoleCommand.width": "416",
+    "laravel_idea.dialogs.code_generation:createConsoleCommand.x": "2672",
+    "laravel_idea.dialogs.code_generation:createConsoleCommand.y": "182",
+    "laravel_idea.dialogs.run_console_command.width": "452",
+    "laravel_idea.dialogs.run_console_command.x": "2654",
+    "laravel_idea.dialogs.run_console_command.y": "146",
+    "laravel_idea.dialogs.run_console_settings.width": "279",
+    "laravel_idea.dialogs.run_console_settings.x": "2740",
+    "laravel_idea.dialogs.run_console_settings.y": "195",
     "last_opened_file_path": "D:/Projects/GitHub/fortiplugin",
     "node.js.detected.package.eslint": "true",
     "node.js.detected.package.tslint": "true",
@@ -188,7 +201,7 @@
     "nodejs_package_manager_path": "npm",
     "npm.db.executor": "Run",
     "php.override.implement.member.chooser.php.doc": "NONE",
-    "settings.editor.selected.configurable": "project.scopes",
+    "settings.editor.selected.configurable": "preferences.fileTypes",
     "to.speed.mode.migration.done": "true",
     "vue.rearranger.settings.migration": "true"
   }
@@ -206,7 +219,15 @@
       <recent name="C:\Users\David\OneDrive\Documents\GitHub\fortiplugin\src" />
     </key>
   </component>
-  <component name="RunManager" selected="PHPUnit.PermissionManifestValidatorTest">
+  <component name="RunManager" selected="PHPUnit.EncryptionTest">
+    <configuration name="EncryptionTest" type="PHPUnitRunConfigurationType" factoryName="PHPUnit" temporary="true">
+      <TestRunner class="Tests\Support\EncryptionTest" file="$PROJECT_DIR$/test/Support/EncryptionTest.php" scope="Class" />
+      <method v="2" />
+    </configuration>
+    <configuration name="EncryptionTest.test_decrypt_returns_null_when_keymap_missing" type="PHPUnitRunConfigurationType" factoryName="PHPUnit" temporary="true">
+      <TestRunner class="Tests\Support\EncryptionTest" file="$PROJECT_DIR$/test/Support/EncryptionTest.php" method="test_decrypt_returns_null_when_keymap_missing" scope="Method" />
+      <method v="2" />
+    </configuration>
     <configuration name="PermissionManifestValidatorTest" type="PHPUnitRunConfigurationType" factoryName="PHPUnit" temporary="true">
       <TestRunner class="PermissionManifestValidatorTest" file="$PROJECT_DIR$/test/PermissionManifestValidatorTest.php" scope="Class" />
       <method v="2" />
@@ -227,6 +248,8 @@
     </configuration>
     <recent_temporary>
       <list>
+        <item itemvalue="PHPUnit.EncryptionTest" />
+        <item itemvalue="PHPUnit.EncryptionTest.test_decrypt_returns_null_when_keymap_missing" />
         <item itemvalue="PHPUnit.PermissionManifestValidatorTest" />
         <item itemvalue="PHPUnit.PermissionManifestValidatorTest.testRejectsUnknownTopLevelKeys" />
         <item itemvalue="npm.db" />
@@ -253,6 +276,7 @@
       <workItem from="1759497054887" duration="336000" />
       <workItem from="1759497402962" duration="3948000" />
       <workItem from="1759941592297" duration="3882000" />
+      <workItem from="1760140376991" duration="22784000" />
     </task>
     <servers />
   </component>

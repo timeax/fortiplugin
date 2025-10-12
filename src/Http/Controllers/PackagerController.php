@@ -1,7 +1,10 @@
-<?php /** @noinspection PhpUnusedParameterInspection */
+<?php /** @noinspection NestedTernaryOperatorInspection */
+
+/** @noinspection PhpUnusedParameterInspection */
 
 namespace Timeax\FortiPlugin\Http\Controllers;
 
+use FilesystemIterator;
 use Illuminate\Contracts\Filesystem\FileNotFoundException;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -13,17 +16,19 @@ use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Str;
 use JsonException;
 use Random\RandomException;
+use RecursiveDirectoryIterator;
+use RecursiveIteratorIterator;
 use RuntimeException;
-use SodiumException;
 use Timeax\FortiPlugin\Models\Author;
 use Timeax\FortiPlugin\Models\PluginPlaceholder;
 use Timeax\FortiPlugin\Models\PluginSignature;
 use Timeax\FortiPlugin\Models\PluginToken;
+use Timeax\FortiPlugin\Models\PluginZip;
+use Timeax\FortiPlugin\Enums\PluginStatus;
+use Timeax\FortiPlugin\Enums\ValidationStatus;
 use Timeax\FortiPlugin\Services\HostKeyService;
 use Timeax\FortiPlugin\Services\PolicyService;
 use Timeax\FortiPlugin\Services\SigningService;
-use Timeax\FortiPlugin\Services\ValidatorService;
-use Timeax\FortiPlugin\Support\Encryption;
 use Timeax\FortiPlugin\Support\FortiGates;
 use ZipArchive;
 
@@ -139,7 +144,7 @@ final class PackagerController extends Controller
                 'name' => $placeholder->name,
                 'key' => $placeholder->unique_key,
             ],
-            'token' => $raw, // raw once; client stores securely
+            'token' => $raw, // raw once; the client stores securely
             'expires_at' => now()->addDays(7)->toIso8601String(),
         ]);
     }
@@ -316,7 +321,8 @@ final class PackagerController extends Controller
 
         $data = $request->validate([
             'token' => ['required', 'string', 'max:128'],
-            'enc_zip' => ['required', 'file'],
+            'enc_zip' => ['required_without:zip', 'file'],
+            'zip' => ['sometimes', 'file'],
             'placeholder' => ['required', 'string', 'max:255'],
             'plugin_key' => ['required', 'string', 'max:1024'],
         ]);
@@ -330,15 +336,191 @@ final class PackagerController extends Controller
             return response()->json(['ok' => false, 'error' => 'plugin_key_mismatch'], 400);
         }
 
-        /** @var UploadedFile $file */
-        $file = $request->file('enc_zip');
-        $stored = $file->storeAs('forti/uploads', Str::uuid()->toString() . '.zip.enc');
-        $encPath = storage_path('app/' . $stored);
+        // Accept either enc_zip (preferred) or zip; for now, treat enc_zip as raw zip per minimal contract
+        /** @var UploadedFile|null $file */
+        $file = $request->file('enc_zip') ?: $request->file('zip');
+        if (!$file) {
+            return response()->json(['ok' => false, 'error' => 'no_file'], 400);
+        }
 
-        // TODO: Save to DB as PluginZip + PluginSignature/Release records as needed
+        $stored = $file->storeAs('forti/uploads', Str::uuid()->toString() . '.zip');
+        $zipPath = storage_path('app/' . $stored);
+
+        // Expand the zip into a temp directory
+        $tmpDir = storage_path('app/forti/tmp/' . Str::uuid()->toString());
+        if (!is_dir($tmpDir) && !mkdir($tmpDir, 0755, true) && !is_dir($tmpDir)) {
+            throw new RuntimeException('Failed to create temp directory');
+        }
+
+        $zip = new ZipArchive();
+        if ($zip->open($zipPath) !== true) {
+            return response()->json(['ok' => false, 'error' => 'invalid_zip'], 400);
+        }
+        $zip->extractTo($tmpDir);
+        $zip->close();
+
+        // Integrity checks against cached manifest
+        $manifest = $state['manifest'] ?? null;
+        if (!is_array($manifest) || !isset($manifest['files']) || !is_array($manifest['files'])) {
+            return response()->json(['ok' => false, 'error' => 'manifest_missing'], 400);
+        }
+
+        $integrityOk = true;
+
+        // Build set of files from manifest
+        $expected = [];
+        foreach ($manifest['files'] as $f) {
+            $expected[$f['path']] = $f;
+        }
+
+        // Verify each manifest file
+        foreach ($expected as $rel => $info) {
+            $abs = $tmpDir . DIRECTORY_SEPARATOR . $rel;
+            if (!is_file($abs)) {
+                $integrityOk = false;
+                break;
+            }
+            $size = filesize($abs);
+            $hash = hash_file('sha256', $abs);
+            if ((int)$size !== (int)$info['size'] || strtolower($hash) !== strtolower($info['sha256'])) {
+                $integrityOk = false;
+                break;
+            }
+        }
+
+        // Optionally enforce no extra files beyond manifest
+        $noExtras = true;
+        $rii = new RecursiveIteratorIterator(new RecursiveDirectoryIterator($tmpDir, FilesystemIterator::SKIP_DOTS));
+        foreach ($rii as $fs) {
+            $relPath = ltrim(str_replace($tmpDir, '', $fs->getPathname()), '\\/');
+            $relPath = str_replace('\\', '/', $relPath);
+            if (!isset($expected[$relPath]) && $fs->isFile()) {
+                $noExtras = false;
+                break;
+            }
+        }
+
+        $allOk = $integrityOk && $noExtras;
+
+        // Create receipt and cache it
+        $receiptId = 'rcpt_' . Str::random(36);
+        Cache::put("forti:receipt:$receiptId", [
+            'placeholder_id' => $state['placeholder_id'] ?? null,
+            'plugin_key' => $state['plugin_key'] ?? null,
+            'tmp_dir' => $tmpDir,
+            'zip_path' => $zipPath,
+            'manifest' => $manifest,
+            'issued_at' => now()->toIso8601String(),
+            'integrity_ok' => $allOk,
+        ], now()->addMinutes(40));
 
         return response()->json([
             'ok' => true,
+            'receipt_id' => $receiptId,
+        ]);
+    }
+
+    /**
+     * STEP 4 — finalize upload based on receipt and action
+     */
+    public function packComplete(Request $request): JsonResponse
+    {
+        Gate::authorize(FortiGates::PLUGIN_VALIDATE);
+
+        $data = $request->validate([
+            'receipt_id' => ['required', 'string', 'max:128'],
+            'action' => ['nullable', 'in:auto,accept,reject'],
+        ]);
+        $action = $data['action'] ?? 'auto';
+
+        $receipt = Cache::get("forti:receipt:{$data['receipt_id']}");
+        if (!$receipt) {
+            return response()->json(['ok' => false, 'error' => 'receipt_not_found'], 400);
+        }
+
+        if ($action === 'accept') {
+            $finalStatus = 'accepted';
+        } elseif ($action === 'reject') {
+            $finalStatus = 'rejected';
+        } else { // auto
+            $finalStatus = ($receipt['integrity_ok'] ?? false) ? 'accepted' : 'rejected';
+        }
+
+        $zipRecordId = null;
+        $savedPath = null;
+
+        // Persist PluginZip/metadata if accepted
+        if ($finalStatus === 'accepted') {
+            $placeholderId = (int)($receipt['placeholder_id'] ?? 0);
+            if ($placeholderId <= 0) {
+                return response()->json(['ok' => false, 'error' => 'placeholder_missing_on_receipt'], 400);
+            }
+            $placeholder = PluginPlaceholder::find($placeholderId);
+            if (!$placeholder) {
+                return response()->json(['ok' => false, 'error' => 'placeholder_not_found'], 404);
+            }
+
+            // Determine the destination path for permanent storage
+            $slug = $placeholder->slug ?: ('ph-' . $placeholderId);
+            $version = (string)($receipt['manifest']['plugin']['version'] ?? '0.0.0');
+            $ts = now()->format('YmdHis');
+            $destDir = storage_path('app/forti/packages/' . $slug);
+            if (!is_dir($destDir) && !mkdir($destDir, 0755, true) && !is_dir($destDir)) {
+                throw new RuntimeException('Failed to create packages directory');
+            }
+            $destPath = $destDir . DIRECTORY_SEPARATOR . $slug . '-' . $version . '-' . $ts . '.zip';
+
+            // Move the uploaded zip to permanent location
+            $src = $receipt['zip_path'] ?? null;
+            if ($src && is_file($src)) {
+                if (!@rename($src, $destPath)) {
+                    // fallback to copy
+                    if (!@copy($src, $destPath)) {
+                        throw new RuntimeException('Failed to persist uploaded zip');
+                    }
+                    @unlink($src);
+                }
+                $savedPath = $destPath;
+            }
+
+            // Build meta payload
+            $meta = [
+                'plugin_key' => $receipt['plugin_key'] ?? null,
+                'manifest' => $receipt['manifest'] ?? null,
+                'stored_at' => now()->toIso8601String(),
+                'filename' => basename((string)$savedPath),
+            ];
+
+            // Uploaded by author (if set by middleware)
+            $authorId = $request->attributes->get('forti.author_id');
+
+            $zip = PluginZip::create([
+                'placeholder_id' => $placeholderId,
+                'path' => $savedPath ?: ($src ?: ''),
+                'meta' => $meta,
+                'status' => PluginStatus::active,
+                'validation_status' => ($receipt['integrity_ok'] ?? false) ? ValidationStatus::unverified : ValidationStatus::failed,
+                'uploaded_by_author_id' => $authorId ?: null,
+            ]);
+            $zipRecordId = $zip->id;
+        }
+
+        // Cleanup temp
+        if (!empty($receipt['tmp_dir'])) {
+            $this->rrmdir($receipt['tmp_dir']);
+        }
+        if (!empty($receipt['zip_path']) && is_file($receipt['zip_path'])) {
+            @unlink($receipt['zip_path']);
+        }
+
+        // Remove cached receipt
+        Cache::forget("forti:receipt:{$data['receipt_id']}");
+
+        return response()->json([
+            'ok' => true,
+            'status' => $finalStatus,
+            'zip_id' => $zipRecordId,
+            'path' => $savedPath,
         ]);
     }
 

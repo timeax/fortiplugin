@@ -3,9 +3,17 @@
 namespace Timeax\FortiPlugin;
 
 use Illuminate\Support\ServiceProvider;
+use Timeax\FortiPlugin\Console\Commands\ValidatePlugin;
+use Timeax\FortiPlugin\Installations\Contracts\ActorResolver;
+use Timeax\FortiPlugin\Installations\Contracts\ZipRepository;
+use Timeax\FortiPlugin\Installations\Infra\InMemoryZipRepository;
+use Timeax\FortiPlugin\Installations\Support\DefaultActorResolver;
+use Timeax\FortiPlugin\Installations\Support\InstallerTokenManager;
 use Timeax\FortiPlugin\Permissions\Bootstrap\FortiPermissions;
 use Timeax\FortiPlugin\Permissions\Contracts\PermissionServiceInterface;
 use Timeax\FortiPlugin\Permissions\Evaluation\PermissionService;
+use Timeax\FortiPlugin\Services\PolicyService;
+use Timeax\FortiPlugin\Services\ValidatorService;
 use Timeax\FortiPlugin\Support\FortiGates;
 use Timeax\FortiPlugin\Support\FortiGateRegistrar;
 use Timeax\FortiPlugin\Support\PublishConfig;
@@ -16,6 +24,29 @@ class FortiPluginServiceProvider extends ServiceProvider
     {
         $this->mergeConfigFrom(__DIR__ . '/../config/fortiplugin.php', 'fortiplugin');
         FortiPermissions::register($this->app);
+
+        // Bind ValidatorService for facade access
+        $this->app->singleton(ValidatorService::class, function ($app) {
+            $policySvc = $app->make(PolicyService::class);
+            $policy = $policySvc->makePolicy();
+            $config = (array)config('fortiplugin.validator', []);
+            return new ValidatorService($policy, $config);
+        });
+
+        // Default bindings for Installations module (overridable by host app)
+        $this->app->singleton(ZipRepository::class, function ($app) {
+            $driver = (string)(config('fortiplugin.installations.repositories.zip') ?? 'inmemory');
+            if ($driver === 'eloquent') {
+                return $app->make(\Timeax\FortiPlugin\Installations\Infra\EloquentZipRepository::class);
+            }
+            return new InMemoryZipRepository();
+        });
+        $this->app->singleton(InstallerTokenManager::class, function ($app) {
+            return new InstallerTokenManager();
+        });
+        $this->app->singleton(ActorResolver::class, function ($app) {
+            return new DefaultActorResolver();
+        });
     }
 
     public function boot(): void
@@ -23,6 +54,12 @@ class FortiPluginServiceProvider extends ServiceProvider
         $this->publishConfig();
         $this->publishMigrations();
         FortiGateRegistrar::register();
+
+        if ($this->app->runningInConsole()) {
+            $this->commands([
+                ValidatePlugin::class,
+            ]);
+        }
     }
 
     private function publishConfig(): void

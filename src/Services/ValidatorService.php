@@ -7,6 +7,7 @@ declare(strict_types=1);
 
 namespace Timeax\FortiPlugin\Services;
 
+use Illuminate\Support\Arr;
 use RuntimeException;
 use Throwable;
 use Timeax\FortiPlugin\Core\PluginPolicy;
@@ -62,6 +63,35 @@ final class ValidatorService
      */
     private $emit;
 
+    /**
+     * Validator aliases map for setIgnoredValidators.
+     * @var array<string,string>
+     */
+    private array $aliasMap = [
+        'composer' => ComposerScan::class,
+        'config' => ConfigValidator::class,
+        'host' => HostConfigValidator::class,
+        'host_config' => HostConfigValidator::class,
+        'permission_manifest' => PermissionManifestValidator::class,
+        'manifest' => PermissionManifestValidator::class,
+        'route' => RouteFileValidator::class,
+        'routes' => RouteFileValidator::class,
+        'file_scanner' => FileScanner::class,
+        'content' => ContentValidator::class,
+        'content_validator' => ContentValidator::class,
+        'token' => TokenUsageAnalyzer::class,
+        'token_usage' => TokenUsageAnalyzer::class,
+        'token_analyzer' => TokenUsageAnalyzer::class,
+        'ast' => PluginSecurityScanner::class,
+        'ast_scanner' => PluginSecurityScanner::class,
+    ];
+
+    /**
+     * Normalized set of ignored validators (aliases and FQCNs, all lowercase)
+     * @var array<string,bool>
+     */
+    private array $ignored = [];
+
     private array $stats = [
         'files_scanned' => 0,
         'total_errors' => 0,
@@ -71,6 +101,40 @@ final class ValidatorService
     {
         $this->policy = $policy;
         $this->config = $config;
+    }
+
+    /**
+     * Configure validators to ignore by alias or FQCN. Returns $this for chaining.
+     * Example: setIgnoredValidators(['config', ConfigValidator::class])
+     */
+    public function setIgnoredValidators(array $validators): self
+    {
+        $ignored = [];
+        foreach ($validators as $v) {
+            if (!is_string($v) || $v === '') continue;
+            $key = strtolower($v);
+            $ignored[$key] = true;
+            // also map known aliases to their class and vice versa
+            if (isset($this->aliasMap[$key])) {
+                $ignored[strtolower($this->aliasMap[$key])] = true;
+            }
+            // and if it's a FQCN that matches an alias, add that alias too
+            foreach ($this->aliasMap as $alias => $class) {
+                if (strcasecmp($class, $v) === 0) {
+                    $ignored[strtolower($alias)] = true;
+                }
+            }
+        }
+        $this->ignored = $ignored;
+        return $this;
+    }
+
+    private function isIgnored(string $alias, string $class): bool
+    {
+        if ($this->ignored === []) return false;
+        $alias = strtolower($alias);
+        $class = strtolower($class);
+        return isset($this->ignored[$alias]) || isset($this->ignored[$class]);
     }
 
     public function run(string $root, ?callable $emit = null): array
@@ -202,22 +266,24 @@ final class ValidatorService
     private function runHeadline(string $root): void
     {
         // Composer
-        try {
-            $composerPath = $this->config['headline']['composer_json'] ?? ($root . DIRECTORY_SEPARATOR . 'composer.json');
-            $scanner = new ComposerScan($this->policy);
-            $violations = $scanner->scan($composerPath);
-            foreach ($violations as $v) {
-                $this->record('composer.' . ($v['type'] ?? 'violation'), (string)($v['issue'] ?? 'Composer violation'), (string)($v['file'] ?? $composerPath), $v);
-                $this->emitEvent('Headline: Composer', $v['issue'] ?? 'Violation', $this->errorCounter('Headline: Composer', $v['issue'] ?? ''), (string)($v['file'] ?? $composerPath), null);
+        if (!$this->isIgnored('composer', ComposerScan::class)) {
+            try {
+                $composerPath = $this->config['headline']['composer_json'] ?? ($root . DIRECTORY_SEPARATOR . 'composer.json');
+                $scanner = new ComposerScan($this->policy);
+                $violations = $scanner->scan($composerPath);
+                foreach ($violations as $v) {
+                    $this->record('composer.' . ($v['type'] ?? 'violation'), (string)($v['issue'] ?? 'Composer violation'), (string)($v['file'] ?? $composerPath), $v);
+                    $this->emitEvent('Headline: Composer', $v['issue'] ?? 'Violation', $this->errorCounter('Headline: Composer', $v['issue'] ?? ''), (string)($v['file'] ?? $composerPath), null);
+                }
+            } catch (Throwable $e) {
+                $this->record('composer.exception', $e->getMessage(), $root . DIRECTORY_SEPARATOR . 'composer.json', ['exception' => $e]);
+                $this->emitEvent('Headline: Composer', 'Exception', $this->errorCounter('Headline: Composer', $e->getMessage()), null, null);
             }
-        } catch (Throwable $e) {
-            $this->record('composer.exception', $e->getMessage(), $root . DIRECTORY_SEPARATOR . 'composer.json', ['exception' => $e]);
-            $this->emitEvent('Headline: Composer', 'Exception', $this->errorCounter('Headline: Composer', $e->getMessage()), null, null);
         }
 
         // Config schema (fortiplugin.json)
         $schema = $this->config['headline']['forti_schema'] ?? null;
-        if (is_string($schema) && $schema !== '') {
+        if (is_string($schema) && $schema !== '' && !$this->isIgnored('config', ConfigValidator::class)) {
             try {
                 $cv = new ConfigValidator();
                 $res = $cv->validate($root, $schema);
@@ -242,7 +308,7 @@ final class ValidatorService
 
         // Host config (array provided by caller)
         $hostCfg = $this->config['headline']['host_config'] ?? null;
-        if (is_array($hostCfg)) {
+        if (is_array($hostCfg) && !$this->isIgnored('host_config', HostConfigValidator::class)) {
             try {
                 HostConfigValidator::validate($hostCfg);
             } catch (Throwable $e) {
@@ -253,7 +319,7 @@ final class ValidatorService
 
         // Permission manifest (path or array)
         $perm = $this->config['headline']['permission_manifest'] ?? null;
-        if ($perm !== null) {
+        if ($perm !== null && !$this->isIgnored('permission_manifest', PermissionManifestValidator::class)) {
             try {
                 $pmv = new PermissionManifestValidator();
                 // validate() throws on errors; we convert to log via catch
@@ -274,7 +340,7 @@ final class ValidatorService
 
         // Route files (validate IDs + JSON structure)
         $routeFiles = (array)($this->config['headline']['route_files'] ?? []);
-        if ($routeFiles) {
+        if ($routeFiles && !$this->isIgnored('route', RouteFileValidator::class)) {
             $registry = new RouteIdRegistry();
             foreach ($routeFiles as $rf) {
                 try {
@@ -289,6 +355,9 @@ final class ValidatorService
 
     private function runScanner(string $root): void
     {
+        if ($this->isIgnored('file_scanner', FileScanner::class)) {
+            return; // skip entire scanning phase
+        }
         $scanner = new FileScanner($this->policy);
         $contentValidator = new ContentValidator($this->policy);
 
@@ -297,7 +366,10 @@ final class ValidatorService
             $title = $e['title'] ?? 'Scan';
             $desc = $e['message'] ?? null;
             $file = $e['path'] ?? null;
-            $this->emitEvent($title, $desc, null, is_string($file) ? $file : null, null);
+            //--- check for extra properties
+            $extra = array_filter($e, static fn($key) => Arr::has(['file', 'message', 'path'], $key), ARRAY_FILTER_USE_KEY);
+            //---
+            $this->emitEvent($title, $desc, null, is_string($file) ? $file : null, null, $extra);
         };
 
         $callback = function (string $file, array $meta = []) use ($contentValidator): array {
@@ -305,46 +377,52 @@ final class ValidatorService
             $issues = [];
 
             // ContentValidator (fast regex-like)
-            try {
-                $cv = $contentValidator->scanFile($file);
-                foreach ($cv as $v) {
-                    $issues[] = $v;
+            if (!$this->isIgnored('content', ContentValidator::class)) {
+                try {
+                    $cv = $contentValidator->scanFile($file);
+                    foreach ($cv as $v) {
+                        $issues[] = $v;
+                    }
+                } catch (Throwable $e) {
+                    $issues[] = ['type' => 'content.exception', 'issue' => $e->getMessage(), 'file' => $file];
                 }
-            } catch (Throwable $e) {
-                $issues[] = ['type' => 'content.exception', 'issue' => $e->getMessage(), 'file' => $file];
             }
 
             // TokenUsageAnalyzer (token_get_all based)
-            try {
-                $tokens = $this->config['scan']['token_list'] ?? null;
-                if (!is_array($tokens) || !$tokens) {
-                    $tokens = $this->policy->getForbiddenFunctions();
+            if (!$this->isIgnored('token', TokenUsageAnalyzer::class)) {
+                try {
+                    $tokens = $this->config['scan']['token_list'] ?? null;
+                    if (!is_array($tokens) || !$tokens) {
+                        $tokens = $this->policy->getForbiddenFunctions();
+                    }
+                    $tu = TokenUsageAnalyzer::analyzeFile($file, array_map('strtolower', $tokens));
+                    foreach ($tu as $v) {
+                        $issues[] = $v;
+                    }
+                } catch (Throwable $e) {
+                    $issues[] = ['type' => 'token.exception', 'issue' => $e->getMessage(), 'file' => $file];
                 }
-                $tu = TokenUsageAnalyzer::analyzeFile($file, array_map('strtolower', $tokens));
-                foreach ($tu as $v) {
-                    $issues[] = $v;
-                }
-            } catch (Throwable $e) {
-                $issues[] = ['type' => 'token.exception', 'issue' => $e->getMessage(), 'file' => $file];
             }
 
             // PluginSecurityScanner (AST)
-            try {
-                $src = @file_get_contents($file);
-                if ($src !== false) {
-                    $astScanner = new PluginSecurityScanner($this->policy->getConfig(), $file);
-                    $astScanner->scanSource($src, $file);
-                    foreach ($astScanner->getMatches() as $match) {
-                        $issues[] = [
-                            'type' => (string)($match['type'] ?? 'ast.violation'),
-                            'issue' => (string)($match['message'] ?? ($match['data']['message'] ?? 'AST violation')),
-                            'file' => $file,
-                            'line' => $match['line'] ?? null,
-                        ];
+            if (!$this->isIgnored('ast', PluginSecurityScanner::class)) {
+                try {
+                    $src = @file_get_contents($file);
+                    if ($src !== false) {
+                        $astScanner = new PluginSecurityScanner($this->policy->getConfig(), $file);
+                        $astScanner->scanSource($src, $file);
+                        foreach ($astScanner->getMatches() as $match) {
+                            $issues[] = [
+                                'type' => (string)($match['type'] ?? 'ast.violation'),
+                                'issue' => (string)($match['message'] ?? ($match['data']['message'] ?? 'AST violation')),
+                                'file' => $file,
+                                'line' => $match['line'] ?? null,
+                            ];
+                        }
                     }
+                } catch (Throwable $e) {
+                    $issues[] = ['type' => 'ast.exception', 'issue' => $e->getMessage(), 'file' => $file];
                 }
-            } catch (Throwable $e) {
-                $issues[] = ['type' => 'ast.exception', 'issue' => $e->getMessage(), 'file' => $file];
             }
 
             // Log+emit
@@ -378,7 +456,7 @@ final class ValidatorService
         $this->stats['total_errors']++;
     }
 
-    private function emitEvent(string $title, ?string $description, ?array $error, ?string $filePath, ?int $size): void
+    private function emitEvent(string $title, ?string $description, ?array $error, ?string $filePath, ?int $size, ?array $meta = []): void
     {
         if (!$this->emit) {
             return;
@@ -391,6 +469,7 @@ final class ValidatorService
                 'filePath' => $filePath,
                 'size' => $size,
             ],
+            'meta' => $meta
         ];
         try {
             ($this->emit)($payload);

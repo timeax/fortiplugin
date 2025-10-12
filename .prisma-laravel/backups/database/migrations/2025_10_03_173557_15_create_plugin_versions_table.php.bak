@@ -23,7 +23,13 @@ return new class extends Migration {
 			$table->json("manifest")->nullable();
 			$table->json("validation_report")->nullable();
 			$table
-				->enum("status", ["valid", "unchecked", "failed", "pending"])
+				->enum("status", [
+					"valid",
+					"unchecked",
+					"unverified",
+					"failed",
+					"pending",
+				])
 				->default("unchecked");
 			$table->timestamps();
 			$table->index("plugin_id");

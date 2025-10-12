@@ -33,6 +33,7 @@ enum PluginStatus {
 enum ValidationStatus {
   valid
   unchecked
+  unverified
   failed
   pending
 }

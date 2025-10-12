@@ -6,6 +6,7 @@ return [
      * PSR-4 root namespace and folder for plugins.
      */
     'psr4_root' => env('FORTIPLUGIN_PSR4_ROOT', 'Plugins'),
+    'directory' => env('FORTIPLUGIN_PSR4_ROOT', 'apps'),
     /*
     |--------------------------------------------------------------------------
     | Authorization / Gates
@@ -176,6 +177,21 @@ return [
 
     'admin' => [
         // 'allow_admin_override' => true,
+    ],
+
+    // Installations module configuration (phase 2)
+    'installations' => [
+        'repositories' => [
+            // Zip repository driver: 'inmemory' (default) or 'eloquent'
+            'zip' => env('FORTIPLUGIN_INSTALL_ZIP_REPO', 'inmemory'),
+        ],
+        'tokens' => [
+            // TTLs in seconds; bounded in code to 60–3600
+            'background_scan_ttl' => (int)env('FORTIPLUGIN_BG_SCAN_TTL', 600),
+            'install_override_ttl' => (int)env('FORTIPLUGIN_INSTALL_OVERRIDE_TTL', 600),
+        ],
+        // Optional: a staging root; if null, Installer falls back to sys_get_temp_dir()
+        'staging_root' => env('FORTIPLUGIN_STAGING_ROOT', null),
     ],
 
 ];

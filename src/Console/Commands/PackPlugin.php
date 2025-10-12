@@ -18,7 +18,6 @@ use Throwable;
 use Timeax\FortiPlugin\Services\PolicyService;
 use Timeax\FortiPlugin\Services\ValidatorService;
 use Timeax\FortiPlugin\Support\CliSessionManager;
-use Timeax\FortiPlugin\Support\Encryption;
 use Timeax\FortiPlugin\Traits\AuthenticateSession;
 use ZipArchive;
 
@@ -30,7 +29,8 @@ class PackPlugin extends Command
         {name : Plugin directory name, e.g., OrdersPlugin}
         {--output= : Output path for zip}
         {--force : Overwrite if zip exists}
-        {--quiet : Suppress validation progress output}';
+        {--quiet : Suppress validation progress output}
+        {--ignore-verbose : Alias to mute validation emissions}';
 
     protected $description = 'Validate and pack a plugin for upload to the host.';
 
@@ -62,162 +62,133 @@ class PackPlugin extends Command
                 $this->fail("Could not load or create publish.json.");
             }
 
-            $host = $publish['host'];
             $pluginSlug = $publish['plugin_slug'];
             $pluginKey = $publish['plugin_key'];
 
             // Optional: read placeholder token created by `forti:make`
-            $placeholderToken = $this->readPlaceholderToken($plugin);
+            $this->readPlaceholderToken($plugin);
 
-            // 2) First handshake — fetch policy snapshot / host verify (author bearer)
-            $hs = $this->getHttp()?->get('/forti/pack/handshake');
+            // 2) Pack handshake — fetch exclude rules, validator config, limits, encryption nonce
+            $hs = $this->getHttp()?->post('/forti/pack/handshake');
             $handshake = $this->safeJson($hs);
             if (!($handshake['ok'] ?? false)) {
                 $this->fail('Handshake failed.');
             }
             $policyVersion = (string)($handshake['policy_version'] ?? '1');
+            $excludeFromHost = (array)($handshake['exclude'] ?? []);
+            $validatorConfig = (array)($handshake['validator_config'] ?? []);
+            $encryptionNonce = (string)($handshake['encryption']['nonce'] ?? '');
 
-            // 3) Validation (local)
-            // Build PluginPolicy via service
-            /** @var PolicyService $policySvc */
-            $policySvc = app(PolicyService::class);
-            $policy = $policySvc->makePolicy();
-
-            $validator = new ValidatorService($policy, [
-                // plug in extras if you want (schema path, host_config, etc.)
-            ]);
-
-            $emit = $this->option('quiet') ? null : $this->makeEmitCallback();
-            $summary = $validator->run($tempPath, $emit);
-
-            // If host wants to gate on should_fail, you can optionally stop here
-            if ($summary['should_fail'] ?? false) {
-                $this->warn("Validation indicates failure according to fail_policy. Aborting pack.");
-                $this->deleteDirectory($tempPath);
-                return self::FAILURE;
-            }
-
-            // 4) Second handshake — send validation summary (use placeholder token header if present)
-            $second = $placeholderToken
-                ? $this->httpWithPlaceholderToken($placeholderToken)?->post('/forti/pack/manifest', [
-                    'placeholder' => $pluginSlug,
-                    'plugin_key' => $pluginKey,
-                    'owner_host' => parse_url($host, PHP_URL_HOST) ?: $host,
-                    'policy_version' => $policyVersion,
-                    'report' => $summary,
-                ])
-                : $this->getHttp()?->post('/forti/pack', [
-                    'placeholder' => $pluginSlug,
-                    'plugin_key' => $pluginKey,
-                    'owner_host' => parse_url($host, PHP_URL_HOST) ?: $host,
-                    'policy_version' => $policyVersion,
-                    'report' => $summary,
-                ]);
-
-            $secondHs = $this->safeJson($second);
-            if (!($secondHs['ok'] ?? false)) {
-                $this->deleteDirectory($tempPath);
-                $this->fail('Second handshake (/forti/pack) failed.');
-            }
-
-            // Optional values returned by server
-            $uploadTicket = $secondHs['ticket'] ?? null;          // ephemeral upload ticket (if implemented)
-            $signatureBlock = $secondHs['signature']['value'] ?? null; // signature over plugin_key (if returned)
-            $encryptionKey = $secondHs['encryption_key'] ?? null;  // if host provides symmetric key
-
-            // 5) Version bump if needed (compare with host-provided current_version if present)
-            $cfgPath = $tempPath . '/fortiplugin.json';
-            if (file_exists($cfgPath)) {
-                $cfg = json_decode((string)file_get_contents($cfgPath), true, 512, JSON_THROW_ON_ERROR);
-                $localVersion = (string)($cfg['version'] ?? '0.1.0');
-                $currentRemote = (string)($secondHs['current_version'] ?? '');
-                if ($currentRemote !== '' && version_compare($localVersion, $currentRemote, '<=')) {
-                    $this->warn("Host has version $currentRemote; local is $localVersion.");
-                    $next = $this->ask(
-                        "Enter a new version greater than $currentRemote:",
-                        $this->suggestNextVersion($currentRemote)
-                    );
-                    if (version_compare($next, $currentRemote, '<=')) {
-                        throw new RuntimeException("Version must be greater than $currentRemote.");
-                    }
-                    $cfg['version'] = $next;
-                    file_put_contents($cfgPath, json_encode($cfg, JSON_THROW_ON_ERROR | JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES));
-                    $this->info("fortiplugin.json updated to version $next");
-                }
-            }
-
-            // 6) Build assets (if any)
+            // 3) Build assets first (if any)
+            $this->assertOutDirUnchanged($tempPath);
             $this->runNpmBuild($tempPath);
 
-            // 7) Collect files and write manifest
-            $excludeList = (array)($secondHs['exclude'] ?? []); // host-provided extra excludes (optional)
+            // 4) Collect files honoring both local and host excludes
+            $excludeList = $excludeFromHost; // server-provided extra excludes
             $files = $this->collectPluginFiles($tempPath, $excludeList);
+
+            // 5) Determine version and allow bump if desired (optional, local only)
+            $cfgPath = $tempPath . '/fortiplugin.json';
+            $cfg = file_exists($cfgPath)
+                ? json_decode((string)file_get_contents($cfgPath), true, 512, JSON_THROW_ON_ERROR)
+                : [];
+            $localVersion = (string)($cfg['version'] ?? '0.1.0');
+
+            // 6) Generate manifest (files: path, sha256, size)
+            $filesManifest = [];
+            $root = $tempPath;
+            foreach ($files as $abs) {
+                $rel = ltrim(str_replace($root, '', $abs), '/\\');
+                $filesManifest[] = [
+                    'path' => $rel,
+                    'sha256' => hash_file('sha256', $abs),
+                    'size' => filesize($abs),
+                ];
+            }
 
             $manifest = [
                 'plugin' => [
                     'slug' => $pluginSlug,
                     'key' => $pluginKey,
+                    'version' => $localVersion,
                     'policy_version' => $policyVersion,
                 ],
-                'validation' => [
-                    'files_scanned' => $summary['files_scanned'] ?? 0,
-                    'total_issues' => $summary['total_issues'] ?? 0,
-                    'should_fail' => $summary['should_fail'] ?? false,
-                ],
-                'signature' => $secondHs['signature'] ?? null,
-                'time' => now()->toIso8601String(),
+                'files' => $filesManifest,
+                'created_at' => now()->toIso8601String(),
             ];
 
+            // 7) Local validation (no server-side validation). Can be muted by --quiet or --ignore-verbose
+            /** @var PolicyService $policySvc */
+            $policySvc = app(PolicyService::class);
+            $policy = $policySvc->makePolicy();
+            $validator = new ValidatorService($policy, $validatorConfig);
+            $emit = ($this->option('quiet') || $this->option('ignore-verbose')) ? null : $this->makeEmitCallback();
+            $summary = $validator->run($tempPath, $emit);
+            if ($summary['should_fail'] ?? false) {
+                $this->warn('Validation indicates failure according to fail_policy. Aborting pack.');
+                $this->deleteDirectory($tempPath);
+                return self::FAILURE;
+            }
+
+            // 8) Ask server to sign manifest and issue upload token
+            $manifestResp = $this->getHttp()?->post('/forti/pack/manifest', [
+                'placeholder' => $pluginSlug,
+                'plugin_key' => $pluginKey,
+                'nonce' => $encryptionNonce,
+                'manifest' => $manifest,
+            ]);
+            $manifestAck = $this->safeJson($manifestResp);
+            if (!($manifestAck['ok'] ?? false)) {
+                $this->deleteDirectory($tempPath);
+                $this->fail('Manifest signing failed.');
+            }
+
+            // 9) Persist manifest locally for distribution
+            $manifestWithSig = $manifest;
+            $manifestWithSig['signature'] = $manifestAck['signature'] ?? null;
             $manifestPath = $tempPath . '/.internal/manifest.json';
             if (!is_dir(dirname($manifestPath)) && !mkdir(dirname($manifestPath), 0755, true) && !is_dir(dirname($manifestPath))) {
                 throw new RuntimeException('Unable to create .internal directory.');
             }
-            file_put_contents($manifestPath, json_encode($manifest, JSON_THROW_ON_ERROR | JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES));
+            file_put_contents($manifestPath, json_encode($manifestWithSig, JSON_THROW_ON_ERROR | JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES));
 
-            // 8) Zip (and encrypt if key present)
+            // 10) Zip working directory (raw zip; transport encryption handled by server expectation)
             $zipPath = $this->option('output') ?: base_path("Plugins/$name-" . date('Ymd-His') . ".zip");
             if (file_exists($zipPath) && !$this->option('force')) {
                 throw new RuntimeException("Zip already exists: $zipPath (use --force to overwrite)");
             }
             $this->makeZipFromFiles($files, $manifestPath, $zipPath);
 
-            $payloadPath = $zipPath;
-            if ($encryptionKey) {
-                $encrypted = $zipPath . '.enc';
-                Encryption::encryptFile($zipPath, $encrypted);
-                $payloadPath = $encrypted;
-                @unlink($zipPath); // keep only encrypted payload
-                $this->info("Encrypted package: $encrypted");
-            } else {
-                $this->warn("No encryption_key from host; uploading raw zip (TLS in transit).");
-            }
-
-            // 9) Upload (prefer handshake ticket header if provided)
-            $uReq = $uploadTicket
-                ? $this->httpWithHandshakeTicket((string)$uploadTicket)
-                : $this->getHttp();
-
+            // 11) Upload encrypted ZIP (client provides as enc_zip per contract; here we send raw zip under enc_zip)
+            $uReq = $this->getHttp();
             $response = $uReq?->attach(
-                $encryptionKey ? 'enc_zip' : 'zip',
-                fopen($payloadPath, 'rb'),
-                basename($payloadPath)
-            )->post('/forti/upload', [
+                'enc_zip',
+                fopen($zipPath, 'rb'),
+                basename($zipPath)
+            )->post('/forti/pack/upload', [
+                'token' => $manifestAck['upload']['token'] ?? null,
                 'placeholder' => $pluginSlug,
                 'plugin_key' => $pluginKey,
-                'version' => $cfg['version'] ?? null,
-                // include signature in body if host expects it there
-                'signature' => $signatureBlock,
             ]);
-
             $upload = $this->safeJson($response);
             if (!($upload['ok'] ?? false)) {
                 throw new RuntimeException('Upload failed: ' . ($upload['error'] ?? 'Unknown'));
             }
 
-            // 10) Cleanup temp
+            // 12) Finalize
+            $final = $this->getHttp()?->post('/forti/pack/complete', [
+                'receipt_id' => $upload['receipt_id'] ?? null,
+                'action' => 'auto',
+            ]);
+            $complete = $this->safeJson($final);
+            if (!($complete['ok'] ?? false)) {
+                throw new RuntimeException('Finalize failed: ' . ($complete['error'] ?? 'Unknown'));
+            }
+
+            // 13) Cleanup temp
             $this->deleteDirectory($tempPath);
 
-            $this->info("✅ Plugin packed and uploaded.");
+            $this->info("✅ Plugin packed and submitted ({$complete['status']}).");
             return self::SUCCESS;
 
         } catch (Throwable $e) {

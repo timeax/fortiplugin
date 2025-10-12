@@ -27,6 +27,7 @@ return new class extends Migration {
 				->enum("validation_status", [
 					"valid",
 					"unchecked",
+					"unverified",
 					"failed",
 					"pending",
 				])

@@ -120,6 +120,14 @@ class FileScanner
             new RecursiveDirectoryIterator($directory, $rdiFlags)
         );
 
+        if ($emit) {
+            $emit([
+                'count' => iterator_count($iter),
+                'title' => 'Scanning files',
+                'message' => 'Scanning files in ' . $directory
+            ]);
+        }
+
         /** @var SplFileInfo $info */
         foreach ($iter as $info) {
             // Must be a regular file; reject symlinks to avoid escapes.
@@ -144,10 +152,24 @@ class FileScanner
             // Enforce size caps only in web runtime
             if ($this->isWebContext()) {
                 if ($this->exceedsMaxSizeByExt($info, $scanLimits)) {
+                    $emit && $emit([
+                        'title' => 'File ignored',
+                        'message' => 'File ignored due to policy rules',
+                        'path' => $absPath,
+                        'flags' => $preFlags,
+                        'issue' => 'max_web_file_bytes'
+                    ]);
                     continue;
                 }
                 // Apply global sniff cap to avoid reading giant binaries in web
                 if ($webHardCap > 0 && ($info->getSize() ?: 0) > $webHardCap) {
+                    $emit && $emit([
+                        'title' => 'File ignored',
+                        'message' => 'File ignored due to policy rules',
+                        'path' => $absPath,
+                        'flags' => $preFlags,
+                        'issue' => 'max_web_file_bytes'
+                    ]);
                     continue;
                 }
             }
@@ -183,9 +205,7 @@ class FileScanner
             $ignored = $this->shouldIgnore($absPath);
             if ($ignored) {
                 // If payload is detected, we default to BYPASS ignore (safer)
-                if ($payload && !$strictIgnore) {
-                    // proceed
-                } else {
+                if (!$payload || $strictIgnore) {
                     $emit && $emit(['title' => 'File ignored', 'message' => 'File ignored due to policy rules', 'path' => $absPath, 'flags' => $preFlags]);
                     continue;
                 }
