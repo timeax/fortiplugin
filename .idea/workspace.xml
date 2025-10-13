@@ -4,9 +4,7 @@
     <option name="autoReloadType" value="SELECTIVE" />
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="eaf4cbc6-d298-4694-b042-183ced7c77f7" name="Changes" comment="">
-      <change beforePath="$PROJECT_DIR$/src/Http/Controllers/PackagerController.php" beforeDir="false" afterPath="$PROJECT_DIR$/src/Http/Controllers/PackagerController.php" afterDir="false" />
-    </list>
+    <list default="true" id="eaf4cbc6-d298-4694-b042-183ced7c77f7" name="Changes" comment="" />
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
     <option name="HIGHLIGHT_NON_ACTIVE_CHANGELIST" value="false" />
@@ -178,6 +176,7 @@
     "PHPUnit.EncryptionTest.test_decrypt_returns_null_when_keymap_missing.executor": "Run",
     "PHPUnit.PermissionManifestValidatorTest.executor": "Run",
     "PHPUnit.PermissionManifestValidatorTest.testRejectsUnknownTopLevelKeys.executor": "Debug",
+    "PHPUnit.PermissionsListingAndTagsTest.executor": "Run",
     "RunOnceActivity.ShowReadmeOnStart": "true",
     "RunOnceActivity.TerminalTabsStorage.copyFrom.TerminalArrangementManager.252": "true",
     "RunOnceActivity.git.unshallow": "true",
@@ -201,7 +200,7 @@
     "nodejs_package_manager_path": "npm",
     "npm.db.executor": "Run",
     "php.override.implement.member.chooser.php.doc": "NONE",
-    "settings.editor.selected.configurable": "preferences.fileTypes",
+    "settings.editor.selected.configurable": "ml.llm.LLMConfigurable",
     "to.speed.mode.migration.done": "true",
     "vue.rearranger.settings.migration": "true"
   }
@@ -219,7 +218,7 @@
       <recent name="C:\Users\David\OneDrive\Documents\GitHub\fortiplugin\src" />
     </key>
   </component>
-  <component name="RunManager" selected="PHPUnit.EncryptionTest">
+  <component name="RunManager" selected="PHPUnit.PermissionsListingAndTagsTest">
     <configuration name="EncryptionTest" type="PHPUnitRunConfigurationType" factoryName="PHPUnit" temporary="true">
       <TestRunner class="Tests\Support\EncryptionTest" file="$PROJECT_DIR$/test/Support/EncryptionTest.php" scope="Class" />
       <method v="2" />
@@ -236,23 +235,17 @@
       <TestRunner class="PermissionManifestValidatorTest" file="$PROJECT_DIR$/test/PermissionManifestValidatorTest.php" method="testRejectsUnknownTopLevelKeys" scope="Method" />
       <method v="2" />
     </configuration>
-    <configuration name="db" type="js.build_tools.npm" temporary="true" nameIsGenerated="true">
-      <package-json value="$PROJECT_DIR$/package.json" />
-      <command value="run" />
-      <scripts>
-        <script value="db" />
-      </scripts>
-      <node-interpreter value="project" />
-      <envs />
+    <configuration name="PermissionsListingAndTagsTest" type="PHPUnitRunConfigurationType" factoryName="PHPUnit" temporary="true">
+      <TestRunner class="Tests\Feature\PermissionsListingAndTagsTest" file="$PROJECT_DIR$/test/Feature/PermissionsListingAndTagsTest.php" scope="Class" />
       <method v="2" />
     </configuration>
     <recent_temporary>
       <list>
+        <item itemvalue="PHPUnit.PermissionsListingAndTagsTest" />
         <item itemvalue="PHPUnit.EncryptionTest" />
         <item itemvalue="PHPUnit.EncryptionTest.test_decrypt_returns_null_when_keymap_missing" />
         <item itemvalue="PHPUnit.PermissionManifestValidatorTest" />
         <item itemvalue="PHPUnit.PermissionManifestValidatorTest.testRejectsUnknownTopLevelKeys" />
-        <item itemvalue="npm.db" />
       </list>
     </recent_temporary>
   </component>
@@ -277,10 +270,15 @@
       <workItem from="1759497402962" duration="3948000" />
       <workItem from="1759941592297" duration="3882000" />
       <workItem from="1760140376991" duration="22784000" />
+      <workItem from="1760303441641" duration="20477000" />
     </task>
     <servers />
   </component>
   <component name="TypeScriptGeneratedFilesManager">
     <option name="version" value="3" />
+  </component>
+  <component name="XSLT-Support.FileAssociations.UIState">
+    <expand />
+    <select />
   </component>
 </project>
