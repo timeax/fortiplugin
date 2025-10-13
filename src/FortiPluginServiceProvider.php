@@ -6,7 +6,10 @@ use Illuminate\Support\ServiceProvider;
 use Timeax\FortiPlugin\Console\Commands\ValidatePlugin;
 use Timeax\FortiPlugin\Installations\Contracts\ActorResolver;
 use Timeax\FortiPlugin\Installations\Contracts\ZipRepository;
+use Timeax\FortiPlugin\Installations\Contracts\PluginRepository;
+use Timeax\FortiPlugin\Installations\Infra\EloquentZipRepository;
 use Timeax\FortiPlugin\Installations\Infra\InMemoryZipRepository;
+use Timeax\FortiPlugin\Installations\Infra\InMemoryPluginRepository;
 use Timeax\FortiPlugin\Installations\Support\DefaultActorResolver;
 use Timeax\FortiPlugin\Installations\Support\InstallerTokenManager;
 use Timeax\FortiPlugin\Permissions\Bootstrap\FortiPermissions;
@@ -37,9 +40,17 @@ class FortiPluginServiceProvider extends ServiceProvider
         $this->app->singleton(ZipRepository::class, function ($app) {
             $driver = (string)(config('fortiplugin.installations.repositories.zip') ?? 'inmemory');
             if ($driver === 'eloquent') {
-                return $app->make(\Timeax\FortiPlugin\Installations\Infra\EloquentZipRepository::class);
+                return $app->make(EloquentZipRepository::class);
             }
             return new InMemoryZipRepository();
+        });
+        // Bind PluginRepository for Installations Phase 7
+        $this->app->singleton(PluginRepository::class, function ($app) {
+            $driver = (string)(config('fortiplugin.installations.repositories.plugin') ?? 'inmemory');
+            if ($driver === 'eloquent') {
+                return $app->make(\Timeax\FortiPlugin\Installations\Infra\EloquentPluginRepository::class);
+            }
+            return new InMemoryPluginRepository();
         });
         $this->app->singleton(InstallerTokenManager::class, function ($app) {
             return new InstallerTokenManager();

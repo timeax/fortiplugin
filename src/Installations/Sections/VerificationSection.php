@@ -4,6 +4,7 @@ namespace Timeax\FortiPlugin\Installations\Sections;
 
 use DateTimeImmutable;
 use Timeax\FortiPlugin\Installations\Support\InstallationLogStore;
+use Timeax\FortiPlugin\Installations\Support\ValidatorBridge;
 use Timeax\FortiPlugin\Services\ValidatorService;
 
 class VerificationSection
@@ -20,16 +21,15 @@ class VerificationSection
         string $installRoot,
         ?callable $unifiedEmitter = null,
     ): array {
-        // Bridge validator emits to logs (verbatim) and optional unified emitter
-        $bridge = function (array $payload) use ($logStore, $installRoot, $unifiedEmitter): void {
-            $logStore->appendValidationEmit($installRoot, $payload); // verbatim
-            if ($unifiedEmitter) {
-                try { $unifiedEmitter($payload); } catch (\Throwable $_) { /* never throw */ }
-            }
-        };
+        // Bridge validator emits to logs (verbatim) and optional unified emitter via ValidatorBridge
+        $emitter = $unifiedEmitter ? new class($unifiedEmitter) implements \Timeax\FortiPlugin\Installations\Contracts\Emitter {
+            public function __construct(private $fn) {}
+            public function __invoke(array $payload): void { ($this->fn)($payload); }
+        } : null;
+        $bridge = new ValidatorBridge($logStore, $installRoot, $emitter);
 
         // Execute validator
-        $validator->run($stagingRoot, $bridge);
+        $validator->run($stagingRoot, [$bridge, 'emit']);
 
         // Build summary and persist snapshot
         $summary = [

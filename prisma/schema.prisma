@@ -310,7 +310,7 @@ model PluginAuditLog {
 model PluginPlaceholder {
   id         BigInt   @id @default(autoincrement()) @db.BigInt
   slug       String   @unique
-  name       String
+  name       String   @unique
   unique_key String   @unique
   owner_ref  String?
   meta       Json?

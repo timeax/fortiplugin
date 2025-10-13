@@ -184,6 +184,8 @@ return [
         'repositories' => [
             // Zip repository driver: 'inmemory' (default) or 'eloquent'
             'zip' => env('FORTIPLUGIN_INSTALL_ZIP_REPO', 'inmemory'),
+            // Plugin repository driver: 'inmemory' (default) or 'eloquent'
+            'plugin' => env('FORTIPLUGIN_INSTALL_PLUGIN_REPO', 'inmemory'),
         ],
         'tokens' => [
             // TTLs in seconds; bounded in code to 60–3600

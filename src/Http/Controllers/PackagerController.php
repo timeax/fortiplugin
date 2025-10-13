@@ -96,8 +96,8 @@ final class PackagerController extends Controller
         Gate::authorize(FortiGates::TOKEN_ISSUE_PLACEHOLDER);
 
         $data = $request->validate([
-            'slug' => ['nullable', 'string', 'max:255'],
-            'name' => ['nullable', 'string', 'max:255'],
+            'slug' => ['required', 'string', 'max:255'],
+            'name' => ['required', 'string', 'max:255'],
         ]);
 
         // Resolve current author

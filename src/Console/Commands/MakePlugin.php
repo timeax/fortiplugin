@@ -20,6 +20,7 @@ class MakePlugin extends Command
 
     protected $signature = 'forti:make
         {name : StudlyCase plugin name}
+        {alias : StudlyCase plugin alias}
         {--force : Overwrite if plugin folder exists}
         {--view  : Scaffold TypeScript Inertia + Embed resource folders}
         {--no-npm : Skip npm install (CI / offline)}';
@@ -42,7 +43,7 @@ class MakePlugin extends Command
         if (!$session) return self::FAILURE;
 
         // 2) Validate plugin name/alias
-        $studly = Str::studly($this->argument('name'));
+        $studly = Str::studly($this->argument('alias'));
         $kebab = Str::kebab($studly);
 
         if (!preg_match('/^[a-z0-9\-_]{3,40}$/', $kebab)) {

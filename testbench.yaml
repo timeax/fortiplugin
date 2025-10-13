@@ -9,13 +9,14 @@ env:
   QUEUE_CONNECTION: sync
   SESSION_DRIVER: array
   CACHE_STORE: array
+  CACHE_DRIVER: array
 
 migrations:
   - database/migrations
-  - workbench/database/migrations
+#  - workbench/database/migrations
 
 seeders:
-  - Workbench\Database\Seeders\DatabaseSeeder
+#  - Workbench\Database\Seeders\DatabaseSeeder
 
 workbench:
   start: '/'

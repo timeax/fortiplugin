@@ -102,4 +102,44 @@ class InstallationLogStore
         $current['decision'] = $decision;
         $this->fs->writeAtomic($path, json_encode($current, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES));
     }
+
+    public function setVendorPolicy(string $installRoot, array $vendorPolicy): void
+    {
+        $path = $this->pathFor($installRoot);
+        $current = $this->readCurrent($path);
+        $current['vendor_policy'] = $vendorPolicy;
+        $this->fs->writeAtomic($path, json_encode($current, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES));
+    }
+
+    public function setComposerPlan(string $installRoot, array $composerPlan): void
+    {
+        $path = $this->pathFor($installRoot);
+        $current = $this->readCurrent($path);
+        $current['composer_plan'] = $composerPlan;
+        $this->fs->writeAtomic($path, json_encode($current, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES));
+    }
+
+    public function setPackages(string $installRoot, array $packages): void
+    {
+        $path = $this->pathFor($installRoot);
+        $current = $this->readCurrent($path);
+        $current['packages'] = $packages;
+        $this->fs->writeAtomic($path, json_encode($current, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES));
+    }
+
+    public function setInstall(string $installRoot, array $install): void
+    {
+        $path = $this->pathFor($installRoot);
+        $current = $this->readCurrent($path);
+        $current['install'] = $install;
+        $this->fs->writeAtomic($path, json_encode($current, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES));
+    }
+
+    public function setDbPersist(string $installRoot, array $dbPersist): void
+    {
+        $path = $this->pathFor($installRoot);
+        $current = $this->readCurrent($path);
+        $current['db_persist'] = $dbPersist;
+        $this->fs->writeAtomic($path, json_encode($current, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES));
+    }
 }

@@ -489,4 +489,66 @@ final class ValidatorService
         $s = @filesize($file);
         return $s === false ? null : $s;
     }
+
+    /**
+     * Public entry to run only the file scanning phase with a provided emitter.
+     * Ensures headline validators are ignored; guarantees the scanner stack runs.
+     * Restores previous state afterwards.
+     */
+    public function runFileScan(string $root, callable $emit): void
+    {
+        $prevEmit = $this->emit;
+        $prevIgnored = $this->ignored; // snapshot current ignore set
+        $this->emit = $emit;
+
+        try {
+            // Headline validators to keep ignored during a pure file scan
+            $headline = [
+                'composer',
+                'config',
+                'host',
+                'host_config',
+                'permission_manifest',
+                'manifest',
+                'route',
+                'routes',
+            ];
+
+            // Preserve caller's existing ignores (aliases + FQCNs)…
+            $keep = array_keys($prevIgnored); // already lowercase
+
+            // …but make sure the scanning stack is ENABLED (never ignored)
+            $scannerAllow = array_map('strtolower', [
+                'file_scanner',
+                FileScanner::class,
+                'content',
+                'content_validator',
+                ContentValidator::class,
+                'token',
+                'token_usage',
+                'token_analyzer',
+                TokenUsageAnalyzer::class,
+                'ast',
+                'ast_scanner',
+                PluginSecurityScanner::class,
+            ]);
+
+            // Build the final ignore list: keep previous + force headline ignores,
+            // then remove anything from the scannerAllow set.
+            $targetIgnores = array_values(array_diff(
+                array_unique(array_merge($keep, $headline)),
+                $scannerAllow
+            ));
+
+            // Apply ignores (aliases ↔ FQCN normalization handled internally)
+            $this->setIgnoredValidators($targetIgnores);
+
+            // Run the scanner phase only
+            $this->runScanner(rtrim($root, "\\/"));
+        } finally {
+            // Restore previous state
+            $this->ignored = $prevIgnored;
+            $this->emit = $prevEmit;
+        }
+    }
 }

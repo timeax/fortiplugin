@@ -2,7 +2,9 @@
 
 namespace Timeax\FortiPlugin\Installations\Support;
 
+use Throwable;
 use Timeax\FortiPlugin\Installations\Contracts\ActorResolver;
+use function function_exists;
 
 class DefaultActorResolver implements ActorResolver
 {
@@ -10,7 +12,7 @@ class DefaultActorResolver implements ActorResolver
     {
         // Try Laravel auth() if available, else fallback
         try {
-            if (\function_exists('auth')) {
+            if (function_exists('auth')) {
                 $user = auth()->user();
                 if ($user && method_exists($user, 'getAuthIdentifier')) {
                     $id = $user->getAuthIdentifier();
@@ -19,7 +21,7 @@ class DefaultActorResolver implements ActorResolver
                     }
                 }
             }
-        } catch (\Throwable $_) {}
+        } catch (Throwable $_) {}
         return 'system';
     }
 }
