@@ -1,56 +1,66 @@
 {
-    "name": "timeax/fortiplugin",
-    "description": "Fortified plugin system for PHP — secure packaging, validation, and install‑time policy enforcement.",
-    "minimum-stability": "stable",
-    "license": "proprietary",
-    "authors": [
-        {
-            "name": "David",
-            "email": "timmyokpako@gmail.com"
-        }
-    ],
-    "autoload": {
-        "psr-4": {
-            "Timeax\\FortiPlugin\\": "src/"
-        }
-    },
-    "require": {
-        "php": "^8.2",
-        "opis/json-schema": "^2.4",
-        "nikic/php-parser": "^5.6",
-        "pragmarx/google2fa-laravel": "^2.3",
-        "ext-sodium": "*",
-        "ext-openssl": "*",
-        "ext-zlib": "*",
-        "ext-curl": "*",
-      "ext-zip": "*"
-    },
-    "require-dev": {
-        "roave/security-advisories": "dev-latest",
-        "laravel/framework": "^12.19",
-        "phpunit/phpunit": "^11.5",
-        "orchestra/testbench": "^10.6"
-    },
-    "autoload-dev": {
-        "psr-4": {
-            "Workbench\\App\\": "workbench/app/",
-            "Workbench\\Database\\Factories\\": "workbench/database/factories/",
-            "Workbench\\Database\\Seeders\\": "workbench/database/seeders/",
-            "Tests\\": "test/"
-        }
-    },
-    "scripts": {
-        "post-autoload-dump": [
-            "@clear",
-            "@prepare"
-        ],
-        "clear": "@php vendor/bin/testbench package:purge-skeleton --ansi",
-        "prepare": "@php vendor/bin/testbench package:discover --ansi",
-        "build": "@php vendor/bin/testbench workbench:build --ansi",
-        "serve": [
-            "Composer\\Config::disableProcessTimeout",
-            "@build",
-            "@php vendor/bin/testbench serve --ansi"
-        ]
+  "name": "timeax/fortiplugin",
+  "description": "Fortified plugin system for PHP — secure packaging, validation, and install‑time policy enforcement.",
+  "minimum-stability": "stable",
+  "license": "proprietary",
+  "authors": [
+    {
+      "name": "David",
+      "email": "timmyokpako@gmail.com"
     }
+  ],
+  "autoload": {
+    "psr-4": {
+      "Timeax\\FortiPlugin\\": "src/"
+    },
+    "files": [
+      "src/Helpers/helpers.php"
+    ]
+  },
+  "require": {
+    "php": "^8.2",
+    "opis/json-schema": "^2.4",
+    "nikic/php-parser": "^5.6",
+    "pragmarx/google2fa-laravel": "^2.3",
+    "ext-sodium": "*",
+    "ext-openssl": "*",
+    "ext-zlib": "*",
+    "ext-curl": "*",
+    "ext-zip": "*"
+  },
+  "require-dev": {
+    "roave/security-advisories": "dev-latest",
+    "laravel/framework": "^12.19",
+    "phpunit/phpunit": "^11.5",
+    "orchestra/testbench": "^10.6"
+  },
+  "autoload-dev": {
+    "psr-4": {
+      "Workbench\\App\\": "workbench/app/",
+      "Workbench\\Database\\Factories\\": "workbench/database/factories/",
+      "Workbench\\Database\\Seeders\\": "workbench/database/seeders/",
+      "Tests\\": "test/"
+    }
+  },
+  "scripts": {
+    "post-autoload-dump": [
+      "@clear",
+      "@prepare"
+    ],
+    "clear": "@php vendor/bin/testbench package:purge-skeleton --ansi",
+    "prepare": "@php vendor/bin/testbench package:discover --ansi",
+    "build": "@php vendor/bin/testbench workbench:build --ansi",
+    "serve": [
+      "Composer\\Config::disableProcessTimeout",
+      "@build",
+      "@php vendor/bin/testbench serve --ansi"
+    ]
+  },
+  "extra": {
+    "laravel": {
+      "providers": [
+        "Timeax\\FortiPlugin\\FortiPluginServiceProvider"
+      ]
+    }
+  }
 }

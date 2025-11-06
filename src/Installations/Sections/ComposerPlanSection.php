@@ -1,76 +1,105 @@
 <?php
+declare(strict_types=1);
 
 namespace Timeax\FortiPlugin\Installations\Sections;
 
 use Throwable;
-use Timeax\FortiPlugin\Installations\DTO\ComposerPlan;
-use Timeax\FortiPlugin\Installations\Enums\PackageStatus;
 use Timeax\FortiPlugin\Installations\Support\ComposerInspector;
 use Timeax\FortiPlugin\Installations\Support\InstallationLogStore;
+use Timeax\FortiPlugin\Installations\Support\EmitsEvents;
+use Timeax\FortiPlugin\Installations\Support\Events;
+use Timeax\FortiPlugin\Installations\Support\ErrorCodes;
 
-class ComposerPlanSection
+/**
+ * ComposerPlanSection
+ *
+ * Responsibilities
+ * - Read host composer.lock and plugin composer.json.
+ * - Build the per-package “foreign map” (is_foreign + initial UNVERIFIED status).
+ * - Compute a conservative Composer plan (add/skip + core_conflicts).
+ * - Persist to installation.json under "composer_plan":
+ *     {
+ *       "packages": { "<name>": { is_foreign, status } ... },
+ *       "plan": { actions: {...}, core_conflicts: [...] }
+ *     }
+ *
+ * Notes
+ * - This section does NOT execute Composer or modify vendor code.
+ * - It merely prepares data for the host UI/flows (and later, optional scans of foreign packages).
+ */
+final class ComposerPlanSection
 {
+    use EmitsEvents;
+
+    public function __construct(
+        private readonly InstallationLogStore $log,
+        private readonly ComposerInspector    $inspector,
+    )
+    {
+    }
+
     /**
-     * Build a dry composer plan and packages map, then persist to installation.json.
-     * Returns associative array ['actions'=>..., 'core_conflicts'=>..., 'packages'=>map].
+     * @param string $pluginDir Plugin root directory (must contain composer.json)
+     * @param string|null $hostComposerLock Absolute path to host composer.lock; if null, defaults to getcwd().'/composer.lock'
+     * @param callable|null $emit Optional installer-level emitter fn(array $payload): void
+     * @return array{
+     *   status: 'ok'|'fail',
+     *   packages?: array<string, array{is_foreign:bool,status:string}>,
+     *   plan?: array{actions: array<string,string>, core_conflicts: list<string>}
+     * }
      */
     public function run(
-        ComposerInspector $inspector,
-        InstallationLogStore $logStore,
-        string $stagingRoot,
-        string $installRoot,
+        string    $pluginDir,
+        ?string   $hostComposerLock = null,
         ?callable $emit = null
-    ): array {
-        $requires = $inspector->readPluginRequires($stagingRoot);               // name => constraint
-        $hostLocked = $inspector->readHostLockedPackages();                      // name => version
+    ): array
+    {
+        $emit && $emit(['title' => 'COMPOSER_PLAN_START', 'description' => 'Collecting packages & computing plan']);
 
-        $actions = [];
-        $coreConflicts = [];
-        $packages = [];
+        $pluginComposer = rtrim($pluginDir, "\\/") . DIRECTORY_SEPARATOR . 'composer.json';
+        $hostLock = $hostComposerLock ?: (getcwd() . DIRECTORY_SEPARATOR . 'composer.lock');
 
-        foreach ($requires as $name => $constraint) {
-            // rudimentary: if host has the package at any version, mark skip; otherwise add
-            $hostHas = array_key_exists($name, $hostLocked);
-            $actions[$name] = $hostHas ? 'skip' : 'add';
+        try {
+            // 1) Collect package map (foreign vs host-present)
+            $packages = $this->inspector->collectPackages($hostLock, $pluginComposer); // array<string,PackageEntry>
 
-            // core conflicts: if is core package and constraint not trivially satisfied by presence
-            if (!$hostHas && $inspector->isCorePackage($name)) {
-                $coreConflicts[] = $name;
-            }
+            // 2) Compute plan (actions + core_conflicts)
+            $plan = $this->inspector->plan($packages); // ComposerPlan
 
-            $packages[$name] = [
-                'is_foreign' => !$hostHas,
-                'status' => $hostHas ? PackageStatus::VERIFIED->value : PackageStatus::UNVERIFIED->value,
+            // 3) Persist to installation.json under "composer_plan"
+            $this->log->writeSection('composer_plan', [
+                'packages' => array_map(static fn($e) => $e->toArray(), $packages),
+                'plan' => $plan->toArray(),
+            ]);
+
+            $emit && $emit(['title' => 'COMPOSER_PLAN_COMPUTED', 'description' => 'Composer plan persisted', 'meta' => [
+                'path' => $this->log->path(),
+                'packages' => count($packages),
+                'core_conflicts' => $plan->core_conflicts,
+            ]]);
+
+            return [
+                'status' => 'ok',
+                'packages' => array_map(static fn($e) => $e->toArray(), $packages),
+                'plan' => $plan->toArray(),
             ];
+        } catch (Throwable $e) {
+            // Emit a concise failure and return
+            $this->emitFail(
+                Events::COMPOSER_PLAN_FAIL,
+                ErrorCodes::FILESYSTEM_READ_FAILED,
+                'Failed to compute Composer plan',
+                [
+                    'exception' => $e->getMessage(),
+                    'host_lock' => $hostLock,
+                    'plugin_composer' => $pluginComposer,
+                ]
+            );
+            $emit && $emit(['title' => 'COMPOSER_PLAN_FAIL', 'description' => 'Composer plan failed', 'meta' => [
+                'error' => $e->getMessage()
+            ]]);
+
+            return ['status' => 'fail'];
         }
-
-        // Persist to installation.json
-        $logStore->setComposerPlan($installRoot, [
-            'actions' => $actions,
-            'core_conflicts' => $coreConflicts,
-        ]);
-        $logStore->setPackages($installRoot, $packages);
-
-        // Emit installer event
-        if ($emit) {
-            try {
-                $emit([
-                    'title' => 'Installer: Composer Plan',
-                    'description' => 'Dry composer plan computed',
-                    'error' => null,
-                    'stats' => ['filePath' => null, 'size' => null],
-                    'meta' => [
-                        'counts' => ['requires' => count($requires), 'foreign' => count(array_filter($packages, static fn($p) => ($p['is_foreign'] ?? false)))],
-                        'core_conflicts' => $coreConflicts,
-                    ],
-                ]);
-            } catch (Throwable $_) {}
-        }
-
-        return [
-            'actions' => $actions,
-            'core_conflicts' => $coreConflicts,
-            'packages' => $packages,
-        ];
     }
 }

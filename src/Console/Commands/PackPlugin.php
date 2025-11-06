@@ -11,8 +11,6 @@ use Illuminate\Support\Str;
 use RecursiveDirectoryIterator;
 use RecursiveIteratorIterator;
 use RuntimeException;
-use Symfony\Component\Console\Helper\ProgressBar;
-use Symfony\Component\Console\Output\ConsoleOutputInterface;
 use Symfony\Component\Process\Process;
 use Throwable;
 use Timeax\FortiPlugin\Services\PolicyService;
@@ -23,9 +21,9 @@ use ZipArchive;
 
 class PackPlugin extends Command
 {
-    use AuthenticateSession;
+    use AuthenticateSession, Shared;
 
-    protected $signature = 'forti:pack
+    protected $signature = 'fp:pack
         {name : Plugin directory name, e.g., OrdersPlugin}
         {--output= : Output path for zip}
         {--force : Overwrite if zip exists}
@@ -276,58 +274,7 @@ class PackPlugin extends Command
 
     protected function makeEmitCallback(): Closure
     {
-        /** @var mixed $output */
-        $output = $this->output;
-        if (method_exists($output, 'getOutput')) {
-            $output = $output->getOutput();
-        }
-        $supportsSections = $output instanceof ConsoleOutputInterface;
-        $sections = [];
-        $progress = null;
-        $filesStarted = false;
-
-        return function (array $e) use (&$sections, &$progress, &$filesStarted, $output, $supportsSections) {
-            $title = (string)($e['title'] ?? 'Scan');
-            $desc = (string)($e['description'] ?? '');
-            $file = (string)($e['stats']['filePath'] ?? '');
-            // $size = $e['stats']['size'] ?? null;
-
-            // Light-weight UI: one-liners per phase + progress bar during files
-            if ($title === 'Scan: File') {
-                if (!$filesStarted) {
-                    if ($supportsSections) {
-                        if (!isset($sections['progress'])) {
-                            $sections['progress'] = $output->section();
-                        }
-                        $progress = new ProgressBar($sections['progress'], 0);
-                    } else {
-                        $progress = $this->output->createProgressBar();
-                    }
-                    $progress->start();
-                    $filesStarted = true;
-                }
-                if ($supportsSections) {
-                    if (!isset($sections['files'])) {
-                        $sections['files'] = $output->section();
-                    }
-                    $sections['files']->overwrite("Scanning: <info>" . basename($file) . "</info>");
-                } else {
-                    $this->line("Scanning: " . basename($file));
-                }
-                if ($progress) $progress->advance();
-                return;
-            }
-
-            $msg = $desc ?: $title;
-            if ($supportsSections) {
-                if (!isset($sections[$title])) {
-                    $sections[$title] = $output->section();
-                }
-                $sections[$title]->overwrite($msg);
-            } else {
-                $this->line($msg);
-            }
-        };
+       return $this->initializeShared();
     }
 
     protected function collectPluginFiles(string $basePath, array $excludeList = []): array

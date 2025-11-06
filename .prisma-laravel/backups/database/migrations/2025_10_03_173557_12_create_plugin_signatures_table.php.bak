@@ -15,7 +15,7 @@ return new class extends Migration {
 			$table->id();
 			$table
 				->foreignId("placeholder_id")
-				->constrained("placeholders", "id")
+				->constrained("scpl_placeholders", "id")
 				->onDelete("no action")
 				->onUpdate("no action");
 			$table->string("host_domain");

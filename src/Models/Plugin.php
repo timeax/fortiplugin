@@ -14,7 +14,10 @@ use Illuminate\Database\Eloquent\Model;
  * @property array|null $config
  * @property array|null $meta
  * @property int $plugin_placeholder_id
+ * @property int $active_version_id
  * @property string|null $owner_ref
+ * @property \Carbon\Carbon|null $activated_at
+ * @property int|null $activated_by
  * @property \Carbon\Carbon $created_at
  * @property \Carbon\Carbon $updated_at
  * @property PluginPlaceholder::class $placeholder
@@ -37,6 +40,7 @@ class Plugin extends Model
 		"status" => PluginStatus::class,
 		"config" => AsArrayObject::class,
 		"meta" => AsArrayObject::class,
+		"activated_at" => "datetime",
 		"created_at" => "datetime",
 		"updated_at" => "datetime",
 	];

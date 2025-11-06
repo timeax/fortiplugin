@@ -1,129 +1,148 @@
-<?php
+<?php /** @noinspection GrazieInspection */
+declare(strict_types=1);
 
 namespace Timeax\FortiPlugin\Installations\Sections;
 
-use DateTimeImmutable;
+use JsonException;
+use RuntimeException;
 use Throwable;
 use Timeax\FortiPlugin\Installations\Contracts\PluginRepository;
+use Timeax\FortiPlugin\Installations\DTO\InstallMeta;
+use Timeax\FortiPlugin\Installations\DTO\PackageEntry;
 use Timeax\FortiPlugin\Installations\Support\InstallationLogStore;
 
-class DbPersistSection
+/**
+ * DbPersistSection
+ *
+ * Responsibilities
+ * - Upsert Plugin using InstallMeta (canonical identity).
+ * - Create PluginVersion with a caller-supplied version tag and the same meta snapshot.
+ * - Link the PluginZip to the created version.
+ * - Save canonical meta and (optionally) the packages map (name => PackageEntry).
+ * - Persist a concise "db_persist" block into installation.json.
+ *
+ * Notes
+ * - No activation here; this only writes DB rows and logs the outcome.
+ * - Emits terse installer events via InstallationLogStore::appendInstallerEmit().
+ */
+final readonly class DbPersistSection
 {
+    public function __construct(
+        private InstallationLogStore $log,
+        private PluginRepository     $plugins,
+    )
+    {
+    }
+
     /**
-     * Phase 7: Persist the installed plugin state into DB using PluginRepository.
-     * - Upsert Plugin, create PluginVersion, link PluginZip (assumed verified by gate).
-     * - Mirror packages meta from installation.json.packages into Plugin.meta.packages.
-     * - Update installation.json with db_persist block (ids, timestamps) and emit installer event.
+     * Persist Plugin + Version, link Zip, and store meta/packages.
      *
-     * Returns: ['status' => 'ok'|'failed', 'plugin_id'?, 'plugin_version_id'?, 'error'?, 'saved_at']
+     * @param InstallMeta $meta Canonical install meta (identity, paths, fingerprint, hashes)
+     * @param string $versionTag Free-form version tag/fingerprint for PluginVersion
+     * @param int|string $zipId PluginZip id to link to the created version
+     * @param array<string,PackageEntry>|null $packages Optional packages map: name => PackageEntry
+     * @param callable|null $emit Optional installer-level emitter fn(array $payload): void
+     * @return array{status:'ok'|'fail', plugin_id?:int, plugin_version_id?:int}
+     * @throws JsonException
+     * @noinspection PhpUndefinedClassInspection
+     * @noinspection PhpUnusedLocalVariableInspection
      */
     public function run(
-        PluginRepository $repo,
-        InstallationLogStore $logStore,
-        string $installRoot,
-        int|string $zipId,
-        ?callable $emit = null
-    ): array {
-        $state = $logStore->getCurrent($installRoot);
-        $now = (new DateTimeImmutable('now'))->format(DATE_ATOM);
-
-        // Derive minimal data
-        $slug = (string)($state['meta']['slug'] ?? ($state['meta']['name'] ?? 'plugin'));
-        $packages = (array)($state['packages'] ?? []);
-        $installPaths = (array)($state['install']['paths'] ?? []);
-        $versionId = (string)($state['install']['version_id'] ?? '');
-
-        $pluginId = null;
-        $versionRecId = null;
-        $error = null;
+        InstallMeta $meta,
+        string      $versionTag,
+        int|string  $zipId,
+        ?array      $packages = null,
+        ?callable   $emit = null
+    ): array
+    {
+        $emit && $emit([
+            'title' => 'DB_PERSIST_START',
+            'description' => 'Persisting plugin + version',
+            'meta' => [
+                'placeholder_name' => $meta->placeholder_name,
+                'zip_id' => (string)$zipId,
+                'version_tag' => $versionTag,
+            ],
+        ]);
+        $this->log->appendInstallerEmit([
+            'title' => 'DB_PERSIST_START',
+            'description' => 'Persisting plugin + version',
+            'meta' => [
+                'placeholder_name' => $meta->placeholder_name,
+                'zip_id' => (string)$zipId,
+                'version_tag' => $versionTag,
+            ],
+        ]);
 
         try {
-            $pluginRec = $repo->upsertPlugin([
-                'name' => $slug,
-                'slug' => $slug,
-                'paths' => $installPaths,
-            ]);
-            if (!$pluginRec || !isset($pluginRec['id'])) {
-                throw new \RuntimeException('DB_PERSIST_FAILED: upsertPlugin returned null');
+            // 1) Upsert Plugin (by placeholder id/name per your repo impl)
+            $pluginId = $this->plugins->upsertPlugin($meta);
+            if ($pluginId === null) {
+                throw new RuntimeException('Upsert returned null plugin id');
             }
-            $pluginId = (int)$pluginRec['id'];
 
-            $versionRec = $repo->createVersion($pluginId, [
-                'version_id' => $versionId,
-                'paths' => $installPaths,
-            ]);
-            if (!$versionRec || !isset($versionRec['id'])) {
-                throw new \RuntimeException('DB_PERSIST_FAILED: createVersion returned null');
+            // 2) Create Version with same meta snapshot
+            $pluginVersionId = $this->plugins->createVersion($pluginId, $versionTag, $meta);
+            if ($pluginVersionId === null) {
+                throw new RuntimeException('CreateVersion returned null id');
             }
-            $versionRecId = (int)$versionRec['id'];
 
-            $repo->linkZip($versionRecId, $zipId);
+            // 3) Link Zip → Version
+            $this->plugins->linkZip($pluginVersionId, $zipId);
 
-            // Mirror packages into plugin meta
-            $repo->saveMeta($pluginId, ['packages' => $packages]);
+            // 4) Save canonical meta
+            $this->plugins->saveMeta($pluginId, $meta);
 
-            $block = [
-                'status' => 'ok',
+            // 5) Save packages map (if provided)
+            if (is_array($packages) && $packages !== []) {
+                $this->plugins->savePackages($pluginId, $packages);
+            }
+
+            // 6) Persist concise db_persist block
+            $this->log->writeSection('db_persist', [
                 'plugin_id' => $pluginId,
-                'plugin_version_id' => $versionRecId,
-                'linked_zip_id' => (string)$zipId,
-                'saved_at' => $now,
+                'plugin_version_id' => $pluginVersionId,
+                'zip_id' => (string)$zipId,
+                'version_tag' => $versionTag,
+                'meta' => $meta->toArray(),
+                'packages_saved' => is_array($packages) && $packages !== [],
+            ]);
+
+            $okEmit = [
+                'title' => 'DB_PERSIST_OK',
+                'description' => 'Plugin + version persisted and zip linked',
+                'meta' => [
+                    'plugin_id' => $pluginId,
+                    'plugin_version_id' => $pluginVersionId,
+                ],
             ];
-            $logStore->setDbPersist($installRoot, $block);
+            $emit && $emit($okEmit);
+            $this->log->appendInstallerEmit($okEmit);
 
-            if ($emit) {
-                try {
-                    $emit([
-                        'title' => 'Installer: DB Persist',
-                        'description' => 'DB rows created and linked',
-                        'error' => null,
-                        'stats' => ['filePath' => null, 'size' => null],
-                        'meta' => $block,
-                    ]);
-                } catch (Throwable $_) {}
-            }
-
-            // Also append to installer emits
-            try {
-                $logStore->appendInstallerEmit($installRoot, [
-                    'title' => 'Installer: DB Persist',
-                    'description' => 'DB rows created and linked',
-                    'error' => null,
-                    'stats' => ['filePath' => null, 'size' => null],
-                    'meta' => $block,
-                ]);
-            } catch (Throwable $_) {}
-
-            return $block;
+            return ['status' => 'ok', 'plugin_id' => $pluginId, 'plugin_version_id' => $pluginVersionId];
         } catch (Throwable $e) {
-            $error = $e->getMessage();
-            $block = [
-                'status' => 'failed',
-                'error' => $error,
-                'saved_at' => $now,
+            $failMeta = [
+                'error' => $e->getMessage(),
+                'placeholder_name' => $meta->placeholder_name,
+                'zip_id' => (string)$zipId,
+                'version_tag' => $versionTag,
             ];
-            $logStore->setDbPersist($installRoot, $block);
-            if ($emit) {
-                try {
-                    $emit([
-                        'title' => 'Installer: DB Persist',
-                        'description' => 'Persist failed',
-                        'error' => ['detail' => $error, 'code' => 'DB_PERSIST_FAILED'],
-                        'stats' => ['filePath' => null, 'size' => null],
-                        'meta' => $block,
-                    ]);
-                } catch (Throwable $_) {}
-            }
+
+            // Best-effort persist of failure context
             try {
-                $logStore->appendInstallerEmit($installRoot, [
-                    'title' => 'Installer: DB Persist',
-                    'description' => 'Persist failed',
-                    'error' => ['detail' => $error, 'code' => 'DB_PERSIST_FAILED'],
-                    'stats' => ['filePath' => null, 'size' => null],
-                    'meta' => $block,
-                ]);
-            } catch (Throwable $_) {}
-            return $block;
+                $this->log->writeSection('db_persist', ['error' => $e->getMessage(), 'meta' => $failMeta]);
+            } catch (Throwable $_) {
+            }
+
+            $failEmit = [
+                'title' => 'DB_PERSIST_FAIL',
+                'description' => 'Failed to persist DB records',
+                'meta' => $failMeta,
+            ];
+            $emit && $emit($failEmit);
+            $this->log->appendInstallerEmit($failEmit);
+
+            return ['status' => 'fail'];
         }
     }
 }

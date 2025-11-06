@@ -17,8 +17,7 @@ final class AuthController extends Controller
 
     public function login(Request $request): JsonResponse
     {
-        Gate::authorize(FortiGates::AUTHOR_LOGIN);
-
+//        Gate::authorize(FortiGates::AUTHOR_LOGIN);
         $data = $request->validate([
             'email' => ['required', 'email'],
             'password' => ['required', 'string', 'min:6'],

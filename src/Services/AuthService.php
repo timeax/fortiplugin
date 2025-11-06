@@ -43,7 +43,7 @@ final class AuthService
                 'slug'   => $author->slug,
                 'name'   => $author->name,
                 'email'  => $author->email,
-                'status' => (string) $author->status,
+                'status' => $author->status->value,
             ],
             'expires_at' => $expires->toIso8601String(),
         ];

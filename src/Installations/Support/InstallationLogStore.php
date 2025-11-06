@@ -1,145 +1,161 @@
 <?php
+declare(strict_types=1);
 
 namespace Timeax\FortiPlugin\Installations\Support;
 
+use JsonException;
+use RuntimeException;
 use Timeax\FortiPlugin\Installations\Contracts\Filesystem;
+use Timeax\FortiPlugin\Installations\DTO\InstallMeta;
+use Timeax\FortiPlugin\Installations\DTO\InstallSummary;
+use Timeax\FortiPlugin\Installations\DTO\DecisionResult;
 
-class InstallationLogStore
+/**
+ * Concrete installation.json store with atomic writes and verbatim validation logs.
+ *
+ * File shape:
+ * {
+ *   "meta": {...},
+ *   "logs": {
+ *     "validation_emits": [ ... ],
+ *     "installer_emits":  [ ... ]
+ *   },
+ *   "summary": {...}|null,
+ *   "decision": {...}|null
+ * }
+ */
+final class InstallationLogStore
 {
-    public function __construct(
-        private readonly Filesystem $fs
-    ) {}
+    private AtomicFilesystem $atomFs;
+    private Filesystem $fs;
+    private string $installationJsonPath;
+    /** @var array{meta?:array,logs?:array,summary?:array,decision?:array} */
+    private array $doc = [];
 
-    private function pathFor(string $installRoot): string
+
+    public function __construct(AtomicFilesystem $atomFs, string $installationJsonPath)
     {
-        return rtrim($installRoot, "\\/ ") . DIRECTORY_SEPARATOR . '.internal' . DIRECTORY_SEPARATOR . 'logs' . DIRECTORY_SEPARATOR . 'installation.json';
+        $this->atomFs = $atomFs;
+        $this->fs = $atomFs->fs();
+        $this->installationJsonPath = $installationJsonPath;
     }
 
-    private function readCurrent(string $path): array
+    /**
+     * @throws JsonException
+     */
+    public function init(InstallMeta $meta): string
     {
-        if (is_file($path)) {
-            return $this->fs->readJson($path);
-        }
-        return [
-            'meta' => [],
+        $dir = dirname($this->installationJsonPath);
+        $this->fs->ensureDirectory($dir);
+
+        $this->doc = [
+            'meta' => $meta->toArray(),
             'logs' => [
                 'validation_emits' => [],
                 'installer_emits' => [],
             ],
+            'summary' => null,
+            'decision' => null,
         ];
+        $this->persist();
+        return $this->installationJsonPath;
+    }
+
+    /** @param array $payload
+     * @throws JsonException
+     * @throws JsonException
+     */
+    public function appendValidationEmit(array $payload): void
+    {
+        $doc = $this->read();
+        $doc['logs']['validation_emits'][] = $payload; // verbatim
+        $this->doc = $doc;
+        $this->persist();
+    }
+
+    /** @param array $payload
+     * @throws JsonException
+     * @throws JsonException
+     */
+    public function appendInstallerEmit(array $payload): void
+    {
+        $doc = $this->read();
+        $doc['logs']['installer_emits'][] = $payload; // terse, but verbatim too
+        $this->doc = $doc;
+        $this->persist();
     }
 
     /**
-     * Expose current raw installation log state (read-only usage by sections).
+     * @throws JsonException
      */
-    public function getCurrent(string $installRoot): array
+    public function writeSummary(InstallSummary $summary): void
     {
-        $path = $this->pathFor($installRoot);
-        return $this->readCurrent($path);
+        $doc = $this->read();
+        $doc['summary'] = $summary->toArray();
+        $this->doc = $doc;
+        $this->persist();
     }
 
     /**
-     * Minimal Phase 0: allow creating the installation.json shell (meta only) atomically.
+     * @throws JsonException
      */
-    public function writeMeta(string $installRoot, array $meta): void
+    public function writeDecision(DecisionResult $decision): void
     {
-        $path = $this->pathFor($installRoot);
-        $dir = dirname($path);
-        if (!is_dir($dir)) {
-            if (!@mkdir($dir, 0777, true) && !is_dir($dir)) {
-                throw new \RuntimeException('Failed to create log directory: ' . $dir);
-            }
+        $doc = $this->read();
+        $doc['decision'] = $decision->toArray();
+        $this->doc = $doc;
+        $this->persist();
+    }
+
+    public function path(): string
+    {
+        return $this->installationJsonPath;
+    }
+
+    /** @return array{meta?:array,logs?:array,summary?:array,decision?:array} */
+    public function read(): array
+    {
+        if ($this->doc !== []) {
+            return $this->doc;
         }
-        $current = $this->readCurrent($path);
-        $current['meta'] = $meta;
-        $this->fs->writeAtomic($path, json_encode($current, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES));
+        if (!$this->fs->exists($this->installationJsonPath)) {
+            throw new RuntimeException("installation.json not initialized at $this->installationJsonPath");
+        }
+        $this->doc = $this->fs->readJson($this->installationJsonPath);
+        // Guards for missing keys if the file was created by older versions
+        $this->doc['logs'] = $this->doc['logs'] ?? ['validation_emits' => [], 'installer_emits' => []];
+        return $this->doc;
     }
 
-    public function appendValidationEmit(string $installRoot, array $payload): void
+    /**
+     * Persist an arbitrary structured section under a top-level key
+     * like "vendor_policy", "file_scan", "composer_plan", etc.
+     *
+     * @throws JsonException
+     */
+    public function writeSection(string $key, array $block): void
     {
-        $path = $this->pathFor($installRoot);
-        $current = $this->readCurrent($path);
-        $current['logs']['validation_emits'][] = $payload; // verbatim
-        $this->fs->writeAtomic($path, json_encode($current, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES));
+        $doc = $this->read();
+        $doc[$key] = $block;
+        $this->doc = $doc;
+        $this->persist();
     }
 
-    public function appendInstallerEmit(string $installRoot, array $payload): void
+    /**
+     * Read a previously written section (or null if absent).
+     */
+    public function readSection(string $key): ?array
     {
-        $path = $this->pathFor($installRoot);
-        $current = $this->readCurrent($path);
-        $current['logs']['installer_emits'][] = $payload;
-        $this->fs->writeAtomic($path, json_encode($current, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES));
+        $doc = $this->read();
+        $val = $doc[$key] ?? null;
+        return is_array($val) ? $val : null;
     }
 
-    public function setVerification(string $installRoot, array $verification): void
+    /**
+     * @throws JsonException
+     */
+    private function persist(): void
     {
-        $path = $this->pathFor($installRoot);
-        $current = $this->readCurrent($path);
-        $current['verification'] = $verification;
-        $this->fs->writeAtomic($path, json_encode($current, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES));
-    }
-
-    public function setZipValidation(string $installRoot, array $zipValidation): void
-    {
-        $path = $this->pathFor($installRoot);
-        $current = $this->readCurrent($path);
-        $current['zip_validation'] = $zipValidation;
-        $this->fs->writeAtomic($path, json_encode($current, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES));
-    }
-
-    public function setFileScan(string $installRoot, array $fileScan): void
-    {
-        $path = $this->pathFor($installRoot);
-        $current = $this->readCurrent($path);
-        $current['file_scan'] = $fileScan;
-        $this->fs->writeAtomic($path, json_encode($current, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES));
-    }
-
-    public function setDecision(string $installRoot, array $decision): void
-    {
-        $path = $this->pathFor($installRoot);
-        $current = $this->readCurrent($path);
-        $current['decision'] = $decision;
-        $this->fs->writeAtomic($path, json_encode($current, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES));
-    }
-
-    public function setVendorPolicy(string $installRoot, array $vendorPolicy): void
-    {
-        $path = $this->pathFor($installRoot);
-        $current = $this->readCurrent($path);
-        $current['vendor_policy'] = $vendorPolicy;
-        $this->fs->writeAtomic($path, json_encode($current, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES));
-    }
-
-    public function setComposerPlan(string $installRoot, array $composerPlan): void
-    {
-        $path = $this->pathFor($installRoot);
-        $current = $this->readCurrent($path);
-        $current['composer_plan'] = $composerPlan;
-        $this->fs->writeAtomic($path, json_encode($current, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES));
-    }
-
-    public function setPackages(string $installRoot, array $packages): void
-    {
-        $path = $this->pathFor($installRoot);
-        $current = $this->readCurrent($path);
-        $current['packages'] = $packages;
-        $this->fs->writeAtomic($path, json_encode($current, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES));
-    }
-
-    public function setInstall(string $installRoot, array $install): void
-    {
-        $path = $this->pathFor($installRoot);
-        $current = $this->readCurrent($path);
-        $current['install'] = $install;
-        $this->fs->writeAtomic($path, json_encode($current, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES));
-    }
-
-    public function setDbPersist(string $installRoot, array $dbPersist): void
-    {
-        $path = $this->pathFor($installRoot);
-        $current = $this->readCurrent($path);
-        $current['db_persist'] = $dbPersist;
-        $this->fs->writeAtomic($path, json_encode($current, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES));
+        $this->atomFs->writeJsonAtomic($this->installationJsonPath, $this->doc, true);
     }
 }

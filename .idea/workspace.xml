@@ -4,7 +4,85 @@
     <option name="autoReloadType" value="SELECTIVE" />
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="eaf4cbc6-d298-4694-b042-183ced7c77f7" name="Changes" comment="" />
+    <list default="true" id="eaf4cbc6-d298-4694-b042-183ced7c77f7" name="Changes" comment="">
+      <change afterPath="$PROJECT_DIR$/config/fortipluginui.php" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/routes/test.php" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/Installations/Activation/ActivationResult.php" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/Installations/Activation/Activator.php" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/Installations/Activation/Writers/ProvidersRegistryWriter.php" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/Installations/Activation/Writers/RoutesRegistryWriter.php" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/Installations/Activation/Writers/UiRegistryWriter.php" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/Installations/Contracts/RegistryWriter.php" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/Installations/DTO/InstallerResult.php" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/Installations/DTO/UiConfigMap.php" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/Installations/DTO/UiItem.php" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/Installations/DTO/UiSectionMap.php" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/Installations/Infra/InMemoryFilesystem.php" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/Installations/Infra/LocalFilesystem.php" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/Installations/Sections/Decision.php" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/Installations/Sections/ProviderValidationSection.php" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/Installations/Sections/RouteWriteSection.php" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/Installations/Sections/UiConfigValidationSection.php" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/Installations/Support/BackgroundScanDispatcher.php" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/Installations/Support/EmitPayload.php" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/Installations/Support/EmitsEvents.php" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/Installations/Support/ErrorCodes.php" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/Installations/Support/Events.php" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/Installations/Support/Jobs/BackgroundFileScanJob.php" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/Installations/Support/RouteUiBridge.php" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/workbench/resources/views/welcome.blade.php" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/.idea/inspectionProfiles/Project_Default.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/inspectionProfiles/Project_Default.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/.prisma-laravel/backups/database/migrations/2025_10_03_173557_09_create_plugins_table.php.bak" beforeDir="false" afterPath="$PROJECT_DIR$/.prisma-laravel/backups/database/migrations/2025_10_03_173557_09_create_plugins_table.php.bak" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/.prisma-laravel/backups/src/Models/Plugin.php.bak" beforeDir="false" afterPath="$PROJECT_DIR$/.prisma-laravel/backups/src/Models/Plugin.php.bak" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/config/fortiplugin.php" beforeDir="false" afterPath="$PROJECT_DIR$/config/fortiplugin.php" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/database/migrations/2025_10_03_173557_09_create_plugins_table.php" beforeDir="false" afterPath="$PROJECT_DIR$/database/migrations/2025_10_03_173557_09_create_plugins_table.php" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/node_modules/.package-lock.json" beforeDir="false" afterPath="$PROJECT_DIR$/node_modules/.package-lock.json" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/node_modules/prisma-laravel-migrate/dist/diff-writer/writer.js" beforeDir="false" afterPath="$PROJECT_DIR$/node_modules/prisma-laravel-migrate/dist/diff-writer/writer.js" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/node_modules/prisma-laravel-migrate/dist/generator/migrator/index.js" beforeDir="false" afterPath="$PROJECT_DIR$/node_modules/prisma-laravel-migrate/dist/generator/migrator/index.js" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/node_modules/prisma-laravel-migrate/dist/generator/modeler/index.js" beforeDir="false" afterPath="$PROJECT_DIR$/node_modules/prisma-laravel-migrate/dist/generator/modeler/index.js" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/node_modules/prisma-laravel-migrate/dist/utils/utils.js" beforeDir="false" afterPath="$PROJECT_DIR$/node_modules/prisma-laravel-migrate/dist/utils/utils.js" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/node_modules/prisma-laravel-migrate/package.json" beforeDir="false" afterPath="$PROJECT_DIR$/node_modules/prisma-laravel-migrate/package.json" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/package-lock.json" beforeDir="false" afterPath="$PROJECT_DIR$/package-lock.json" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/package.json" beforeDir="false" afterPath="$PROJECT_DIR$/package.json" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/prisma/schema/permissions.prisma" beforeDir="false" afterPath="$PROJECT_DIR$/prisma/schema/permissions.prisma" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/schema/fortiplugin.schema.json" beforeDir="false" afterPath="$PROJECT_DIR$/schema/fortiplugin.schema.json" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/Contracts/ConfigInterface.php" beforeDir="false" afterPath="$PROJECT_DIR$/src/Contracts/ConfigInterface.php" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/Core/Install/RouteWriter.php" beforeDir="false" afterPath="$PROJECT_DIR$/src/Core/Install/RouteWriter.php" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/Enums/ValidationStatus.php" beforeDir="false" afterPath="$PROJECT_DIR$/src/Enums/ValidationStatus.php" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/Exceptions/MissingRoutePermissionsException.php" beforeDir="false" afterPath="$PROJECT_DIR$/src/Exceptions/MissingRoutePermissionsException.php" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/FortiPluginServiceProvider.php" beforeDir="false" afterPath="$PROJECT_DIR$/src/FortiPluginServiceProvider.php" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/Installations/Contracts/ZipRepository.php" beforeDir="false" afterPath="$PROJECT_DIR$/src/Installations/Contracts/ZipRepository.php" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/Installations/Enums/ZipValidationStatus.php" beforeDir="false" afterPath="$PROJECT_DIR$/src/Installations/Enums/ZipValidationStatus.php" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/Installations/Infra/EloquentZipRepository.php" beforeDir="false" afterPath="$PROJECT_DIR$/src/Installations/Infra/EloquentZipRepository.php" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/Installations/Infra/InMemoryZipRepository.php" beforeDir="false" afterPath="$PROJECT_DIR$/src/Installations/Infra/InMemoryZipRepository.php" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/Installations/Infra/README.md" beforeDir="false" afterPath="$PROJECT_DIR$/src/Installations/Infra/README.md" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/Installations/Installer.php" beforeDir="false" afterPath="$PROJECT_DIR$/src/Installations/Installer.php" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/Installations/InstallerPolicy.php" beforeDir="false" afterPath="$PROJECT_DIR$/src/Installations/InstallerPolicy.php" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/Installations/Sections/ComposerPlanSection.php" beforeDir="false" afterPath="$PROJECT_DIR$/src/Installations/Sections/ComposerPlanSection.php" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/Installations/Sections/DbPersistSection.php" beforeDir="false" afterPath="$PROJECT_DIR$/src/Installations/Sections/DbPersistSection.php" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/Installations/Sections/FileScanSection.php" beforeDir="false" afterPath="$PROJECT_DIR$/src/Installations/Sections/FileScanSection.php" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/Installations/Sections/InstallFilesSection.php" beforeDir="false" afterPath="$PROJECT_DIR$/src/Installations/Sections/InstallFilesSection.php" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/Installations/Sections/README.md" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/Installations/Sections/VendorPolicySection.php" beforeDir="false" afterPath="$PROJECT_DIR$/src/Installations/Sections/VendorPolicySection.php" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/Installations/Sections/VerificationSection.php" beforeDir="false" afterPath="$PROJECT_DIR$/src/Installations/Sections/VerificationSection.php" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/Installations/Sections/ZipValidationGate.php" beforeDir="false" afterPath="$PROJECT_DIR$/src/Installations/Sections/ZipValidationGate.php" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/Installations/Support/AtomicFilesystem.php" beforeDir="false" afterPath="$PROJECT_DIR$/src/Installations/Support/AtomicFilesystem.php" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/Installations/Support/ComposerInspector.php" beforeDir="false" afterPath="$PROJECT_DIR$/src/Installations/Support/ComposerInspector.php" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/Installations/Support/EmitterMux.php" beforeDir="false" afterPath="$PROJECT_DIR$/src/Installations/Support/EmitterMux.php" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/Installations/Support/Fingerprint.php" beforeDir="false" afterPath="$PROJECT_DIR$/src/Installations/Support/Fingerprint.php" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/Installations/Support/InstallationLogStore.php" beforeDir="false" afterPath="$PROJECT_DIR$/src/Installations/Support/InstallationLogStore.php" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/Installations/Support/InstallerTokenManager.php" beforeDir="false" afterPath="$PROJECT_DIR$/src/Installations/Support/InstallerTokenManager.php" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/Installations/Support/PathSecurity.php" beforeDir="false" afterPath="$PROJECT_DIR$/src/Installations/Support/PathSecurity.php" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/Installations/Support/Psr4Checker.php" beforeDir="false" afterPath="$PROJECT_DIR$/src/Installations/Support/Psr4Checker.php" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/Installations/Support/ValidatorBridge.php" beforeDir="false" afterPath="$PROJECT_DIR$/src/Installations/Support/ValidatorBridge.php" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/Lib/FileIo.php" beforeDir="false" afterPath="$PROJECT_DIR$/src/Lib/FileIo.php" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/Lib/Utils/FileIoUtility.php" beforeDir="false" afterPath="$PROJECT_DIR$/src/Lib/Utils/FileIoUtility.php" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/Models/Plugin.php" beforeDir="false" afterPath="$PROJECT_DIR$/src/Models/Plugin.php" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/Models/PluginVersion.php" beforeDir="false" afterPath="$PROJECT_DIR$/src/Models/PluginVersion.php" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/Models/PluginZip.php" beforeDir="false" afterPath="$PROJECT_DIR$/src/Models/PluginZip.php" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/Services/HostKeyService.php" beforeDir="false" afterPath="$PROJECT_DIR$/src/Services/HostKeyService.php" afterDir="false" />
+    </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
     <option name="HIGHLIGHT_NON_ACTIVE_CHANGELIST" value="false" />
@@ -27,7 +105,7 @@
     <option name="RECENT_GIT_ROOT_PATH" value="$PROJECT_DIR$" />
   </component>
   <component name="NamedScopeManager">
-    <scope name="Work" pattern="file[fortiplugin]:src//*||file[fortiplugin]:prisma//*||file[fortiplugin]:stubs//*||file[fortiplugin]:config//*||file[fortiplugin]:schema//*||file[fortiplugin]:routes//*||file[fortiplugin]:test//*" />
+    <scope name="Work" pattern="file[fortiplugin]:src//*||file[fortiplugin]:prisma//*||file[fortiplugin]:stubs//*||file[fortiplugin]:config//*||file[fortiplugin]:schema//*||file[fortiplugin]:routes//*||file[fortiplugin]:test//*||file[fortiplugin]:workbench//*" />
   </component>
   <component name="PhpWorkspaceProjectConfiguration" interpreter_name="PHP">
     <include_path>
@@ -158,6 +236,9 @@
       <path value="$PROJECT_DIR$/vendor/psy/psysh" />
     </include_path>
   </component>
+  <component name="ProblemsViewState">
+    <option name="selectedTabId" value="CurrentFile" />
+  </component>
   <component name="ProjectColorInfo">{
   &quot;associatedIndex&quot;: 6
 }</component>
@@ -174,12 +255,16 @@
     "ModuleVcsDetector.initialDetectionPerformed": "true",
     "PHPUnit.EncryptionTest.executor": "Run",
     "PHPUnit.EncryptionTest.test_decrypt_returns_null_when_keymap_missing.executor": "Run",
+    "PHPUnit.JsonRouteCompilerTest.executor": "Run",
+    "PHPUnit.JsonRouteCompilerTest.test_http_variants_any_and_match_and_action_expr_variants.executor": "Debug",
     "PHPUnit.PermissionManifestValidatorTest.executor": "Run",
     "PHPUnit.PermissionManifestValidatorTest.testRejectsUnknownTopLevelKeys.executor": "Debug",
     "PHPUnit.PermissionsListingAndTagsTest.executor": "Run",
     "RunOnceActivity.ShowReadmeOnStart": "true",
     "RunOnceActivity.TerminalTabsStorage.copyFrom.TerminalArrangementManager.252": "true",
     "RunOnceActivity.git.unshallow": "true",
+    "com.intellij.ml.llm.matterhorn.ej.ui.settings.DefaultAutoModeForALLUsers.v1": "true",
+    "com.intellij.ml.llm.matterhorn.ej.ui.settings.DefaultModelSelectionForGA.v1": "true",
     "git-widget-placeholder": "main",
     "ignore.virus.scanning.warn.message": "true",
     "junie.onboarding.icon.badge.shown": "true",
@@ -200,7 +285,8 @@
     "nodejs_package_manager_path": "npm",
     "npm.db.executor": "Run",
     "php.override.implement.member.chooser.php.doc": "NONE",
-    "settings.editor.selected.configurable": "ml.llm.LLMConfigurable",
+    "run.code.analysis.last.selected.profile": "pProject Default",
+    "settings.editor.selected.configurable": "project.scopes",
     "to.speed.mode.migration.done": "true",
     "vue.rearranger.settings.migration": "true"
   }
@@ -214,11 +300,13 @@
       <recent name="C:\Users\David\OneDrive\Documents\GitHub\fortiplugin\prisma" />
     </key>
     <key name="MoveFile.RECENT_KEYS">
+      <recent name="D:\Projects\GitHub\fortiplugin\workbench\resources\views" />
+      <recent name="D:\Projects\GitHub\fortiplugin\src\Installations\Sections" />
       <recent name="D:\Projects\GitHub\fortiplugin\prisma\schema" />
       <recent name="C:\Users\David\OneDrive\Documents\GitHub\fortiplugin\src" />
     </key>
   </component>
-  <component name="RunManager" selected="PHPUnit.PermissionsListingAndTagsTest">
+  <component name="RunManager" selected="PHPUnit.JsonRouteCompilerTest.test_http_variants_any_and_match_and_action_expr_variants">
     <configuration name="EncryptionTest" type="PHPUnitRunConfigurationType" factoryName="PHPUnit" temporary="true">
       <TestRunner class="Tests\Support\EncryptionTest" file="$PROJECT_DIR$/test/Support/EncryptionTest.php" scope="Class" />
       <method v="2" />
@@ -227,12 +315,12 @@
       <TestRunner class="Tests\Support\EncryptionTest" file="$PROJECT_DIR$/test/Support/EncryptionTest.php" method="test_decrypt_returns_null_when_keymap_missing" scope="Method" />
       <method v="2" />
     </configuration>
-    <configuration name="PermissionManifestValidatorTest" type="PHPUnitRunConfigurationType" factoryName="PHPUnit" temporary="true">
-      <TestRunner class="PermissionManifestValidatorTest" file="$PROJECT_DIR$/test/PermissionManifestValidatorTest.php" scope="Class" />
+    <configuration name="JsonRouteCompilerTest" type="PHPUnitRunConfigurationType" factoryName="PHPUnit" temporary="true">
+      <TestRunner class="Tests\Core\Install\JsonRouteCompilerTest" file="$PROJECT_DIR$/test/Core/Install/JsonRouteCompilerTest.php" scope="Class" />
       <method v="2" />
     </configuration>
-    <configuration name="PermissionManifestValidatorTest.testRejectsUnknownTopLevelKeys" type="PHPUnitRunConfigurationType" factoryName="PHPUnit" temporary="true">
-      <TestRunner class="PermissionManifestValidatorTest" file="$PROJECT_DIR$/test/PermissionManifestValidatorTest.php" method="testRejectsUnknownTopLevelKeys" scope="Method" />
+    <configuration name="JsonRouteCompilerTest.test_http_variants_any_and_match_and_action_expr_variants" type="PHPUnitRunConfigurationType" factoryName="PHPUnit" temporary="true">
+      <TestRunner class="Tests\Core\Install\JsonRouteCompilerTest" file="$PROJECT_DIR$/test/Core/Install/JsonRouteCompilerTest.php" method="test_http_variants_any_and_match_and_action_expr_variants" scope="Method" />
       <method v="2" />
     </configuration>
     <configuration name="PermissionsListingAndTagsTest" type="PHPUnitRunConfigurationType" factoryName="PHPUnit" temporary="true">
@@ -241,18 +329,18 @@
     </configuration>
     <recent_temporary>
       <list>
+        <item itemvalue="PHPUnit.JsonRouteCompilerTest.test_http_variants_any_and_match_and_action_expr_variants" />
+        <item itemvalue="PHPUnit.JsonRouteCompilerTest" />
         <item itemvalue="PHPUnit.PermissionsListingAndTagsTest" />
         <item itemvalue="PHPUnit.EncryptionTest" />
         <item itemvalue="PHPUnit.EncryptionTest.test_decrypt_returns_null_when_keymap_missing" />
-        <item itemvalue="PHPUnit.PermissionManifestValidatorTest" />
-        <item itemvalue="PHPUnit.PermissionManifestValidatorTest.testRejectsUnknownTopLevelKeys" />
       </list>
     </recent_temporary>
   </component>
   <component name="SharedIndexes">
     <attachedChunks>
       <set>
-        <option value="bundled-php-predefined-a98d8de5180a-9b563d34894c-com.jetbrains.php.sharedIndexes-PS-252.26830.95" />
+        <option value="bundled-php-predefined-a98d8de5180a-b35feea871ed-com.jetbrains.php.sharedIndexes-PS-252.27397.112" />
       </set>
     </attachedChunks>
   </component>
@@ -271,11 +359,26 @@
       <workItem from="1759941592297" duration="3882000" />
       <workItem from="1760140376991" duration="22784000" />
       <workItem from="1760303441641" duration="20477000" />
+      <workItem from="1760391423058" duration="25416000" />
+      <workItem from="1761233019089" duration="155000" />
+      <workItem from="1761905616238" duration="8188000" />
+      <workItem from="1761945249598" duration="10031000" />
     </task>
     <servers />
   </component>
   <component name="TypeScriptGeneratedFilesManager">
     <option name="version" value="3" />
+  </component>
+  <component name="XDebuggerManager">
+    <breakpoint-manager>
+      <breakpoints>
+        <line-breakpoint enabled="true" type="php">
+          <url>file://$PROJECT_DIR$/test/Core/Install/JsonRouteCompilerTest.php</url>
+          <line>87</line>
+          <option name="timeStamp" value="1" />
+        </line-breakpoint>
+      </breakpoints>
+    </breakpoint-manager>
   </component>
   <component name="XSLT-Support.FileAssociations.UIState">
     <expand />

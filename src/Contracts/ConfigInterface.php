@@ -266,4 +266,27 @@ interface ConfigInterface
      * @return array<string,mixed>
      */
     public static function getAllHost(): array;
+
+    /**
+     * Resolve and (optionally) autoload the class for the plugin’s main entry or a named export.
+     *
+     * Behavior:
+     *  - When $export is null, resolve the plugin’s “main” entry and return its class-string.
+     *  - When $export is a slug/key, resolve it from the config “exports” map and return its class-string.
+     *  - If the target cannot be resolved or autoloaded, return null (implementations MUST NOT throw).
+     *
+     * Expectations for implementations:
+     *  - Read from the plugin config’s `main` and `exports` definitions (PHP files) and map them to an FQCN
+     *    using PSR-4/project autoloading conventions.
+     *  - Attempt to make the class autoloadable (e.g., rely on Composer autoload or require the file) before returning.
+     *  - If multiple classes are present in a file, use host conventions to pick the intended one.
+     *
+     * Examples:
+     *  - Config::load()                         // → "Vendor\\Plugin\\MainEntry" | null
+     *  - Config::load('dashboard-widget')       // → "Vendor\\Plugin\\Exports\\DashboardWidget" | null
+     *
+     * @param string|null $export Export slug/key from `exports` (null selects `main`).
+     * @return class-string|null   Fully-qualified class name if resolved, or null when not found.
+     */
+    public static function load(?string $export = null): ?string;
 }

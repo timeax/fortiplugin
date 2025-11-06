@@ -9,7 +9,7 @@ use Timeax\FortiPlugin\Support\CliSessionManager;
 
 class ListHostsCommand extends Command
 {
-    protected $signature = 'secure-plugin hosts';
+    protected $signature = 'fp:hosts';
     protected $description = 'List all saved hosts and current session';
 
     /**

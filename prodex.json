@@ -1,0 +1,43 @@
+{
+  "version": 3.1,
+  "output": {
+    "dir": "prodex",
+    "versioned": true,
+    "prefix": "combined",
+    "format": "md"
+  },
+  "entry": {
+    "files": [
+      "src/Installations/Activation/Activator.php",
+      "src/Installations/Installer.php"
+    ],
+    "ui": {
+      "roots": [
+        "app",
+        "routes",
+        "resources/js/**"
+      ],
+      "scanDepth": 2,
+      "priority": [
+        "src/Installations/Installer.php"
+      ]
+    }
+  },
+  "resolve": {
+    "include": [
+      "src/Installations/*",
+      "src/Installations/Activation/Activator.php"
+    ],
+    "aliases": {
+      "@hooks": "resources/js/hooks",
+      "@data": "resources/js/data"
+    },
+    "exclude": [
+      "node_modules/**",
+      "@shadcn/**",
+      "**/components/ui/**"
+    ],
+    "depth": 10,
+    "limit": 200
+  }
+}

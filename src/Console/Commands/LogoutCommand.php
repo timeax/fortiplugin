@@ -11,7 +11,7 @@ use GuzzleHttp\Client;
 
 class LogoutCommand extends Command
 {
-    protected $signature = 'secure-plugin logout {--host=}';
+    protected $signature = 'fp:logout {--host=}';
     protected $description = 'Clear saved CLI session and logout.';
 
     /**
@@ -37,7 +37,7 @@ class LogoutCommand extends Command
             return 1;
         }
 
-        $apiBase = 'https://' . $host . '/api/';
+        $apiBase = 'https://' . $host;
         $client = new Client(['base_uri' => $apiBase, 'http_errors' => false]);
         $response = $client->post('forti/logout', [
             'headers' => [

@@ -19,6 +19,7 @@ use Random\RandomException;
 use RecursiveDirectoryIterator;
 use RecursiveIteratorIterator;
 use RuntimeException;
+use Timeax\FortiPlugin\Enums\KeyPurpose;
 use Timeax\FortiPlugin\Models\Author;
 use Timeax\FortiPlugin\Models\PluginPlaceholder;
 use Timeax\FortiPlugin\Models\PluginSignature;
@@ -53,7 +54,7 @@ final class PackagerController extends Controller
         Gate::authorize(FortiGates::PACKAGER_FETCH_POLICY);
 
         $snapshot = $this->policy->snapshot();
-        $verify = $this->keys->currentVerifyKey();
+        $verify = $this->keys->currentVerifyKey(KeyPurpose::packager_sign);
 
         // If middleware set an author, enrich the signature block
         $authorId = $request->attributes->get('forti.author_id');
@@ -203,7 +204,7 @@ final class PackagerController extends Controller
         Gate::authorize(FortiGates::PACKAGER_FETCH_POLICY);
 
         $snapshot = $this->policy->snapshot();
-        $verify = $this->keys->currentVerifyKey();
+        $verify = $this->keys->currentVerifyKey("plugin_packer");
 
         // ephemeral encryption key bound to a nonce
         $nonce = 'up_' . Str::random(24);

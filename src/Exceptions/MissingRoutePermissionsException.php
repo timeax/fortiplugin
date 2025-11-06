@@ -14,4 +14,9 @@ final class MissingRoutePermissionsException extends RuntimeException
             implode(', ', $missingIds)
         );
     }
+
+    public function getMissingIds(): array
+    {
+        return $this->missingIds;
+    }
 }

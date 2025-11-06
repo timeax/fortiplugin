@@ -315,6 +315,7 @@ model Plugin {
   config                Json?
   meta                  Json?
   plugin_placeholder_id BigInt       @unique @db.BigInt
+  active_version_id     BigInt
   owner_ref             String?
 
   // existing relations (assumed to exist)
@@ -331,6 +332,9 @@ model Plugin {
 
   // per-route approvals
   routes PluginRoutePermission[]
+
+  activated_at DateTime?
+  activated_by BigInt?
 
   created_at DateTime @default(now())
   updated_at DateTime @updatedAt

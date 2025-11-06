@@ -14,12 +14,12 @@ return new class extends Migration {
 		Schema::create("scpl_plugin_author", function (Blueprint $table) {
 			$table
 				->foreignId("plugin_id")
-				->constrained("plugins", "id")
+				->constrained("scpl_plugins", "id")
 				->onDelete("no action")
 				->onUpdate("no action");
 			$table
 				->foreignId("author_id")
-				->constrained("authors", "id")
+				->constrained("scpl_authors", "id")
 				->onDelete("no action")
 				->onUpdate("no action");
 			$table

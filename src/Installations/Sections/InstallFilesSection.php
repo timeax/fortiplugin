@@ -1,163 +1,150 @@
-<?php
+<?php /** @noinspection PhpUnusedLocalVariableInspection */
+declare(strict_types=1);
 
 namespace Timeax\FortiPlugin\Installations\Sections;
 
-use DateTimeImmutable;
+use JsonException;
+use RuntimeException;
 use Throwable;
+use Timeax\FortiPlugin\Installations\DTO\InstallMeta;
+use Timeax\FortiPlugin\Installations\Enums\VendorMode;
+use Timeax\FortiPlugin\Installations\InstallerPolicy;
 use Timeax\FortiPlugin\Installations\Support\InstallationLogStore;
 use Timeax\FortiPlugin\Installations\Support\AtomicFilesystem;
-use Timeax\FortiPlugin\Installations\Support\PathSecurity;
 
-class InstallFilesSection
+/**
+ * InstallFilesSection
+ *
+ * Responsibilities
+ * - Copy staged plugin files into the host install directory.
+ * - Respect InstallerPolicy::getVendorMode():
+ *    • STRIP_BUNDLED_VENDOR → exclude vendor/ from copy
+ *    • ALLOW_BUNDLED_VENDOR → copy vendor/ as-is
+ * - Persist a concise "install_files" section into installation.json.
+ * - Emit terse installer events (start/ok/fail).
+ *
+ * Non-goals
+ * - Running composer install/update (handled by higher layers).
+ * - Activation or DB persistence (handled by other sections).
+ */
+final readonly class InstallFilesSection
 {
+    public function __construct(
+        private InstallerPolicy      $policy,
+        private InstallationLogStore $log,
+        private AtomicFilesystem     $afs,
+    ) {}
+
     /**
-     * Phase 6: Copy files from staging into install versions dir and promote a pointer.
-     * - Honors vendor policy recorded in installation.json.vendor_policy.mode.
-     * - Writes a simple pointer file at .internal\\current containing the version id.
-     * - Updates installation.json.install with paths and timestamps.
-     *
-     * Returns array with keys: status ('installed'|'failed'), paths{...}, installed_at, version_id.
+     * @param InstallMeta $meta Canonical meta (paths, psr4_root, placeholder_name, etc.)
+     * @param string $stagingPluginRoot Absolute path to staged/unpacked plugin root
+     * @param callable|null $emit Optional installer-level emitter fn(array $payload): void
+     * @return array{status:'ok'|'fail', dest?:string, vendor_mode?:string}
+     * @throws JsonException
+     * @noinspection PhpUndefinedClassInspection
      */
     public function run(
-        InstallationLogStore $logStore,
-        string $stagingRoot,
-        string $installRoot,
+        InstallMeta $meta,
+        string $stagingPluginRoot,
         ?callable $emit = null
     ): array {
-        $stagingRoot = rtrim($stagingRoot, "\\/ ");
-        $installRoot = rtrim($installRoot, "\\/ ");
-        $nowIso = (new DateTimeImmutable('now'))->format(DATE_ATOM);
+        $dest = (string)($meta->paths['install'] ?? '');
+        $vendorMode = $this->policy->getVendorMode();
 
-        // Read current state to derive vendor policy and fingerprint if available
-        $state = $logStore->getCurrent($installRoot);
-        $vendorMode = (string)($state['vendor_policy']['mode'] ?? 'strip_bundled_vendor');
-        $fingerprint = (string)($state['meta']['fingerprint'] ?? '');
-        $versionId = $fingerprint !== '' ? $fingerprint : date('YmdHis');
-
-        $versionsDir = $installRoot . DIRECTORY_SEPARATOR . 'versions';
-        $targetDir = $versionsDir . DIRECTORY_SEPARATOR . $versionId;
-        $tmpDir = $targetDir . '.tmp';
-        $internalDir = $installRoot . DIRECTORY_SEPARATOR . '.internal';
-        $pointerFile = $internalDir . DIRECTORY_SEPARATOR . 'current';
-
-        $fs = new AtomicFilesystem();
-        $sec = new PathSecurity();
-        $filter = function (string $rel) use ($vendorMode): bool {
-            if ($vendorMode === 'strip_bundled_vendor') {
-                if ($rel === 'vendor' || str_starts_with($rel, 'vendor' . DIRECTORY_SEPARATOR)) {
-                    return false; // skip
-                }
-            }
-            return true;
-        };
-
-        $status = 'installed';
-        $error = null;
-        $paths = [
-            'staging_root' => $stagingRoot,
-            'install_root' => $installRoot,
-            'version_dir' => $targetDir,
-            'current_pointer' => $pointerFile,
-        ];
+        // Basic guards
+        $emit && $emit([
+            'title' => 'INSTALL_FILES_START',
+            'description' => 'Copying plugin files into install directory',
+            'meta' => [
+                'placeholder_name' => $meta->placeholder_name,
+                'source' => $stagingPluginRoot,
+                'dest' => $dest,
+                'vendor_mode' => $vendorMode->value,
+            ],
+        ]);
+        $this->log->appendInstallerEmit([
+            'title' => 'INSTALL_FILES_START',
+            'description' => 'Copying plugin files into install directory',
+            'meta' => [
+                'placeholder_name' => $meta->placeholder_name,
+                'source' => $stagingPluginRoot,
+                'dest' => $dest,
+                'vendor_mode' => $vendorMode->value,
+            ],
+        ]);
 
         try {
-            $fs->ensureDir($versionsDir);
-            $fs->ensureDir($internalDir);
-
-            // Prepare tmp dir, ensure clean
-            if (is_dir($tmpDir)) {
-                $fs->removeDir($tmpDir);
+            if ($dest === '') {
+                throw new RuntimeException('Install path is missing in meta.paths.install');
             }
-            $fs->ensureDir($tmpDir);
+            if (!$this->afs->fs()->exists($stagingPluginRoot)) {
+                throw new RuntimeException("Staging root not found: $stagingPluginRoot");
+            }
 
-            // Copy into tmp then rename to final version dir
-            $fs->copyTree($stagingRoot, $tmpDir, $filter, $sec);
+            // Ensure destination directory exists
+            $this->afs->fs()->ensureDirectory($dest);
 
-            if (is_dir($targetDir)) {
-                // If same version already exists, consider idempotent success: reuse existing
-                $fs->removeDir($tmpDir);
-            } else {
-                try {
-                    $fs->safeRename($tmpDir, $targetDir);
-                } catch (\Throwable $_e) {
-                    throw new \RuntimeException('INSTALL_PROMOTION_FAILED: unable to promote version directory');
+            // Build copy filter based on vendor mode (exclude vendor/ when stripping)
+            $stripVendor = ($vendorMode === VendorMode::STRIP_BUNDLED_VENDOR);
+            $filter = function (string $relativePath) use ($stripVendor): bool {
+                if ($stripVendor) {
+                    // prevent copying vendor directory and its contents
+                    if ($relativePath === 'vendor' || str_starts_with($relativePath, 'vendor/')) {
+                        return false;
+                    }
                 }
-            }
+                return true;
+            };
 
-            // Write/update pointer file atomically
-            try {
-                $fs->atomicWrite($pointerFile, $versionId);
-            } catch (\Throwable $_e) {
-                throw new \RuntimeException('INSTALL_PROMOTION_FAILED: unable to promote pointer');
-            }
+            // Perform the tree copy
+            $this->afs->fs()->copyTree($stagingPluginRoot, $dest, $filter);
 
-            // Emit success
-            if ($emit) {
-                try {
-                    $emit([
-                        'title' => 'Installer: Files Copied',
-                        'description' => 'Files copied to version ' . $versionId . ' and pointer promoted',
-                        'error' => null,
-                        'stats' => ['filePath' => null, 'size' => null],
-                        'meta' => ['version_id' => $versionId, 'paths' => $paths],
-                    ]);
-                } catch (Throwable $_) {}
-            }
-        } catch (Throwable $e) {
-            $status = 'failed';
-            $error = $e->getMessage();
-            if ($emit) {
-                try {
-                    $emit([
-                        'title' => 'Installer: Files Copied',
-                        'description' => 'Install failed',
-                        'error' => ['detail' => $error, 'code' => str_contains($error, 'PROMOTION') ? 'INSTALL_PROMOTION_FAILED' : 'INSTALL_COPY_FAILED'],
-                        'stats' => ['filePath' => null, 'size' => null],
-                        'meta' => ['version_id' => $versionId, 'paths' => $paths],
-                    ]);
-                } catch (Throwable $_) {}
-            }
-        }
-
-        $installBlock = [
-            'status' => $status,
-            'paths' => $paths,
-            'installed_at' => $nowIso,
-            'version_id' => $versionId,
-            'error' => $error,
-        ];
-
-        // Persist to installation.json
-        $logStore->setInstall($installRoot, $installBlock);
-
-        // Append to installer emits for completeness
-        try {
-            $logStore->appendInstallerEmit($installRoot, [
-                'title' => 'Installer: Files Copied',
-                'description' => $status === 'installed' ? 'Install succeeded' : 'Install failed',
-                'error' => $status === 'installed' ? null : ['detail' => $error],
-                'stats' => ['filePath' => null, 'size' => null],
-                'meta' => $installBlock,
+            // Persist a concise install_files block
+            $this->log->writeSection('install_files', [
+                'source'       => $stagingPluginRoot,
+                'dest'         => $dest,
+                'vendor_mode'  => $vendorMode->value,
+                'vendor_stripped' => $stripVendor,
             ]);
-        } catch (Throwable $_) {}
 
-        return $installBlock;
-    }
+            $ok = [
+                'title' => 'INSTALL_FILES_OK',
+                'description' => 'Plugin files copied successfully',
+                'meta' => [
+                    'dest' => $dest,
+                    'vendor_mode' => $vendorMode->value,
+                    'vendor_stripped' => $stripVendor,
+                ],
+            ];
+            $emit && $emit($ok);
+            $this->log->appendInstallerEmit($ok);
 
-    private function rrmdir(string $dir): void
-    {
-        if (!is_dir($dir)) return;
-        $items = scandir($dir);
-        if ($items === false) return;
-        foreach ($items as $item) {
-            if ($item === '.' || $item === '..') continue;
-            $path = $dir . DIRECTORY_SEPARATOR . $item;
-            if (is_dir($path) && !is_link($path)) {
-                $this->rrmdir($path);
-            } else {
-                @unlink($path);
-            }
+            return ['status' => 'ok', 'dest' => $dest, 'vendor_mode' => $vendorMode->value];
+        } catch (Throwable $e) {
+            // Persist failure context (best-effort)
+            try {
+                $this->log->writeSection('install_files', [
+                    'error' => $e->getMessage(),
+                    'source' => $stagingPluginRoot,
+                    'dest' => $dest,
+                    'vendor_mode' => $vendorMode->value,
+                ]);
+            } catch (Throwable $_) {}
+
+            $fail = [
+                'title' => 'INSTALL_FILES_FAIL',
+                'description' => 'Failed to copy plugin files',
+                'meta' => [
+                    'error' => $e->getMessage(),
+                    'source' => $stagingPluginRoot,
+                    'dest' => $dest,
+                    'vendor_mode' => $vendorMode->value,
+                ],
+            ];
+            $emit && $emit($fail);
+            $this->log->appendInstallerEmit($fail);
+
+            return ['status' => 'fail'];
         }
-        @rmdir($dir);
     }
 }

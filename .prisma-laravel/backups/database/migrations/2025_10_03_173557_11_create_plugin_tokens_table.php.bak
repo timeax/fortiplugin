@@ -15,7 +15,7 @@ return new class extends Migration {
 			$table->id();
 			$table
 				->foreignId("plugin_placeholder_id")
-				->constrained("placeholders", "id")
+				->constrained("scpl_placeholders", "id")
 				->onDelete("no action")
 				->onUpdate("no action");
 			$table->string("token_hash");
@@ -26,10 +26,10 @@ return new class extends Migration {
 			$table
 				->foreignId("author_id")
 				->nullable()
-				->constrained("authors", "id")
+				->constrained("scpl_authors", "id")
 				->onDelete("no action")
 				->onUpdate("no action");
-			$table->timestamp("created_at")->useCurrent();
+			$table->timestamps();
 			$table->index("plugin_placeholder_id");
 			$table->index("author_id");
 		});

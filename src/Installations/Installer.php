@@ -1,462 +1,424 @@
-<?php /** @noinspection PhpSameParameterValueInspection */
-/** @noinspection PhpUnused */
-/** @noinspection DuplicatedCode */
-
+<?php /** @noinspection GrazieInspection */
 /** @noinspection PhpUnusedLocalVariableInspection */
+declare(strict_types=1);
 
 namespace Timeax\FortiPlugin\Installations;
 
-use DateTimeImmutable;
+use Illuminate\Support\Facades\DB;
 use JsonException;
+use Random\RandomException;
+use RuntimeException;
 use Throwable;
-use Timeax\FortiPlugin\Facades\Validator;
-use Timeax\FortiPlugin\Installations\Contracts\Emitter;
-use Timeax\FortiPlugin\Installations\Contracts\LockManager;
-use Timeax\FortiPlugin\Installations\Contracts\PluginRepository;
-use Timeax\FortiPlugin\Installations\Contracts\ZipRepository;
-use Timeax\FortiPlugin\Installations\Contracts\ActorResolver;
-use Timeax\FortiPlugin\Installations\DTO\DecisionResult;
+
+use Timeax\FortiPlugin\Installations\DTO\InstallerResult;
+use Timeax\FortiPlugin\Installations\Sections\UiConfigValidationSection;
+use Timeax\FortiPlugin\Models\Plugin;
+use Timeax\FortiPlugin\Installations\DTO\InstallMeta;
+use Timeax\FortiPlugin\Installations\DTO\InstallSummary;
 use Timeax\FortiPlugin\Installations\Enums\Install;
-use Timeax\FortiPlugin\Installations\Sections\ComposerPlanSection;
-use Timeax\FortiPlugin\Installations\Sections\DbPersistSection;
-use Timeax\FortiPlugin\Installations\Sections\FileScanSection;
-use Timeax\FortiPlugin\Installations\Sections\InstallFilesSection;
-use Timeax\FortiPlugin\Installations\Sections\VendorPolicySection;
-use Timeax\FortiPlugin\Installations\Sections\VerificationSection;
-use Timeax\FortiPlugin\Installations\Sections\ZipValidationGate;
-use Timeax\FortiPlugin\Installations\Support\ComposerInspector;
-use Timeax\FortiPlugin\Installations\Support\EmitterMux;
-use Timeax\FortiPlugin\Installations\Support\Fingerprint;
+use Timeax\FortiPlugin\Installations\Support\AtomicFilesystem;
 use Timeax\FortiPlugin\Installations\Support\InstallationLogStore;
+use Timeax\FortiPlugin\Installations\Support\RouteUiBridge;
+use Timeax\FortiPlugin\Installations\Support\ValidatorBridge;
 use Timeax\FortiPlugin\Installations\Support\InstallerTokenManager;
-use Timeax\FortiPlugin\Installations\Support\Psr4Checker;
+use Timeax\FortiPlugin\Installations\Sections\ZipValidationGate;
 use Timeax\FortiPlugin\Services\ValidatorService;
-use function function_exists;
 
-class Installer
+// Sections (for DI completeness)
+use Timeax\FortiPlugin\Installations\Sections\VerificationSection;
+use Timeax\FortiPlugin\Installations\Sections\ProviderValidationSection;
+use Timeax\FortiPlugin\Installations\Sections\ComposerPlanSection;
+use Timeax\FortiPlugin\Installations\Sections\VendorPolicySection;
+use Timeax\FortiPlugin\Installations\Sections\RouteWriteSection;
+use Timeax\FortiPlugin\Installations\Sections\DbPersistSection;
+use Timeax\FortiPlugin\Installations\Sections\InstallFilesSection;
+
+final readonly class Installer
 {
-    private ?EmitterMux $emitterMux = null;
-    private bool $fileScanEnabled = false;
-
-    /** @var callable|null */
-    private $_onFileScanError;
-
-    /** @var callable|null */
-    private $_onValidationEnd;
-
-    private ValidatorService $validator;
-
     public function __construct(
-        private readonly InstallerPolicy        $policy,
-        private readonly InstallationLogStore   $logStore,
-        private readonly ?LockManager           $lockManager = null,
-        private readonly ?ZipRepository         $zipRepository = null,
-        private readonly ?InstallerTokenManager $tokenManager = null,
-        private readonly ?ActorResolver         $actorResolver = null,
-        private readonly ?PluginRepository      $pluginRepository = null,
+        private InstallerPolicy           $policy,
+        private AtomicFilesystem          $afs,
+        private ValidatorBridge           $validatorBridge,   // orchestrates Verification + FileScan
+        private VerificationSection       $verification,      // kept for DI completeness (used by bridge)
+        private ProviderValidationSection $providerValidation,
+        private ComposerPlanSection       $composerPlan,
+        private VendorPolicySection       $vendorPolicy,
+        private DbPersistSection          $dbPersist,
+        private RouteUiBridge             $routeUiBridge,
+        private RouteWriteSection         $routeWriterSection, // writer targets STAGING
+        private InstallFilesSection       $installFiles,
+        private UiConfigValidationSection $uiConfigValidation,
+        // NEW: token + logs + zip-gate for resume flow
+        private InstallerTokenManager     $tokens,
+        private InstallationLogStore      $logStore,
+        private ZipValidationGate         $zipGate,
     )
     {
-        // Resolve a fresh ValidatorService; scanning will be controlled per-phase.
-        $this->validator = Validator::getInstance();
     }
 
     /**
-     * Phase 8 helper: persist decision and emit a unified installer decision event.
+     * Full install pipeline after validation phases (which are handled by ValidatorBridge),
+     * with support for resuming via installer override tokens.
+     *
+     * @param InstallMeta $meta
+     * @param int|string $zipId
+     * @param ValidatorService $validator
+     * @param array<string,mixed> $validatorConfig
+     * @param string $validatorConfigHash
+     * @param string $versionTag
+     * @param string $actor
+     * @param string $runId
+     * @param callable|null $emit fn(array $payload): void
+     * @param callable|null $onValidationEnd forwarded to ValidatorBridge only
+     * @param callable|null $onFileScanError forwarded to ValidatorBridge only
+     * @param callable|null $onFinish called once when installation completes successfully (status 'ok')
+     * @param string|null $installerToken optional override token when resuming after ASK
+     *
+     * @return InstallerResult
+     * @throws JsonException
+     * @throws RandomException|Throwable
      */
-    private function emitDecisionBlock(string $installRoot, string $status, ?string $reason = null, ?array $token = null): void
+    public function run(
+        InstallMeta      $meta,
+        int|string       $zipId,
+        ValidatorService $validator,
+        array            $validatorConfig,
+        string           $validatorConfigHash,
+        string           $versionTag,
+        string           $actor,
+        string           $runId,
+        ?callable        $emit = null,
+        ?callable        $onValidationEnd = null,
+        ?callable        $onFileScanError = null,
+        ?callable        $onFinish = null,
+        ?string          $installerToken = null,
+    ): InstallerResult
     {
-        $decision = [
-            'status' => $status,
-            'reason' => $reason,
-        ];
-        if ($token) {
-            $decision['token'] = $token;
+        $pluginDir = (string)($meta->paths['staging'] ?? '');
+        if ($pluginDir === '') {
+            throw new RuntimeException('InstallMeta.paths.staging is required.');
         }
+
+        $pluginName = $meta->placeholder_name;
+        $psr4Root = $this->policy->getPsr4Root();
+
+        // ─────────────────────────────────────────────────────────────
+        // 0) PREFLIGHT: resume path via installer override token
+        // ─────────────────────────────────────────────────────────────
+        if (is_string($installerToken) && $installerToken !== '') {
+            $claims = null;
+            try {
+                $claims = $this->tokens->validate($installerToken);
+            } catch (Throwable $e) {
+                $emit && $emit([
+                    'title' => 'INSTALLER_TOKEN_INVALID',
+                    'description' => 'Installer override token invalid or expired',
+                    'meta' => ['zip_id' => (string)$zipId, 'reason' => $e->getMessage()],
+                ]);
+                // Treat as ASK (UI should re-request confirmation or new token)
+                return $this->emitAsk($emit, null, ['reason' => 'token_invalid']);
+            }
+
+            // Purpose & run parity
+            if (($claims->purpose ?? null) !== 'install_override' || ($claims->run_id ?? null) !== $runId) {
+                $emit && $emit([
+                    'title' => 'INSTALLER_TOKEN_MISMATCH',
+                    'description' => 'Token purpose or run_id mismatch',
+                    'meta' => ['expected_run' => $runId, 'token_run' => $claims->run_id ?? null, 'purpose' => $claims->purpose ?? null],
+                ]);
+                return $this->emitAsk($emit, null, ['reason' => 'token_mismatch']);
+            }
+
+            // Ensure prior validators ran and produced ASK for this run
+            $doc = $this->logStore->read();
+            $hasVerificationOk = $this->verificationOk($doc);
+            $hasFileScanAsk = $this->hasDecisionAskForRun($doc, $runId);
+
+            if (!$hasVerificationOk || !$hasFileScanAsk) {
+                $emit && $emit([
+                    'title' => 'RESUME_PRECHECK_FAILED',
+                    'description' => 'Logs do not confirm prior verification OK and ASK decision for this run',
+                    'meta' => ['verification_ok' => $hasVerificationOk, 'ask_for_run' => $hasFileScanAsk, 'run_id' => $runId],
+                ]);
+                return $this->emitAsk($emit, null, ['reason' => 'precheck_failed']);
+            }
+
+            // Delegate to ZipValidationGate to finalize the gate decision on resume
+            $gate = $this->zipGate->run(
+                pluginDir: $pluginDir,
+                zipId: $zipId,
+                actor: $actor,
+                runId: $runId,
+                validatorConfigHash: $validatorConfigHash,
+                installerToken: $installerToken,
+            );
+            $gateDecision = $gate['decision'] ?? null;
+            $gateMeta = $gate['meta'] ?? [];
+
+            if ($gateDecision === Install::ASK) {
+                return $this->emitAsk($emit, null, $gateMeta);
+            }
+            if ($gateDecision === Install::BREAK) {
+                return $this->emitBreak($emit, null, ['reason' => 'zip_gate_break'] + $gateMeta);
+            }
+
+            // If ZIP gate says INSTALL, we skip ValidatorBridge and continue below at Provider Validation (step 2).
+            $summary = new InstallSummary(
+                verification: ['status' => 'ok'],
+                file_scan: ['enabled' => true, 'status' => 'ask-resumed', 'errors' => []],
+                zip_validation: null,
+                vendor_policy: null,
+                composer_plan: null,
+                packages: null
+            );
+        } else {
+            // ─────────────────────────────────────────────────────────
+            // 1) VALIDATION (Verification + optional FileScan) via ValidatorBridge
+            //    Bridge will call onValidationEnd($summary) exactly once.
+            // ─────────────────────────────────────────────────────────
+            $vb = $this->validatorBridge->run(
+                pluginDir: $pluginDir,
+                pluginName: $pluginName,
+                zipId: $zipId,
+                validator: $validator,
+                validatorConfig: $validatorConfig,
+                validatorConfigHash: $validatorConfigHash,
+                actor: $actor,
+                runId: $runId,
+                emit: $emit,
+                onValidationEnd: $onValidationEnd,
+                onFileScanError: $onFileScanError
+            );
+
+            $summary = $vb['summary'];
+            $gateDecision = $vb['decision'] ?? null;
+            $gateMeta = $vb['meta'] ?? null;
+
+            if ($gateDecision instanceof Install) {
+                if ($gateDecision === Install::ASK) {
+                    return $this->emitAsk($emit, $summary, is_array($gateMeta) ? $gateMeta : []);
+                }
+                if ($gateDecision === Install::BREAK) {
+                    return $this->emitBreak($emit, $summary, []);
+                }
+                // INSTALL → continue
+            }
+        }
+
+        // ─────────────────────────────────────────────────────────────
+        // 2) PROVIDER VALIDATION (simple existence check in staged tree)
+        // ─────────────────────────────────────────────────────────────
+        $providers = [];
         try {
-            $this->logStore->setDecision($installRoot, $decision);
+            $cfg = $this->afs->fs()->readJson($pluginDir . DIRECTORY_SEPARATOR . 'fortiplugin.json');
+            $providers = array_values(array_filter((array)($cfg['providers'] ?? []), 'is_string'));
         } catch (Throwable $_) {
         }
 
-        if ($this->emitterMux) {
+        $prov = $this->providerValidation->run(
+            pluginDir: $pluginDir,
+            pluginName: $pluginName,
+            psr4Root: $psr4Root,
+            providers: $providers,
+            emit: $emit
+        );
+        if (($prov['status'] ?? 'ok') !== 'ok') {
+            return InstallerResult::fromArray(['status' => 'fail', 'summary' => $summary]);
+        }
+
+        // ─────────────────────────────────────────────────────────────
+        // 3) VENDOR POLICY + COMPOSER PLAN (advisory; host lock is REQUIRED)
+        // ─────────────────────────────────────────────────────────────
+        $hostComposerLock = (string)(
+        config('fortiplugin.installations.host_composer_lock')
+            ?: base_path('composer.lock')
+        );
+
+        if (!$this->afs->fs()->exists($hostComposerLock)) {
+            throw new RuntimeException("Host composer.lock not found at: $hostComposerLock");
+        }
+
+        $vendor = $this->vendorPolicy->run(
+            pluginDir: $pluginDir,
+            hostComposerLock: $hostComposerLock,
+            emit: $emit
+        );
+
+        $plan = $this->composerPlan->run(
+            pluginDir: $pluginDir,
+            hostComposerLock: $hostComposerLock,
+            emit: $emit
+        );
+
+        $packagesMap = $plan['packages'] ?? null;
+
+        // Refresh summary with advisory info
+        $summary = new InstallSummary(
+            verification: $summary->verification,
+            file_scan: $summary->file_scan,
+            zip_validation: null,
+            vendor_policy: $vendor['vendor_policy'] ?? null,
+            composer_plan: $plan['plan'] ?? null,
+            packages: $plan['packages'] ?? null
+        );
+
+        // ─────────────────────────────────────────────────────────────
+        // 4) DB PERSIST + ROUTE WRITE (to STAGING) — TRANSACTION
+        // ─────────────────────────────────────────────────────────────
+        $pluginId = null;
+        $pluginVersionId = null;
+
+        DB::beginTransaction();
+        try {
+            $persist = $this->dbPersist->run(
+                meta: $meta,
+                versionTag: $versionTag,
+                zipId: $zipId,
+                packages: $packagesMap,
+                emit: $emit
+            );
+            if (($persist['status'] ?? 'fail') !== 'ok') {
+                throw new RuntimeException('DB persist failed');
+            }
+            $pluginId = $persist['plugin_id'] ?? null;
+            $pluginVersionId = $persist['plugin_version_id'] ?? null;
+            if (!$pluginId) {
+                throw new RuntimeException('DB persist did not return plugin_id');
+            }
+
+            // Routes: discover + compile JSON, then write PHP into STAGING
+            $bundle = $this->routeUiBridge->discoverAndCompile($pluginDir, $emit);
+            $compiled = $bundle['compiled'] ?? [];
+
+            if (!empty($compiled)) {
+                $plugin = Plugin::query()->findOrFail($pluginId);
+                $write = $this->routeWriterSection->run(
+                    plugin: $plugin,
+                    compiled: $compiled,
+                    emit: $emit
+                );
+                if (($write['status'] ?? 'fail') !== 'ok') {
+                    throw new RuntimeException('Route write failed: ' . ($write['reason'] ?? 'unknown'));
+                }
+
+                // UI config validation (advisory; logs errors/warnings)
+                $hostScheme = (array)config('fortipluginui', []);
+                $this->uiConfigValidation->run(
+                    meta: $meta,
+                    knownRouteIds: $bundle['route_ids'] ?? [],
+                    hostScheme: $hostScheme,
+                    emit: $emit
+                );
+            }
+
+            DB::commit();
+        } catch (Throwable $e) {
+            DB::rollBack();
+            $emit && $emit([
+                'title' => 'DB_TRANSACTION_ROLLBACK',
+                'description' => 'Persistence or route write failed; rolled back',
+                'meta' => ['exception' => $e->getMessage()],
+            ]);
+            return InstallerResult::fromArray([
+                'status' => 'fail',
+                'summary' => $summary,
+            ]);
+        }
+
+        // ─────────────────────────────────────────────────────────────
+        // 5) INSTALL FILES (move staged → installed; includes staged routes)
+        // ─────────────────────────────────────────────────────────────
+        $files = $this->installFiles->run(
+            meta: $meta,
+            stagingPluginRoot: $pluginDir,
+            emit: $emit
+        );
+        if (($files['status'] ?? 'fail') !== 'ok') {
+            $emit && $emit(['title' => 'INSTALL_FILES_FAIL', 'description' => 'Failed moving staged files into place']);
+            return InstallerResult::fromArray([
+                'status' => 'fail',
+                'summary' => $summary,
+                'plugin_id' => (int)$pluginId,
+                'plugin_version_id' => $pluginVersionId,
+            ]);
+        }
+
+        // ─────────────────────────────────────────────────────────────
+        // 6) FINISH
+        // ─────────────────────────────────────────────────────────────
+        $result = InstallerResult::fromArray([
+            'status' => 'ok',
+            'summary' => $summary,
+            'plugin_id' => (int)$pluginId,
+            'plugin_version_id' => $pluginVersionId,
+        ]);
+
+        if (is_callable($onFinish)) {
             try {
-                $this->emitterMux->emit([
-                    'title' => 'Installer: Decision ' . $status,
-                    'description' => $reason ?: null,
-                    'error' => $status === 'break' ? ['detail' => $reason ?? ''] : null,
-                    'stats' => ['filePath' => null, 'size' => null],
-                    'meta' => $decision,
-                ]);
+                $onFinish($result);
             } catch (Throwable $_) {
             }
         }
+
+        return $result;
     }
 
-    public function emitWith(callable $fn): self
-    {
-        // Wrap the provided callable in an Emitter implementation
-        $emitter = new class($fn) implements Emitter {
-            public function __construct(private $fn)
-            {
-            }
+    /* ───────────────────────────── helpers ───────────────────────────── */
 
-            public function __invoke(array $payload): void
-            {
-                ($this->fn)($payload);
-            }
-        };
-        $this->emitterMux = new EmitterMux($emitter);
-        return $this;
+    private function verificationOk(array $doc): bool
+    {
+        // Accept a few possible shapes from VerificationSection
+        // e.g. ['sections'=>['verification'=>['summary'=>['status'=>'ok']]]] or flat.
+        $v = $doc['sections']['verification'] ?? $doc['verification'] ?? null;
+        if (is_array($v)) {
+            $status = $v['summary']['status'] ?? $v['status'] ?? null;
+            return $status === 'ok';
+        }
+        return false;
     }
 
-    public function enableFileScan(): self
+    private function hasDecisionAskForRun(array $doc, string $runId): bool
     {
-        $this->fileScanEnabled = true;
-        $this->policy->enableFileScan();
-        return $this;
-    }
-
-    /**
-     * Callback invoked when optional file scanning finds issues.
-     */
-    public function onFileScanError(callable $cb): self
-    {
-        $this->_onFileScanError = $cb;
-        return $this;
-    }
-
-    /**
-     * Callback invoked after mandatory verification completes.
-     */
-    public function onValidationEnd(callable $cb): self
-    {
-        $this->_onValidationEnd = $cb;
-        return $this;
-    }
-
-    /**
-     * Phase 2 wiring: run VerificationSection then ZipValidationGate.
-     * @throws JsonException
-     */
-    public function install(int|string $plugin_zip_id, ?string $installer_token = null): DecisionResult
-    {
-        $stagingRoot = (string)(function_exists('config') ? (config('fortiplugin.staging_root') ?? sys_get_temp_dir()) : sys_get_temp_dir());
-        $installRoot = (string)(function_exists('config') ? (config('fortiplugin.directory') ?? 'Plugins') : 'Plugins');
-        $installRoot = rtrim($installRoot, "\\/ ");
-
-        // Resolve actor and zip meta for early meta writing and PSR-4 check
-        $actor = $this->actorResolver?->resolve() ?? 'system';
-        $zipRec = $this->zipRepository?->getZip($plugin_zip_id) ?? [];
-        $placeholderId = $zipRec['placeholder_id'] ?? null;
-        $placeholderName = $zipRec['meta']['placeholder_name'] ?? $zipRec['meta']['name'] ?? null;
-        $psr4Root = (string)(function_exists('config') ? (config('fortiplugin.psr4_root') ?? 'Plugins') : 'Plugins');
-
-        // Compute fingerprint/config hash if possible
-        $zipPath = (string)($zipRec['path'] ?? (string)$plugin_zip_id);
-        $fingerprint = (new Fingerprint())->compute($zipPath);
-        $validatorConfig = (array)(function_exists('config') ? (config('fortiplugin.validator') ?? []) : []);
-        $validatorConfigHash = (new Fingerprint())->configHash($validatorConfig);
-
-        // Write early meta (must exist before any token issuance)
-        try {
-            $this->logStore->writeMeta($installRoot, [
-                'zip_id' => (string)$plugin_zip_id,
-                'plugin_placeholder_id' => $placeholderId,
-                'placeholder_name' => $placeholderName,
-                'psr4_root' => $psr4Root,
-                'actor' => $actor,
-                'paths' => [
-                    'staging_root' => $stagingRoot,
-                    'install_root' => $installRoot,
-                ],
-                'timestamps' => [
-                    'started_at' => (new DateTimeImmutable('now'))->format(DATE_ATOM),
-                ],
-                'fingerprint' => $fingerprint,
-                'validator_config_hash' => $validatorConfigHash,
-            ]);
-        } catch (Throwable $_) {}
-
-        // Enforce PSR-4 root sync for this plugin mapping
-        if ($placeholderName) {
-            $checker = new Psr4Checker();
-            $projectRoot = function_exists('base_path') ? base_path() : getcwd();
-            $psr4 = $checker->check((string)$projectRoot, $psr4Root, (string)$placeholderName);
-            if (!$psr4['ok']) {
-                // Persist a minimal verification snapshot and break
-                $this->logStore->setVerification($installRoot, [
-                    'status' => 'fail',
-                    'errors' => $psr4['errors'],
-                    'warnings' => [],
-                    'details' => $psr4['details'] ?? [],
-                    'finished_at' => (new DateTimeImmutable())->format(DATE_ATOM),
-                ]);
-                // End of validation block for this run
-                if (is_callable($this->_onValidationEnd)) {
-                    try { ($this->_onValidationEnd)(['status' => 'fail'] + $psr4); } catch (Throwable $_) {}
-                }
-                $this->emitDecisionBlock($installRoot, 'break', 'COMPOSER_PSR4_MISMATCH');
-                return new DecisionResult(status: 'break', summary: ['status' => 'fail', 'errors' => $psr4['errors']]);
+        $decisions = $doc['decisions'] ?? [];
+        if (!is_array($decisions)) return false;
+        foreach ($decisions as $d) {
+            if (!is_array($d)) continue;
+            if (($d['status'] ?? null) === 'ask' && ($d['run_id'] ?? null) === $runId) {
+                return true;
             }
         }
+        return false;
+    }
 
-        $locked = false;
-        if ($this->lockManager) {
-            // Using zip id as lock key placeholder until slug is resolved
-            $locked = $this->lockManager->acquire((string)$plugin_zip_id);
-        }
+    private function emitAsk(?callable $emit, ?InstallSummary $summary, array $meta): InstallerResult
+    {
+        $payload = [
+            'title' => 'INSTALLATION_ASK',
+            'description' => 'Installation paused for host decision',
+            'meta' => $meta,
+        ];
+        $emit && $emit($payload);
 
-        try {
-            // Token resume flow (background_scan or install_override)
-            if (is_string($installer_token) && $installer_token !== '') {
-                $state = $this->logStore->getCurrent($installRoot);
-                $decision = (array)($state['decision'] ?? []);
-                $tokenMeta = (array)($decision['token'] ?? []);
-                $purpose = (string)($tokenMeta['purpose'] ?? '');
-                $expiresAt = (string)($tokenMeta['expires_at'] ?? ($tokenMeta['expiresAt'] ?? ''));
-                $now = new DateTimeImmutable('now');
-                $notExpired = true;
-                if ($expiresAt) {
-                    try {
-                        $notExpired = (new DateTimeImmutable($expiresAt)) > $now;
-                    } catch (Throwable $_) {
-                        $notExpired = false;
-                    }
-                }
+        return InstallerResult::fromArray([
+            'status' => 'ask',
+            'summary' => $summary,
+            'meta' => $meta,
+        ]);
+    }
 
-                if (!$notExpired) {
-                    $this->emitDecisionBlock($installRoot, 'break', 'TOKEN_INVALID_OR_EXPIRED');
-                    return new DecisionResult(status: 'break', summary: ['status' => 'fail', 'errors' => ['TOKEN_INVALID_OR_EXPIRED']]);
-                }
+    private function emitBreak(?callable $emit, ?InstallSummary $summary, array $meta): InstallerResult
+    {
+        $payload = [
+            'title' => 'INSTALLATION_BREAK',
+            'description' => 'Installation halted by policy',
+            'meta' => $meta,
+        ];
+        $emit && $emit($payload);
 
-                // Minimal validation: ensure last decision zip_id (if present) matches
-                $lastZipId = (string)($decision['zip_id'] ?? '');
-                if ($lastZipId !== '' && $lastZipId !== (string)$plugin_zip_id) {
-                    $this->emitDecisionBlock($installRoot, 'break', 'TOKEN_ZIP_MISMATCH');
-                    return new DecisionResult(status: 'break', summary: ['status' => 'fail', 'errors' => ['TOKEN_ZIP_MISMATCH']]);
-                }
-
-                $emitCallable = $this->emitterMux ? fn(array $p) => $this->emitterMux->emit($p) : null;
-
-                if ($purpose === 'background_scan') {
-                    // Read file_scan errors and route via onFileScanError
-                    $fileScan = (array)($state['file_scan'] ?? []);
-                    $errors = (array)($fileScan['errors'] ?? []);
-                    if ($errors) {
-                        $decisionEnum = Install::ASK;
-                        if (is_callable($this->_onFileScanError)) {
-                            try {
-                                $decisionEnum = ($this->_onFileScanError)($errors, [
-                                    'purpose' => 'install_override',
-                                    'zipId' => $plugin_zip_id,
-                                    'fingerprint' => (string)($state['meta']['fingerprint'] ?? ''),
-                                    'validator_config_hash' => (string)($state['meta']['validator_config_hash'] ?? ''),
-                                    'actor' => $this->actorResolver?->resolve() ?? 'system',
-                                ]);
-                            } catch (Throwable $_) {
-                                $decisionEnum = Install::ASK;
-                            }
-                        }
-                        if ($decisionEnum === Install::BREAK) {
-                            $this->logStore->setDecision($installRoot, [
-                                'status' => 'break',
-                                'reason' => 'file_scan_errors',
-                            ]);
-                            $this->emitDecisionBlock($installRoot, 'break', 'file_scan_errors');
-                            return new DecisionResult(status: 'break', summary: $state);
-                        }
-                        if ($decisionEnum === Install::ASK) {
-                            // Issue install_override token
-                            [$tok, $exp] = ($this->tokenManager ?? new InstallerTokenManager())->issueToken(
-                                'install_override', $plugin_zip_id,
-                                (string)($state['meta']['fingerprint'] ?? ''),
-                                (string)($state['meta']['validator_config_hash'] ?? ''),
-                                $this->actorResolver?->resolve() ?? 'system'
-                            );
-                            $this->logStore->setDecision($installRoot, [
-                                'status' => 'ask',
-                                'reason' => 'file_scan_errors',
-                                'token' => ['purpose' => 'install_override', 'expires_at' => $exp],
-                            ]);
-                            $emitCallable && $emitCallable(['title' => 'Installer: Decision ask', 'description' => 'File scan issues — install override requested', 'error' => null, 'stats' => []]);
-                            return new DecisionResult(status: 'ask', summary: $state, tokenEncrypted: $tok, expiresAt: $exp);
-                        }
-                        // INSTALL: fallthrough continue to non-validation phases (not yet implemented)
-                        return new DecisionResult(status: 'ask', summary: $state);
-                    }
-                    // No scan errors; proceed to non-validation phases (not yet implemented)
-                    return new DecisionResult(status: 'ask', summary: $state);
-                }
-
-                if ($purpose === 'install_override') {
-                    // Resume accepted override: skip validation and proceed
-                    return new DecisionResult(status: 'ask', summary: $state);
-                }
-
-                // Unknown purpose
-                $this->emitDecisionBlock($installRoot, 'break', 'TOKEN_PURPOSE_UNKNOWN');
-                return new DecisionResult(status: 'break', summary: ['status' => 'fail', 'errors' => ['TOKEN_PURPOSE_UNKNOWN']]);
-            }
-
-            if (!$this->validator) {
-                $this->emitDecisionBlock($installRoot, 'break', 'VALIDATOR_MISSING');
-                return new DecisionResult(status: 'break', summary: ['status' => 'fail', 'errors' => ['ValidatorService not provided']]);
-            }
-
-            $section = new VerificationSection();
-            $emitter = $this->emitterMux ? fn(array $p) => $this->emitterMux->emit($p) : null;
-            // Ensure scanners are not run in the mandatory verification step
-            try { Validator::setIgnoredValidators(['file_scanner']); } catch (Throwable $_) {}
-            $summary = $section->run($this->validator, $stagingRoot, $this->logStore, $installRoot, $emitter);
-            if ((($summary['status'] ?? 'pass') === 'fail')) {
-                $this->emitDecisionBlock($installRoot, 'break', 'VERIFICATION_FAILED');
-                return new DecisionResult(status: 'break', summary: $summary);
-            }
-
-            // Phase 2 — Optional File Scan (part of validation block)
-            if ($this->fileScanEnabled) {
-                $fsSection = new FileScanSection();
-                $emitCallable = $this->emitterMux ? fn(array $p) => $this->emitterMux->emit($p) : null;
-                $fingerprint = $summary['meta']['fingerprint'] ?? ($summary['fingerprint'] ?? '');
-                $configHash = $summary['meta']['validator_config_hash'] ?? ($summary['validator_config_hash'] ?? '');
-                $actor = $this->actorResolver?->resolve() ?? (string)($summary['meta']['actor'] ?? 'system');
-
-                $fs = $fsSection->run(
-                    logStore: $this->logStore,
-                    stagingRoot: $stagingRoot,
-                    installRoot: $installRoot,
-                    enabled: true,
-                    onFileScanError: $this->_onFileScanError,
-                    tokenManager: $this->tokenManager ?? new InstallerTokenManager(),
-                    emit: $emitCallable,
-                    zipId: $plugin_zip_id,
-                    fingerprint: is_string($fingerprint) ? $fingerprint : '',
-                    configHash: is_string($configHash) ? $configHash : '',
-                    actor: is_string($actor) ? $actor : 'system',
-                    validator: $this->validator
-                );
-
-                if (($fs['status'] ?? 'continue') === 'ask') {
-                    // Persist decision snapshot and return
-                    $this->logStore->setDecision($installRoot, [
-                        'status' => 'ask',
-                        'reason' => 'file_scan_errors',
-                        'token' => [
-                            'purpose' => 'install_override',
-                            'expiresAt' => $fs['expiresAt'] ?? null,
-                        ],
-                    ]);
-                    // Call onValidationEnd once at the end of validation block (includes file scan)
-                    if (is_callable($this->_onValidationEnd)) {
-                        try {
-                            ($this->_onValidationEnd)($summary);
-                        } catch (Throwable $_) {
-                        }
-                    }
-                    return new DecisionResult(status: 'ask', summary: $summary, tokenEncrypted: $fs['tokenEncrypted'] ?? null, expiresAt: $fs['expiresAt'] ?? null);
-                }
-                if (($fs['status'] ?? 'continue') === 'break') {
-                    $this->logStore->setDecision($installRoot, [
-                        'status' => 'break',
-                        'reason' => 'file_scan_errors',
-                    ]);
-                    // Call onValidationEnd before returning as validation block concluded
-                    if (is_callable($this->_onValidationEnd)) {
-                        try {
-                            ($this->_onValidationEnd)($summary);
-                        } catch (Throwable $_) {
-                        }
-                    }
-                    return new DecisionResult(status: 'break', summary: $summary);
-                }
-            }
-
-            // _onValidationEnd — exactly once after validation block (mandatory + optional file scan), before ZipValidationGate
-            if (is_callable($this->_onValidationEnd)) {
-                try {
-                    ($this->_onValidationEnd)($summary);
-                } catch (Throwable $_) {
-                }
-            }
-
-            // Phase 3 — Zip validation gate (after full validation block)
-            if ($this->zipRepository) {
-                $zipGate = new ZipValidationGate();
-                $fingerprint = $summary['meta']['fingerprint'] ?? ($summary['fingerprint'] ?? '');
-                $configHash = $summary['meta']['validator_config_hash'] ?? ($summary['validator_config_hash'] ?? '');
-                $actor = $this->actorResolver?->resolve() ?? (string)($summary['meta']['actor'] ?? 'system');
-                $emitCallable = $this->emitterMux ? fn(array $p) => $this->emitterMux->emit($p) : null;
-
-                $gate = $zipGate->run(
-                    $this->zipRepository,
-                    $this->logStore,
-                    $installRoot,
-                    $plugin_zip_id,
-                    $this->tokenManager ?? new InstallerTokenManager(),
-                    $emitCallable,
-                    is_string($fingerprint) ? $fingerprint : '',
-                    is_string($configHash) ? $configHash : '',
-                    is_string($actor) ? $actor : 'system',
-                    $this->fileScanEnabled,
-                    is_array($summary) ? $summary : [],
-                );
-
-                if ($gate['status'] === 'ask') {
-                    return new DecisionResult(status: 'ask', summary: $summary, tokenEncrypted: $gate['tokenEncrypted'] ?? null, expiresAt: $gate['expiresAt'] ?? null);
-                }
-                if ($gate['status'] === 'break') {
-                    return new DecisionResult(status: 'break', summary: $summary);
-                }
-            }
-
-            // Phase 4 — Vendor Policy
-            $emitCallable = $this->emitterMux ? fn(array $p) => $this->emitterMux->emit($p) : null;
-            $vendorSection = new VendorPolicySection();
-            $vendorSection->run($this->policy, $this->logStore, $installRoot, $emitCallable);
-
-            // Phase 5 — Composer Plan (+ Packages Map)
-            $composerPlan = (new ComposerPlanSection())
-                ->run(new ComposerInspector(), $this->logStore, $stagingRoot, $installRoot, $emitCallable);
-
-            // Phase 6 — Install Files (atomic copy & promote)
-            $installResult = (new InstallFilesSection())
-                ->run($this->logStore, $stagingRoot, $installRoot, $emitCallable);
-
-            if (($installResult['status'] ?? '') !== 'installed') {
-                // Failure in copy/promote must break per DoD
-                $this->emitDecisionBlock($installRoot, 'break', 'INSTALL_COPY_OR_PROMOTION_FAILED');
-                return new DecisionResult(status: 'break', summary: $summary);
-            }
-
-            // Phase 7 — DB Persist
-            $emitCallable = $this->emitterMux ? fn(array $p) => $this->emitterMux->emit($p) : null;
-            if ($this->pluginRepository) {
-                $db = (new DbPersistSection())
-                    ->run($this->pluginRepository, $this->logStore, $installRoot, $plugin_zip_id, $emitCallable);
-                if (($db['status'] ?? 'failed') !== 'ok') {
-                    $this->emitDecisionBlock($installRoot, 'break', 'DB_PERSIST_FAILED');
-                    return new DecisionResult(status: 'break', summary: $summary);
-                }
-            } else {
-                // No repository bound — emit a skip note
-                $emitCallable && $emitCallable([
-                    'title' => 'Installer: DB Persist',
-                    'description' => 'Skipped (no PluginRepository bound)',
-                    'error' => null,
-                    'stats' => ['filePath' => null, 'size' => null],
-                    'meta' => [],
-                ]);
-            }
-
-            // Phase 7 done
-            $this->emitDecisionBlock($installRoot, 'installed');
-            return new DecisionResult(status: 'installed', summary: $summary);
-        } finally {
-            if ($locked) {
-                try {
-                    $this->lockManager?->release((string)$plugin_zip_id);
-                } catch (Throwable $_) {
-                }
-            }
-        }
+        return InstallerResult::fromArray([
+            'status' => 'break',
+            'summary' => $summary,
+            'meta' => $meta,
+        ]);
     }
 }

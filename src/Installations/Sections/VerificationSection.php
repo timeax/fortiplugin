@@ -1,45 +1,131 @@
 <?php
+declare(strict_types=1);
 
 namespace Timeax\FortiPlugin\Installations\Sections;
 
-use DateTimeImmutable;
-use Timeax\FortiPlugin\Installations\Support\InstallationLogStore;
-use Timeax\FortiPlugin\Installations\Support\ValidatorBridge;
+use JsonException;
+use Throwable;
 use Timeax\FortiPlugin\Services\ValidatorService;
+use Timeax\FortiPlugin\Installations\InstallerPolicy;
+use Timeax\FortiPlugin\Installations\Support\Events;
+use Timeax\FortiPlugin\Installations\Support\ErrorCodes;
+use Timeax\FortiPlugin\Installations\Support\EmitsEvents;
+use Timeax\FortiPlugin\Installations\Support\Psr4Checker;
+use Timeax\FortiPlugin\Installations\Support\InstallationLogStore;
 
-class VerificationSection
+/**
+ * VerificationSection
+ *
+ * - PSR-4 mapping assert.
+ * - Route files mandatory.
+ * - Runs HEADLINE validators only (scanners OFF here).
+ * - Streams validator emits verbatim into InstallationLogStore.
+ * - Persists a compact "verification" section summary.
+ *
+ * NOTE: onValidationEnd() is **owned by ValidatorBridge** and called there once.
+ */
+final class VerificationSection
 {
+    use EmitsEvents;
+
+    public function __construct(
+        private readonly InstallerPolicy      $policy,
+        private readonly InstallationLogStore $log,
+        private readonly Psr4Checker          $psr4,
+    ) {}
+
     /**
-     * Runs mandatory program-integrity checks via ValidatorService, bridges emits verbatim
-     * to the unified emitter and to InstallationLogStore, persists a verification snapshot,
-     * and returns a summary array suitable for onValidationEnd().
+     * @param string           $pluginDir         Plugin root on disk
+     * @param string           $pluginName        Unique plugin name
+     * @param string           $run_id            Correlation id
+     * @param ValidatorService $validator         Validation service
+     * @param array            $validatorConfig   Must include headline.route_files[]
+     * @param callable|null    $emitValidation    fn(array $payload): void  (validator emits passthrough)
+     * @return array{status:'ok'|'fail', summary?:array}
+     * @noinspection PhpUndefinedClassInspection
      */
     public function run(
+        string           $pluginDir,
+        string           $pluginName,
+        string           $run_id,
         ValidatorService $validator,
-        string $stagingRoot,
-        InstallationLogStore $logStore,
-        string $installRoot,
-        ?callable $unifiedEmitter = null,
+        array            $validatorConfig,
+        ?callable        $emitValidation = null
     ): array {
-        // Bridge validator emits to logs (verbatim) and optional unified emitter via ValidatorBridge
-        $emitter = $unifiedEmitter ? new class($unifiedEmitter) implements \Timeax\FortiPlugin\Installations\Contracts\Emitter {
-            public function __construct(private $fn) {}
-            public function __invoke(array $payload): void { ($this->fn)($payload); }
-        } : null;
-        $bridge = new ValidatorBridge($logStore, $installRoot, $emitter);
+        // 0) Mandatory route files
+        $routeFiles = (array)($validatorConfig['headline']['route_files'] ?? []);
 
-        // Execute validator
-        $validator->run($stagingRoot, [$bridge, 'emit']);
+        if ($routeFiles === []) {
+            $this->emitFail(
+                Events::ROUTES_CHECK_FAIL,
+                ErrorCodes::ROUTE_SCHEMA_ERROR,
+                'Route files missing: route validation is mandatory',
+                ['hint' => 'Provide headline.route_files[]', 'plugin_dir' => $pluginDir]
+            );
+            return ['status' => 'fail'];
+        }
 
-        // Build summary and persist snapshot
-        $summary = [
-            'status' => $validator->shouldFail() ? 'fail' : 'pass',
-            'errors' => $validator->getFormattedLog(),
-            'warnings' => [],
-            'finished_at' => (new DateTimeImmutable())->format(DATE_ATOM),
-        ];
-        $logStore->setVerification($installRoot, $summary);
+        // 1) PSR-4 assert for this plugin
+        $psr4Root     = $this->policy->getPsr4Root();
+        $composerJson = $pluginDir . DIRECTORY_SEPARATOR . 'composer.json';
 
-        return $summary;
+        $this->emitOk(Events::PSR4_CHECK_START, "Checking PSR-4 for $pluginName", [
+            'psr4_root' => $psr4Root,
+            'plugin'    => $pluginName,
+            'composer'  => $composerJson,
+        ]);
+
+        try {
+            $this->psr4->assertMapping($composerJson, $psr4Root, $pluginName);
+            $this->emitOk(Events::PSR4_CHECK_OK, 'PSR-4 mapping OK', ['composer' => $composerJson]);
+        } catch (Throwable $e) {
+            $this->emitFail(
+                Events::PSR4_CHECK_FAIL,
+                ErrorCodes::COMPOSER_PSR4_MISSING_OR_MISMATCH,
+                'Expected PSR-4 mapping is missing or mismatched',
+                ['composer' => $composerJson, 'exception' => $e->getMessage()],
+                $composerJson
+            );
+            return ['status' => 'fail'];
+        }
+
+        // 2) Headline validators only (disable scanning stack)
+        $validator->setIgnoredValidators(['file_scanner', 'content', 'token', 'ast']);
+
+        // Stream validator emits VERBATIM → log store (+ optional passthrough)
+        $forward = function (array $payload) use ($emitValidation): void {
+            try { $this->log->appendValidationEmit($payload); } catch (JsonException $_) {}
+            if ($emitValidation) $emitValidation($payload);
+        };
+
+        $this->emitOk(Events::VALIDATION_START, 'Running headline validators');
+        $summary = $validator->run($pluginDir, $forward);
+        $this->emitOk(Events::VALIDATION_END, 'Headline validators completed', [
+            'total_issues' => $summary['total_issues'] ?? null,
+            'files_scanned'=> $summary['files_scanned'] ?? null,
+        ]);
+
+        // 3) Persist compact verification section (summary only; emits already recorded)
+        try {
+            $this->log->writeSection('verification', [
+                'summary' => $summary,
+                'run_id'  => $run_id,
+            ]);
+            $this->emitOk(Events::SUMMARY_PERSISTED, 'Verification summary persisted', ['path' => $this->log->path()]);
+        } catch (Throwable $e) {
+            $this->emitFail(
+                Events::SUMMARY_PERSISTED,
+                ErrorCodes::FILESYSTEM_WRITE_FAILED,
+                'Failed to persist verification summary',
+                ['exception' => $e->getMessage(), 'plugin_dir' => $pluginDir]
+            );
+        }
+
+        // 4) Decide (break if policy says to on headline errors)
+        if (($summary['should_fail'] ?? false) && $this->policy->shouldBreakOnVerificationErrors()) {
+            return ['status' => 'fail', 'summary' => $summary];
+        }
+
+        return ['status' => 'ok', 'summary' => $summary];
     }
 }

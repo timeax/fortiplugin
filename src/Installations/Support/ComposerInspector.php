@@ -1,65 +1,75 @@
 <?php
+declare(strict_types=1);
 
 namespace Timeax\FortiPlugin\Installations\Support;
 
+use RuntimeException;
+use Timeax\FortiPlugin\Installations\DTO\PackageEntry;
+use Timeax\FortiPlugin\Installations\DTO\ComposerPlan;
+use Timeax\FortiPlugin\Installations\Enums\PackageStatus;
+
 /**
- * ComposerInspector reads host composer.json/lock and provides simple
- * satisfaction checks for planning purposes only. This minimal version
- * returns empty data if files are not present. It never executes Composer.
+ * Reads host composer.lock + plugin composer.json to compute foreign package map and plan.
  */
-class ComposerInspector
+final readonly class ComposerInspector
 {
-    /** @return array<string,string> package=>version from host lock */
-    public function readHostLockedPackages(string $projectRoot = null): array
+    public function __construct(private AtomicFilesystem $fs)
     {
-        $projectRoot = $projectRoot ?? base_path() ?? getcwd();
-        $lockPath = rtrim((string)$projectRoot, "\\/ ") . DIRECTORY_SEPARATOR . 'composer.lock';
-        if (!is_file($lockPath)) return [];
-        $json = json_decode((string)@file_get_contents($lockPath), true);
-        if (!is_array($json)) return [];
-        $pkgs = [];
-        foreach ((array)($json['packages'] ?? []) as $p) {
-            $name = (string)($p['name'] ?? '');
-            $version = (string)($p['version'] ?? '');
-            if ($name !== '') $pkgs[$name] = $version;
-        }
-        foreach ((array)($json['packages-dev'] ?? []) as $p) {
-            $name = (string)($p['name'] ?? '');
-            $version = (string)($p['version'] ?? '');
-            if ($name !== '' && !isset($pkgs[$name])) $pkgs[$name] = $version;
-        }
-        return $pkgs;
     }
 
-    /** @return array<string,string> plugin requires (name=>constraint) */
-    public function readPluginRequires(string $stagingRoot): array
+    /** @return array<string,PackageEntry> */
+    public function collectPackages(string $hostComposerLock, string $pluginComposerJson): array
     {
-        // Try fortiplugin.json first
-        $fp = rtrim($stagingRoot, "\\/ ") . DIRECTORY_SEPARATOR . 'fortiplugin.json';
-        if (is_file($fp)) {
-            $data = json_decode((string)@file_get_contents($fp), true);
-            if (is_array($data) && isset($data['requires']) && is_array($data['requires'])) {
-                return $data['requires'];
-            }
+        $fs = $this->fs->fs();
+        if (!$fs->exists($hostComposerLock)) {
+            throw new RuntimeException("composer.lock not found at $hostComposerLock");
         }
-        // Fallback to composer.json
-        $cj = rtrim($stagingRoot, "\\/ ") . DIRECTORY_SEPARATOR . 'composer.json';
-        if (is_file($cj)) {
-            $data = json_decode((string)@file_get_contents($cj), true);
-            if (is_array($data) && isset($data['require']) && is_array($data['require'])) {
-                // filter php/ext-* out for package list but keep for conflicts detection
-                return $data['require'];
-            }
+        if (!$fs->exists($pluginComposerJson)) {
+            throw new RuntimeException("plugin composer.json not found at $pluginComposerJson");
         }
-        return [];
+
+        $lock = $fs->readJson($hostComposerLock);
+        $installed = array_column((array)($lock['packages'] ?? []), 'name');
+        $installedDev = array_column((array)($lock['packages-dev'] ?? []), 'name');
+        $hostSet = array_fill_keys(array_merge($installed, $installedDev), true);
+
+        $pj = $fs->readJson($pluginComposerJson);
+        $requires = array_keys((array)($pj['require'] ?? []));
+        $requiresDev = array_keys((array)($pj['require-dev'] ?? []));
+        $pluginSet = array_unique(array_merge($requires, $requiresDev));
+
+        $out = [];
+        foreach ($pluginSet as $name) {
+            $isForeign = !isset($hostSet[$name]);
+            $out[$name] = new PackageEntry(
+                name: $name,
+                is_foreign: $isForeign,
+                status: PackageStatus::UNVERIFIED
+            );
+        }
+        return $out;
     }
 
-    /** Crude check for core packages */
-    public function isCorePackage(string $name): bool
+    public function plan(array $packages): ComposerPlan
     {
-        if ($name === 'php') return true;
-        if (str_starts_with($name, 'ext-')) return true;
-        if ($name === 'laravel/framework') return true;
-        return false;
+        $actions = [];
+        $coreConflicts = [];
+
+        foreach ($packages as $name => $entry) {
+            if (!$entry instanceof PackageEntry) {
+                throw new RuntimeException("Package map must contain PackageEntry instances");
+            }
+            $actions[$name] = $entry->is_foreign ? 'add' : 'skip';
+        }
+
+        // Core collision hints (conservative): flag if plugin references these at all.
+        foreach (['php', 'laravel/framework'] as $core) {
+            if (isset($actions[$core])) {
+                $coreConflicts[] = $core;
+                $actions[$core] = 'conflict';
+            }
+        }
+
+        return new ComposerPlan(actions: $actions, core_conflicts: $coreConflicts);
     }
 }

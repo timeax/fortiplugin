@@ -84,10 +84,7 @@ class EloquentPluginRepository implements PluginRepository
 
 namespace Timeax\FortiPlugin\Installations\Infra;
 
-use Timeax\FortiPlugin\Installations\Contracts\ZipRepository;
-use Timeax\FortiPlugin\Installations\Enums\ZipValidationStatus;
-use Timeax\FortiPlugin\Models\PluginZip;
-use Timeax\FortiPlugin\Enums\ValidationStatus as ModelValidationStatus;
+use Timeax\FortiPlugin\Enums\ValidationStatus;use Timeax\FortiPlugin\Enums\ValidationStatus as ModelValidationStatus;use Timeax\FortiPlugin\Installations\Contracts\ZipRepository;use Timeax\FortiPlugin\Models\PluginZip;
 
 class EloquentZipRepository implements ZipRepository
 {
@@ -110,37 +107,37 @@ class EloquentZipRepository implements ZipRepository
         ];
     }
 
-    public function getValidationStatus(int|string $zipId): ZipValidationStatus
+    public function getValidationStatus(int|string $zipId): ValidationStatus
     {
         $zip = PluginZip::query()->select(['id', 'validation_status'])->find($zipId);
-        if (!$zip) return ZipValidationStatus::UNKNOWN;
+        if (!$zip) return ValidationStatus::UNKNOWN;
         return $this->mapModelToGate($zip->validation_status);
     }
 
-    public function setValidationStatus(int|string $zipId, ZipValidationStatus $status): void
+    public function setValidationStatus(int|string $zipId, ValidationStatus $status): void
     {
         $zip = PluginZip::query()->findOrFail($zipId);
         $zip->validation_status = $this->mapGateToModel($status);
         $zip->save();
     }
 
-    private function mapModelToGate(?ModelValidationStatus $s): ZipValidationStatus
+    private function mapModelToGate(?ModelValidationStatus $s): ValidationStatus
     {
         return match ($s) {
-            ModelValidationStatus::valid => ZipValidationStatus::VERIFIED,
-            ModelValidationStatus::pending => ZipValidationStatus::PENDING,
-            ModelValidationStatus::failed => ZipValidationStatus::FAILED,
-            default => ZipValidationStatus::UNKNOWN,
+            ModelValidationStatus::valid => ValidationStatus::VERIFIED,
+            ModelValidationStatus::pending => ValidationStatus::PENDING,
+            ModelValidationStatus::failed => ValidationStatus::FAILED,
+            default => ValidationStatus::UNKNOWN,
         };
     }
 
-    private function mapGateToModel(ZipValidationStatus $s): ModelValidationStatus
+    private function mapGateToModel(ValidationStatus $s): ModelValidationStatus
     {
         return match ($s) {
-            ZipValidationStatus::VERIFIED => ModelValidationStatus::valid,
-            ZipValidationStatus::PENDING => ModelValidationStatus::pending,
-            ZipValidationStatus::FAILED => ModelValidationStatus::failed,
-            ZipValidationStatus::UNKNOWN => ModelValidationStatus::unverified,
+            ValidationStatus::VERIFIED => ModelValidationStatus::valid,
+            ValidationStatus::PENDING => ModelValidationStatus::pending,
+            ValidationStatus::FAILED => ModelValidationStatus::failed,
+            ValidationStatus::UNKNOWN => ModelValidationStatus::unverified,
         };
     }
 }
@@ -210,18 +207,17 @@ class InMemoryPluginRepository implements PluginRepository
 
 namespace Timeax\FortiPlugin\Installations\Infra;
 
-use Timeax\FortiPlugin\Installations\Contracts\ZipRepository;
-use Timeax\FortiPlugin\Installations\Enums\ZipValidationStatus;
+use Timeax\FortiPlugin\Enums\ValidationStatus;use Timeax\FortiPlugin\Installations\Contracts\ZipRepository;
 
 class InMemoryZipRepository implements ZipRepository
 {
-    /** @var array<string,array{status: ZipValidationStatus, data: array}> */
+    /** @var array<string,array{status: ValidationStatus, data: array}> */
     private array $store = [];
 
     public function __construct(array $seed = [])
     {
         foreach ($seed as $id => $status) {
-            $this->setValidationStatus($id, is_string($status) ? ZipValidationStatus::from($status) : $status);
+            $this->setValidationStatus($id, is_string($status) ? ValidationStatus::from($status) : $status);
         }
     }
 
@@ -232,13 +228,13 @@ class InMemoryZipRepository implements ZipRepository
         return ['id' => $key, 'validation_status' => $this->store[$key]['status']->value] + ($this->store[$key]['data'] ?? []);
     }
 
-    public function getValidationStatus(int|string $zipId): ZipValidationStatus
+    public function getValidationStatus(int|string $zipId): ValidationStatus
     {
         $key = (string)$zipId;
-        return $this->store[$key]['status'] ?? ZipValidationStatus::UNKNOWN;
+        return $this->store[$key]['status'] ?? ValidationStatus::UNKNOWN;
     }
 
-    public function setValidationStatus(int|string $zipId, ZipValidationStatus $status): void
+    public function setValidationStatus(int|string $zipId, ValidationStatus $status): void
     {
         $key = (string)$zipId;
         $this->store[$key]['status'] = $status;

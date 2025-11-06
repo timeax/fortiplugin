@@ -15,7 +15,7 @@ return new class extends Migration {
 			$table->id();
 			$table
 				->foreignId("placeholder_id")
-				->constrained("placeholders", "id")
+				->constrained("scpl_placeholders", "id")
 				->onDelete("no action")
 				->onUpdate("no action");
 			$table->text("path");
@@ -35,7 +35,7 @@ return new class extends Migration {
 			$table
 				->foreignId("uploaded_by_author_id")
 				->nullable()
-				->constrained("authors", "id")
+				->constrained("scpl_authors", "id")
 				->onDelete("no action")
 				->onUpdate("no action");
 			$table->timestamps();

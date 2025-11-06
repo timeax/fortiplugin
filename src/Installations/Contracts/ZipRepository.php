@@ -4,7 +4,8 @@ declare(strict_types=1);
 namespace Timeax\FortiPlugin\Installations\Contracts;
 
 use RuntimeException;
-use Timeax\FortiPlugin\Installations\Enums\ZipValidationStatus;
+use Timeax\FortiPlugin\Installations\Enums\ZipValidationStatus as ValidationStatus;
+
 
 /**
  * Accessor for plugin zip metadata & lifecycle.
@@ -30,18 +31,18 @@ interface ZipRepository
      * Current validation status for the zip (verified|pending|failed|unknown).
      *
      * @param int|string $zipId
-     * @return ZipValidationStatus
+     * @return ValidationStatus
      */
-    public function getValidationStatus(int|string $zipId): ZipValidationStatus;
+    public function getValidationStatus(int|string $zipId): ValidationStatus;
 
     /**
      * Set validation status for the zip.
      *
      * @param int|string $zipId
-     * @param ZipValidationStatus $status
+     * @param ValidationStatus $status
      * @return void
      */
-    public function setValidationStatus(int|string $zipId, ZipValidationStatus $status): void;
+    public function setValidationStatus(int|string $zipId, ValidationStatus $status): void;
 
     /**
      * Absolute filesystem path to the zip (for extraction).

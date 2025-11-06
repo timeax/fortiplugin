@@ -4,8 +4,8 @@ declare(strict_types=1);
 namespace Timeax\FortiPlugin\Installations\Infra;
 
 use RuntimeException;
+use Timeax\FortiPlugin\Installations\Enums\ZipValidationStatus as ValidationStatus;
 use Timeax\FortiPlugin\Installations\Contracts\ZipRepository;
-use Timeax\FortiPlugin\Installations\Enums\ZipValidationStatus;
 
 /**
  * In-memory ZipRepository for tests/dev.
@@ -14,7 +14,7 @@ final class InMemoryZipRepository implements ZipRepository
 {
     /**
      * @var array<string,array{
-     *   status: ZipValidationStatus,
+     *   status: ValidationStatus,
      *   path?: string,
      *   placeholder_id?: int|string,
      *   placeholder_name?: string,
@@ -28,11 +28,11 @@ final class InMemoryZipRepository implements ZipRepository
      */
     private array $store = [];
 
-    /** @param array<string,ZipValidationStatus|string> $seed */
+    /** @param array<string,ValidationStatus|string> $seed */
     public function __construct(array $seed = [])
     {
         foreach ($seed as $id => $status) {
-            $this->setValidationStatus($id, is_string($status) ? ZipValidationStatus::from($status) : $status);
+            $this->setValidationStatus($id, is_string($status) ? ValidationStatus::from($status) : $status);
         }
     }
 
@@ -41,12 +41,12 @@ final class InMemoryZipRepository implements ZipRepository
         return $this->store[(string)$zipId] ?? null;
     }
 
-    public function getValidationStatus(int|string $zipId): ZipValidationStatus
+    public function getValidationStatus(int|string $zipId): ValidationStatus
     {
-        return $this->store[(string)$zipId]['status'] ?? ZipValidationStatus::UNKNOWN;
+        return $this->store[(string)$zipId]['status'] ?? ValidationStatus::UNKNOWN;
     }
 
-    public function setValidationStatus(int|string $zipId, ZipValidationStatus $status): void
+    public function setValidationStatus(int|string $zipId, ValidationStatus $status): void
     {
         $k = (string)$zipId;
         $this->store[$k]['status'] = $status;
@@ -114,7 +114,7 @@ final class InMemoryZipRepository implements ZipRepository
     {
         $k = (string)$zipId;
         $this->store[$k] = ($this->store[$k] ?? []) + $data;
-        $this->store[$k]['status'] ??= ZipValidationStatus::UNKNOWN;
+        $this->store[$k]['status'] ??= ValidationStatus::UNKNOWN;
         $this->store[$k]['meta'] ??= [];
     }
 }

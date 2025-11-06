@@ -468,7 +468,8 @@ class FileIo extends FileIoUtility
 
     public function disk(string $name): static
     {
-        return clone($this, [
+
+        return new self([
             "forcedDisk" => $name
         ]);
     }

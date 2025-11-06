@@ -1,91 +1,102 @@
 <?php
+declare(strict_types=1);
 
 namespace Timeax\FortiPlugin\Installations\Support;
 
+use JsonException;
 use RuntimeException;
+use Timeax\FortiPlugin\Installations\Contracts\Filesystem;
 
-class AtomicFilesystem
+/**
+ * AtomicFilesystem
+ *
+ * Lightweight helper that layers **atomic JSON operations** on top of a concrete
+ * {@see Filesystem} implementation. It does NOT implement the Filesystem contract,
+ * so there is no binding/circularity concern. Use this for installer logs and
+ * other structured files that must be written atomically.
+ *
+ * Typical usage:
+ *   $afs = new AtomicFilesystem($fs); // $fs is your Contracts\Filesystem
+ *   $afs->ensureParentDirectory($pathToJson);
+ *   $afs->writeJsonAtomic($pathToJson, $data, true);
+ *   $afs->appendJsonArrayAtomic($pathToArrayJson, $item);
+ */
+final readonly class AtomicFilesystem
 {
-    public function ensureDir(string $dir): void
+    public function __construct(private Filesystem $fs) {}
+
+    /**
+     * Access to the underlying low-level filesystem.
+     * Useful when you need plain readJson(), exists(), etc.
+     */
+    public function fs(): Filesystem
     {
-        if (!is_dir($dir)) {
-            if (!@mkdir($dir, 0777, true) && !is_dir($dir)) {
-                throw new RuntimeException('Failed to create directory: ' . $dir);
-            }
+        return $this->fs;
+    }
+
+    /**
+     * Ensure the parent directory of a path exists (mkdir -p semantics).
+     * Uses native PHP so we don't require extra methods on the Filesystem contract.
+     *
+     * @throws RuntimeException if the directory cannot be created
+     */
+    public function ensureParentDirectory(string $path, int $mode = 0755): void
+    {
+        $dir = dirname($path);
+        if (is_dir($dir)) {
+            return;
+        }
+        if (!@mkdir($dir, $mode, true) && !is_dir($dir)) {
+            throw new RuntimeException("Cannot create directory: $dir");
         }
     }
 
     /**
-     * Copy a directory tree. Optional $filter(filePathRelativeToRoot): bool can skip items.
-     * PathSecurity checks are consulted if provided.
+     * Atomically write JSON to a file (UTF-8, no BOM).
+     *
+     * @param string $path   Absolute or project-relative path
+     * @param array  $data   Data to encode
+     * @param bool   $pretty Pretty-print JSON (for human-readable logs)
+     *
+     * @throws JsonException   If encoding fails
+     * @throws RuntimeException If the write operation fails
      */
-    public function copyTree(string $from, string $to, ?callable $filter = null, ?PathSecurity $sec = null): void
+    public function writeJsonAtomic(string $path, array $data, bool $pretty = false): void
     {
-        $from = rtrim($from, "\\/ ");
-        $to = rtrim($to, "\\/ ");
-        if (!is_dir($from)) {
-            throw new RuntimeException('Source directory does not exist: ' . $from);
+        $flags = JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE;
+        if ($pretty) {
+            $flags |= JSON_PRETTY_PRINT;
         }
-        $this->ensureDir($to);
-        $rootLen = strlen($from) + 1;
-        $it = new \RecursiveIteratorIterator(
-            new \RecursiveDirectoryIterator($from, \FilesystemIterator::SKIP_DOTS),
-            \RecursiveIteratorIterator::SELF_FIRST
-        );
-        foreach ($it as $path => $info) {
-            // Skip symlinks always
-            if (is_link($path)) continue;
-            $rel = substr($path, $rootLen);
-            if ($filter && $filter($rel) === false) continue;
-            $sec && $sec->validateNoTraversal($rel);
-            $sec && $sec->validateNoSymlink($path);
-            $dest = $to . DIRECTORY_SEPARATOR . $rel;
-            if ($info->isDir()) {
-                $this->ensureDir($dest);
-            } else {
-                $dir = dirname($dest);
-                $this->ensureDir($dir);
-                if (!@copy($path, $dest)) {
-                    throw new RuntimeException('Failed to copy file: ' . $path);
-                }
-            }
+
+        // Deterministic encode with exceptions so callers can catch details
+        $json = json_encode($data, JSON_THROW_ON_ERROR | $flags);
+        if ($json === false) {
+            // Unreachable with JSON_THROW_ON_ERROR but kept for completeness
+            throw new RuntimeException('Failed to encode JSON: ' . json_last_error_msg());
         }
+
+        $this->fs->writeAtomic($path, $json);
     }
 
-    public function atomicWrite(string $path, string $contents): void
+    /**
+     * Atomically append an item to a JSON array file.
+     * If the target file doesn't exist, it is initialized as [] before append.
+     *
+     * @param string $path Target JSON file that holds a top-level array
+     * @param array  $item Item to append
+     *
+     * @throws JsonException   If encoding/decoding fails
+     * @throws RuntimeException If the write operation fails
+     */
+    public function appendJsonArrayAtomic(string $path, array $item): void
     {
-        $dir = dirname($path);
-        $this->ensureDir($dir);
-        $tmp = $path . '.tmp';
-        if (@file_put_contents($tmp, $contents) === false) {
-            throw new RuntimeException('Failed to write temp file: ' . $tmp);
+        $arr = [];
+        if ($this->fs->exists($path)) {
+            $current = $this->fs->readJson($path);
+            $arr = is_array($current) ? $current : [];
         }
-        $this->safeRename($tmp, $path);
-    }
+        $arr[] = $item;
 
-    public function safeRename(string $from, string $to): void
-    {
-        $dir = dirname($to);
-        $this->ensureDir($dir);
-        if (!@rename($from, $to)) {
-            throw new RuntimeException('Failed to rename ' . $from . ' to ' . $to);
-        }
-    }
-
-    public function removeDir(string $dir): void
-    {
-        if (!is_dir($dir)) return;
-        $items = scandir($dir);
-        if ($items === false) return;
-        foreach ($items as $item) {
-            if ($item === '.' || $item === '..') continue;
-            $path = $dir . DIRECTORY_SEPARATOR . $item;
-            if (is_dir($path) && !is_link($path)) {
-                $this->removeDir($path);
-            } else {
-                @unlink($path);
-            }
-        }
-        @rmdir($dir);
+        $this->writeJsonAtomic($path, $arr, true);
     }
 }

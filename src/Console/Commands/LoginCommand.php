@@ -12,7 +12,7 @@ use GuzzleHttp\Client;
 
 class LoginCommand extends Command
 {
-    protected $signature = 'secure-plugin:login {--host=} {--alias=} {--remember}';
+    protected $signature = 'fp:login {--host=} {--alias=} {--remember}';
     protected $description = 'Log in to Secure Plugin host and save session token.';
 
     /**
@@ -51,12 +51,12 @@ class LoginCommand extends Command
         $remember = $this->option('remember');
 
         // Compose API base URI
-        $apiBase = 'https://' . $host . '/api/';
+        $apiBase = 'https://' . $host;
 
         $client = new Client(['base_uri' => $apiBase]);
 
         try {
-            $res = $client->post('forti/login', [
+            $res = $client->post('/forti/login', [
                 'json' => [
                     'email' => $email,
                     'password' => $password,
@@ -71,7 +71,7 @@ class LoginCommand extends Command
             }
 
             $expires = $data['expires_at'] ?? (now()->addDays($remember ? 30 : 1)->toIso8601String());
-            CliSessionManager::saveSession($alias, $host, $data['token'], $expires);
+            CliSessionManager::saveSession($alias, $host, $data['token'], $expires, $data['author']);
 
             $this->info("[✓] Login successful! Session saved as alias: $alias ($host)" . ($remember ? ' (30 days)' : ' (24 hours)') . '.');
             return 0;

@@ -17,12 +17,12 @@ return new class extends Migration {
 			$table->id();
 			$table
 				->foreignId("plugin_id")
-				->constrained("plugins", "id")
+				->constrained("scpl_plugins", "id")
 				->onDelete("no action")
 				->onUpdate("no action");
 			$table
 				->foreignId("tag_id")
-				->constrained("permission_tags", "id")
+				->constrained("scpl_permission_tags", "id")
 				->onDelete("no action")
 				->onUpdate("no action");
 			$table->boolean("active")->default(true);

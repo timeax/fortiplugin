@@ -2,9 +2,8 @@
 
 namespace Timeax\FortiPlugin\Console\Commands;
 
+use Closure;
 use Illuminate\Console\Command;
-use Symfony\Component\Console\Helper\ProgressBar;
-use Symfony\Component\Console\Output\ConsoleOutputInterface;
 use Throwable;
 use Timeax\FortiPlugin\Services\PolicyService;
 use Timeax\FortiPlugin\Services\ValidatorService;
@@ -12,9 +11,9 @@ use Timeax\FortiPlugin\Traits\AuthenticateSession;
 
 class ValidatePlugin extends Command
 {
-    use AuthenticateSession;
+    use AuthenticateSession, Shared;
 
-    protected $signature = 'forti:validate
+    protected $signature = 'fp:validate
         {name : Plugin directory name, e.g., OrdersPlugin}
         {--host-config : Fetch validator config from the connected host}
         {--quiet : Suppress validation progress output}';
@@ -77,58 +76,9 @@ class ValidatePlugin extends Command
         }
     }
 
-    protected function makeEmitCallback(): \Closure
+    protected function makeEmitCallback(): Closure
     {
-        /** @var mixed $output */
-        $output = $this->output;
-        if (method_exists($output, 'getOutput')) {
-            $output = $output->getOutput();
-        }
-        $supportsSections = $output instanceof ConsoleOutputInterface;
-        $sections = [];
-        $progress = null;
-        $filesStarted = false;
-
-        return function (array $e) use (&$sections, &$progress, &$filesStarted, $output, $supportsSections) {
-            $title = (string)($e['title'] ?? 'Scan');
-            $desc = (string)($e['description'] ?? '');
-            $file = (string)($e['stats']['filePath'] ?? '');
-
-            if ($title === 'Scan: File') {
-                if (!$filesStarted) {
-                    if ($supportsSections) {
-                        if (!isset($sections['progress'])) {
-                            $sections['progress'] = $output->section();
-                        }
-                        $progress = new ProgressBar($sections['progress'], 0);
-                    } else {
-                        $progress = $this->output->createProgressBar();
-                    }
-                    $progress->start();
-                    $filesStarted = true;
-                }
-                if ($supportsSections) {
-                    if (!isset($sections['files'])) {
-                        $sections['files'] = $output->section();
-                    }
-                    $sections['files']->overwrite("Scanning: <info>" . basename($file) . "</info>");
-                } else {
-                    $this->line("Scanning: " . basename($file));
-                }
-                if ($progress) $progress->advance();
-                return;
-            }
-
-            $msg = $desc ?: $title;
-            if ($supportsSections) {
-                if (!isset($sections[$title])) {
-                    $sections[$title] = $output->section();
-                }
-                $sections[$title]->overwrite($msg);
-            } else {
-                $this->line($msg);
-            }
-        };
+        return $this->initializeShared();
     }
 
     /**
@@ -143,7 +93,7 @@ class ValidatePlugin extends Command
                 return ['ok' => false, 'error' => $body ?: 'Request failed'];
             }
             return json_decode($body, true, 512, JSON_THROW_ON_ERROR) ?? [];
-        } catch (\Throwable $e) {
+        } catch (Throwable $e) {
             return ['ok' => false, 'error' => $e->getMessage()];
         }
     }

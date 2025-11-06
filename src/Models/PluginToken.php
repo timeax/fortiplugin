@@ -15,6 +15,7 @@ use Illuminate\Database\Eloquent\Model;
  * @property bool $revoked
  * @property int|null $author_id
  * @property \Carbon\Carbon $created_at
+ * @property \Carbon\Carbon $updated_at
  * @property PluginPlaceholder::class $placeholder
  * @property Author::class $author
  */
@@ -39,6 +40,7 @@ class PluginToken extends Model
 		"expires_at" => "datetime",
 		"last_used" => "datetime",
 		"created_at" => "datetime",
+		"updated_at" => "datetime",
 	];
 
 	public function placeholder()

@@ -1,28 +1,41 @@
-<?php
+<?php /** @noinspection PhpUnusedLocalVariableInspection */
+declare(strict_types=1);
 
 namespace Timeax\FortiPlugin\Installations\Support;
 
+use Throwable;
 use Timeax\FortiPlugin\Installations\Contracts\Emitter;
 
-class EmitterMux
+/**
+ * Forwards emits to host Emitter and mirrors into InstallationLogStore (verbatim for validation).
+ */
+final readonly class EmitterMux
 {
-    /** @var Emitter[] */
-    private array $sinks = [];
+    public function __construct(
+        private Emitter              $hostEmitter,
+        private InstallationLogStore $logStore
+    ) {}
 
-    public function __construct(Emitter ...$sinks)
+    /** @param array $payload */
+    public function emitValidation(array $payload): void
     {
-        $this->sinks = $sinks;
+        // Host first (non-throwing contract), then persist verbatim
+        try { ($this->hostEmitter)($payload); } catch (Throwable $e) { /* swallow */ }
+        $this->logStore->appendValidationEmit($payload);
     }
 
-    public function add(Emitter $emitter): void
+    /** @param array $payload */
+    public function emitInstaller(array $payload): void
     {
-        $this->sinks[] = $emitter;
+        try { ($this->hostEmitter)($payload); } catch (Throwable $e) { /* swallow */ }
+        $this->logStore->appendInstallerEmit($payload);
     }
 
-    public function emit(array $payload): void
+    /** @return callable(array):void */
+    public function validationCallable(): callable
     {
-        foreach ($this->sinks as $sink) {
-            $sink($payload);
-        }
+        return function (array $payload): void {
+            $this->emitValidation($payload);
+        };
     }
 }

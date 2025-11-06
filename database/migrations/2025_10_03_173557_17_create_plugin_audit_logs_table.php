@@ -15,21 +15,21 @@ return new class extends Migration {
 			$table->id();
 			$table
 				->foreignId("plugin_id")
-				->constrained("plugins", "id")
+				->constrained("scpl_plugins", "id")
 				->onDelete("no action")
 				->onUpdate("no action");
 			$table->string("actor")->nullable();
 			$table
 				->foreignId("actor_author_id")
 				->nullable()
-				->constrained("authors", "id")
+				->constrained("scpl_authors", "id")
 				->onDelete("no action")
 				->onUpdate("no action");
 			$table->string("type");
 			$table->string("action");
 			$table->string("resource");
 			$table->json("context")->nullable();
-			$table->timestamp("created_at")->useCurrent();
+			$table->timestamps();
 			$table->index("plugin_id");
 			$table->index("actor_author_id");
 		});

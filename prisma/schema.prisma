@@ -214,6 +214,7 @@ model PluginToken {
   revoked               Boolean   @default(false)
   author_id             BigInt?
   created_at            DateTime  @default(now())
+  updated_at            DateTime  @updatedAt
 
   placeholder PluginPlaceholder? @relation(fields: [plugin_placeholder_id], references: [id])
   author      Author?            @relation(fields: [author_id], references: [id])
@@ -256,6 +257,7 @@ model PluginIssueMessage {
   author_id  BigInt
   message    String   @db.Text
   created_at DateTime @default(now())
+  updated_at DateTime @updatedAt
 
   issue  PluginIssue @relation(fields: [issue_id], references: [id])
   author Author      @relation(fields: [author_id], references: [id])
@@ -275,6 +277,7 @@ model AuditLog {
   action          String
   context         Json?
   created_at      DateTime @default(now())
+  updated_at      DateTime @updatedAt
 
   actorAuthor Author? @relation("AuditActor", fields: [actor_author_id], references: [id])
 
@@ -295,6 +298,7 @@ model PluginAuditLog {
   resource        String
   context         Json?
   created_at      DateTime @default(now())
+  updated_at      DateTime @updatedAt
 
   plugin      Plugin  @relation(fields: [plugin_id], references: [id])
   actorAuthor Author? @relation("PluginAuditActor", fields: [actor_author_id], references: [id])
@@ -360,6 +364,7 @@ model HostKey {
   private_pem String?    @db.Text
   fingerprint String     @unique
   created_at  DateTime   @default(now())
+  updated_at  DateTime?
   rotated_at  DateTime?
 
   @@map("host_keys")

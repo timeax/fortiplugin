@@ -4,10 +4,10 @@ declare(strict_types=1);
 namespace Timeax\FortiPlugin\Installations\Infra;
 
 use RuntimeException;
-use Timeax\FortiPlugin\Installations\Contracts\ZipRepository;
-use Timeax\FortiPlugin\Installations\Enums\ZipValidationStatus;
-use Timeax\FortiPlugin\Models\PluginZip;
+use Timeax\FortiPlugin\Installations\Enums\ZipValidationStatus as ValidationStatus;
 use Timeax\FortiPlugin\Enums\ValidationStatus as ModelValidationStatus;
+use Timeax\FortiPlugin\Installations\Contracts\ZipRepository;
+use Timeax\FortiPlugin\Models\PluginZip;
 use ValueError;
 
 /**
@@ -49,18 +49,18 @@ final class EloquentZipRepository implements ZipRepository
     }
 
     /** @inheritDoc */
-    public function getValidationStatus(int|string $zipId): ZipValidationStatus
+    public function getValidationStatus(int|string $zipId): ValidationStatus
     {
         /** @var PluginZip|null $zip */
         $zip = PluginZip::query()->select(['id', 'validation_status'])->find($zipId);
         if (!$zip) {
-            return ZipValidationStatus::UNKNOWN;
+            return ValidationStatus::UNKNOWN;
         }
         return $this->mapModelToGate($zip->validation_status?->value);
     }
 
     /** @inheritDoc */
-    public function setValidationStatus(int|string $zipId, ZipValidationStatus $status): void
+    public function setValidationStatus(int|string $zipId, ValidationStatus $status): void
     {
         /** @var PluginZip $zip */
         $zip = PluginZip::query()->findOrFail($zipId);
@@ -165,13 +165,13 @@ final class EloquentZipRepository implements ZipRepository
      *
      * @param string|null $value e.g. 'valid','pending','failed','unverified','unchecked'
      */
-    private function mapModelToGate(?string $value): ZipValidationStatus
+    private function mapModelToGate(?string $value): ValidationStatus
     {
         return match ($value) {
-            'valid'       => ZipValidationStatus::VERIFIED,
-            'pending'     => ZipValidationStatus::PENDING,
-            'failed'      => ZipValidationStatus::FAILED,
-            default       => ZipValidationStatus::UNKNOWN,
+            'valid'       => ValidationStatus::VERIFIED,
+            'pending'     => ValidationStatus::PENDING,
+            'failed'      => ValidationStatus::FAILED,
+            default       => ValidationStatus::UNKNOWN,
         };
     }
 
@@ -180,13 +180,13 @@ final class EloquentZipRepository implements ZipRepository
      *
      * Handles deployments where the model enum uses either 'unverified' or 'unchecked'.
      */
-    private function mapGateToModel(ZipValidationStatus $s): ModelValidationStatus
+    private function mapGateToModel(ValidationStatus $s): ModelValidationStatus
     {
         return match ($s) {
-            ZipValidationStatus::VERIFIED => ModelValidationStatus::valid,
-            ZipValidationStatus::PENDING  => ModelValidationStatus::pending,
-            ZipValidationStatus::FAILED   => ModelValidationStatus::failed,
-            ZipValidationStatus::UNKNOWN  => $this->preferModelStatus('unverified', 'unchecked'),
+            ValidationStatus::VERIFIED => ModelValidationStatus::valid,
+            ValidationStatus::PENDING  => ModelValidationStatus::pending,
+            ValidationStatus::FAILED   => ModelValidationStatus::failed,
+            ValidationStatus::UNKNOWN  => $this->preferModelStatus('unverified', 'unchecked'),
         };
     }
 

@@ -22,10 +22,13 @@ return new class extends Migration {
 			$table->json("meta")->nullable();
 			$table
 				->foreignId("plugin_placeholder_id")
-				->constrained("placeholders", "id")
+				->constrained("scpl_placeholders", "id")
 				->onDelete("no action")
 				->onUpdate("no action");
+			$table->bigInteger("active_version_id");
 			$table->string("owner_ref")->nullable();
+			$table->timestamp("activated_at")->nullable();
+			$table->bigInteger("activated_by")->nullable();
 			$table->timestamps();
 		});
 	}

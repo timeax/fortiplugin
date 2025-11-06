@@ -17,16 +17,16 @@ return new class extends Migration {
 			$table->id();
 			$table
 				->foreignId("issue_id")
-				->constrained("plugin_issues", "id")
+				->constrained("scpl_plugin_issues", "id")
 				->onDelete("no action")
 				->onUpdate("no action");
 			$table
 				->foreignId("author_id")
-				->constrained("authors", "id")
+				->constrained("scpl_authors", "id")
 				->onDelete("no action")
 				->onUpdate("no action");
 			$table->text("message");
-			$table->timestamp("created_at")->useCurrent();
+			$table->timestamps();
 			$table->index("issue_id");
 			$table->index("author_id");
 		});

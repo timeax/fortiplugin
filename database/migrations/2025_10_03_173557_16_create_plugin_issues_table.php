@@ -15,12 +15,12 @@ return new class extends Migration {
 			$table->id();
 			$table
 				->foreignId("plugin_id")
-				->constrained("plugins", "id")
+				->constrained("scpl_plugins", "id")
 				->onDelete("no action")
 				->onUpdate("no action");
 			$table
 				->foreignId("reporter_id")
-				->constrained("authors", "id")
+				->constrained("scpl_authors", "id")
 				->onDelete("no action")
 				->onUpdate("no action");
 			$table->string("type");

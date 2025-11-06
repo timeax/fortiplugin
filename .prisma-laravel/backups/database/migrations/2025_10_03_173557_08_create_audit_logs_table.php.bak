@@ -17,12 +17,12 @@ return new class extends Migration {
 			$table
 				->foreignId("actor_author_id")
 				->nullable()
-				->constrained("authors", "id")
+				->constrained("scpl_authors", "id")
 				->onDelete("no action")
 				->onUpdate("no action");
 			$table->string("action");
 			$table->json("context")->nullable();
-			$table->timestamp("created_at")->useCurrent();
+			$table->timestamps();
 			$table->index("actor_author_id");
 		});
 	}

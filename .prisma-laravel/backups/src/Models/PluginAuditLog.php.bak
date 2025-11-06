@@ -15,6 +15,7 @@ use Illuminate\Database\Eloquent\Model;
  * @property string $resource
  * @property array|null $context
  * @property \Carbon\Carbon $created_at
+ * @property \Carbon\Carbon $updated_at
  * @property Plugin::class $plugin
  * @property Author::class $actorAuthor
  */
@@ -37,6 +38,7 @@ class PluginAuditLog extends Model
 	protected $casts = [
 		"context" => AsArrayObject::class,
 		"created_at" => "datetime",
+		"updated_at" => "datetime",
 	];
 
 	public function plugin()

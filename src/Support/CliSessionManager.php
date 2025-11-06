@@ -65,13 +65,15 @@ class CliSessionManager
      * @throws JsonException
      * @throws SodiumException
      */
-    public static function saveSession($alias, $host, $token, $expiresAt): void
+    public static function saveSession($alias, $host, $token, $expiresAt, $author): void
     {
         $sessions = self::loadSessions();
         $sessions['hosts'][$alias] = [
             'alias' => $alias,
             'host' => $host,
             'token' => $token,
+            'name' => $author['name'],
+            "email" => $author['email'],
             'expires_at' => $expiresAt
         ];
         $sessions['current'] = $alias;

@@ -3,9 +3,9 @@
 namespace Timeax\FortiPlugin\Models;
 
 use Illuminate\Database\Eloquent\Casts\AsArrayObject;
+use Illuminate\Database\Eloquent\Model;
 use Timeax\FortiPlugin\Enums\PluginStatus;
 use Timeax\FortiPlugin\Enums\ValidationStatus;
-use Illuminate\Database\Eloquent\Model;
 
 /**
  * @property int $id

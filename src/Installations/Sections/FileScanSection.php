@@ -1,164 +1,215 @@
-<?php /** @noinspection PhpUnusedLocalVariableInspection */
+<?php
+declare(strict_types=1);
 
 namespace Timeax\FortiPlugin\Installations\Sections;
 
-use Throwable;
+use JsonException;
+use Random\RandomException;
+use Timeax\FortiPlugin\Installations\DTO\DecisionResult;
 use Timeax\FortiPlugin\Installations\Enums\Install;
+use Timeax\FortiPlugin\Installations\InstallerPolicy;
 use Timeax\FortiPlugin\Installations\Support\InstallationLogStore;
 use Timeax\FortiPlugin\Installations\Support\InstallerTokenManager;
-use Timeax\FortiPlugin\Installations\Support\ValidatorBridge;
 use Timeax\FortiPlugin\Services\ValidatorService;
-use function function_exists;
+use function count;
 
-class FileScanSection
+/**
+ * FileScanSection (no background scans)
+ *
+ * - Runs scanner-only phase and forwards validator emits verbatim.
+ * - Persists raw scan log + a single decision (INSTALL | ASK | BREAK).
+ * - ASK is produced *only* when scanner finds issues (shouldFail = true)
+ *   and we want the host to explicitly override. In that case we issue an
+ *   install-override token (bound to run_id) and let the host decide.
+ *
+ * NOTE: onValidationEnd() is **owned by ValidatorBridge** and called there once.
+ */
+final readonly class FileScanSection
 {
+    public function __construct(
+        private InstallerPolicy       $policy,
+        private InstallationLogStore  $log,
+        private InstallerTokenManager $tokens,
+        /** optional installer-level emitter: fn(array $payload): void */
+        private mixed                 $emit = null
+    )
+    {
+    }
+
     /**
-     * Optional file scan phase. Uses ValidatorService scanning to produce verbatim emits.
-     * It never executes plugin code beyond static analysis.
-     *
-     * Returns an array decision for the Installer to interpret:
-     *   ['status' => 'continue'|'ask'|'break', 'tokenEncrypted'?, 'expiresAt'?]
+     * @param string $pluginDir
+     * @param int|string $zipId
+     * @param ValidatorService $validator
+     * @param string $validatorConfigHash Stable hash of validator config
+     * @param string $actor Actor id or 'system'
+     * @param string $runId Install run correlation id
+     * @param callable|null $onFileScanError fn(array $summary, string $token): Install
+     * @param callable|null $emitValidation fn(array $payload): void (verbatim passthrough)
+     * @return array{decision: Install, meta: array}
+     * @throws JsonException|RandomException
      */
     public function run(
-        InstallationLogStore $logStore,
-        string $stagingRoot,
-        string $installRoot,
-        bool $enabled,
-        ?callable $onFileScanError,
-        ?InstallerTokenManager $tokenManager,
-        ?callable $emit,
-        int|string $zipId,
-        string $fingerprint,
-        string $configHash,
-        string $actor,
+        string           $pluginDir,
+        int|string       $zipId,
         ValidatorService $validator,
-        array $errors = []
-    ): array {
-        if (!$enabled) {
-            // Skipped cleanly
-            $logStore->setFileScan($installRoot, [
-                'enabled' => false,
-                'status' => 'skipped',
-                'errors' => [],
-            ]);
-            if ($emit) {
-                try { $emit(['title' => 'Installer: File Scan', 'description' => 'Skipped (disabled)', 'error' => null, 'stats' => []]); } catch (Throwable $_) {}
-            }
-            $logStore->appendInstallerEmit($installRoot, ['title' => 'Installer: File Scan', 'description' => 'Skipped (disabled)', 'error' => null, 'stats' => []]);
-            return ['status' => 'continue'];
-        }
-
-        // If no explicit errors supplied, actively run scans and collect verbatim emits
-        if (empty($errors)) {
-            try {
-                $bridge = new ValidatorBridge($logStore, $installRoot, $emit ? new class($emit) implements \Timeax\FortiPlugin\Installations\Contracts\Emitter { public function __construct(private $fn){} public function __invoke(array $p): void { ($this->fn)($p);} } : null);
-                // Run only scanners
-                $validator->runFileScan($stagingRoot, [$bridge, 'emit']);
-                // Read back emitted scan errors from log store
-                $current = $logStore->getCurrent($installRoot);
-                $emits = (array)($current['logs']['validation_emits'] ?? []);
-                foreach ($emits as $e) {
-                    if (($e['title'] ?? '') === 'Scan: Security') {
-                        $errors[] = [
-                            'type' => 'scan.security',
-                            'issue' => (string)($e['description'] ?? 'Security issue'),
-                            'file' => $e['stats']['filePath'] ?? null,
-                            'meta' => $e['meta'] ?? [],
-                        ];
-                    }
-                }
-            } catch (Throwable $_) {
-                // ignore and treat as no errors
-            }
-        }
-
-        $hasErrors = is_array($errors) && count($errors) > 0;
-
-        if (!$hasErrors) {
-            // Pass
-            $logStore->setFileScan($installRoot, [
-                'enabled' => true,
-                'status' => 'pass',
-                'errors' => [],
-            ]);
-            if ($emit) {
-                try { $emit(['title' => 'Installer: File Scan', 'description' => 'Pass (no issues found)', 'error' => null, 'stats' => []]); } catch (Throwable $_) {}
-            }
-            $logStore->appendInstallerEmit($installRoot, ['title' => 'Installer: File Scan', 'description' => 'Pass (no issues found)', 'error' => null, 'stats' => []]);
-            return ['status' => 'continue'];
-        }
-
-        // Errors present: delegate to host callback to decide
-        $decision = Install::ASK;
-        if (is_callable($onFileScanError)) {
-            try {
-                $decision = ($onFileScanError)($errors, [
-                    'purpose' => 'install_override',
-                    'zipId' => $zipId,
-                    'fingerprint' => $fingerprint,
-                    'validator_config_hash' => $configHash,
-                    'actor' => $actor,
-                ]);
-            } catch (Throwable $_) {
-                $decision = Install::ASK;
-            }
-        }
-
-        // Persist file_scan block with collected errors
-        $logStore->setFileScan($installRoot, [
-            'enabled' => true,
-            'status' => $decision === Install::BREAK ? 'fail' : 'pending',
-            'errors' => $errors,
+        string           $validatorConfigHash,
+        string           $actor,
+        string           $runId,
+        ?callable        $onFileScanError = null,
+        ?callable        $emitValidation = null
+    ): array
+    {
+        $this->emit && ($this->emit)([
+            'title' => 'FILE_SCAN_START',
+            'description' => 'Starting file scan',
+            'meta' => ['zip_id' => (string)$zipId, 'run_id' => $runId],
         ]);
 
-        if ($decision === Install::BREAK) {
-            // Emit and break
-            if ($emit) { try { $emit(['title' => 'Installer: File Scan', 'description' => 'Errors detected — breaking install', 'error' => ['code' => 'SCAN_ERRORS'], 'stats' => []]); } catch (Throwable $_) {} }
-            $logStore->appendInstallerEmit($installRoot, ['title' => 'Installer: File Scan', 'description' => 'Errors detected — breaking install', 'error' => ['code' => 'SCAN_ERRORS'], 'stats' => []]);
-            return ['status' => 'break'];
-        }
+        $events = [];
 
-        if ($decision === Install::INSTALL) {
-            // Proceed despite errors
-            if ($emit) { try { $emit(['title' => 'Installer: File Scan', 'description' => 'Errors detected — proceeding by host policy', 'error' => ['code' => 'SCAN_ERRORS'], 'stats' => []]); } catch (Throwable $_) {} }
-            $logStore->appendInstallerEmit($installRoot, ['title' => 'Installer: File Scan', 'description' => 'Errors detected — proceeding by host policy', 'error' => ['code' => 'SCAN_ERRORS'], 'stats' => []]);
-            // Mark as pass-but-override
-            $logStore->setFileScan($installRoot, [
-                'enabled' => true,
-                'status' => 'pass',
-                'errors' => $errors,
-            ]);
-            return ['status' => 'continue'];
-        }
-
-        // Default or explicit ASK: issue install_override token
-        $ttl = (int)((function_exists('config') ? (config('fortiplugin.installations.tokens.install_override_ttl') ?? 600) : 600));
-        $ttl = max(60, min(3600, $ttl));
-        $tokenEncrypted = null;
-        $expiresAt = null;
-        if ($tokenManager) {
-            try {
-                [$tokenEncrypted, $expiresAt] = $tokenManager->issueToken(
-                    purpose: 'install_override',
-                    zipId: $zipId,
-                    fingerprint: $fingerprint,
-                    validatorConfigHash: $configHash,
-                    actor: $actor,
-                    ttlSeconds: $ttl,
-                );
-            } catch (Throwable $_) {
-                // ignore token issuance failure for now; still ask
+        // Forward validator emits verbatim
+        $forward = function (array $payload) use (&$events, $emitValidation): void {
+            $events[] = $payload;
+            if ($emitValidation) {
+                $emitValidation($payload);
             }
+        };
+
+        // Run scanner only
+        $validator->runFileScan($pluginDir, $forward);
+
+        $shouldFail = $validator->shouldFail();
+        $logTuples = $validator->getLog();
+        $totalIssues = count($logTuples);
+
+        $summaryArray = [
+            'should_fail' => $shouldFail,
+            'total_issues' => $totalIssues,
+        ];
+
+        // Persist raw file_scan block
+        $this->log->writeSection('file_scan', [
+            'summary' => $summaryArray,
+            'events' => $events,
+        ]);
+
+        $nowIso = gmdate('c');
+        $doc = $this->log->read();
+        $fp = $doc['meta']['fingerprint'] ?? null;
+        $fpStr = is_string($fp) ? $fp : '';
+        $codes = $this->uniqueTypes($logTuples);
+        $counts = ['validation_errors' => 0, 'scan_errors' => $totalIssues];
+        $enabled = true;
+
+        // Clean → INSTALL
+        if (!$shouldFail) {
+            $this->log->writeDecision(new DecisionResult(
+                status: 'installed',
+                at: $nowIso,
+                run_id: $runId,
+                zip_id: $zipId,
+                fingerprint: $fpStr,
+                validator_config_hash: $validatorConfigHash,
+                file_scan_enabled: $enabled,
+                token: null,
+                reason: 'file_scan_ok',
+                last_error_codes: $codes,
+                counts: $counts
+            ));
+
+            $this->emitDecision('INSTALL', ['reason' => 'file_scan_ok', 'zip_id' => (string)$zipId]);
+
+            return ['decision' => Install::INSTALL, 'meta' => []];
         }
 
-        // Emit and return ASK
-        if ($emit) { try { $emit(['title' => 'Installer: File Scan', 'description' => 'Errors detected — ASK (override token issued)', 'error' => ['code' => 'SCAN_ERRORS'], 'stats' => [], 'meta' => ['expiresAt' => $expiresAt]]); } catch (Throwable $_) {} }
-        $logStore->appendInstallerEmit($installRoot, ['title' => 'Installer: File Scan', 'description' => 'Errors detected — ASK (override token issued)', 'error' => ['code' => 'SCAN_ERRORS'], 'stats' => [], 'meta' => ['expiresAt' => $expiresAt]]);
+        // Issues → host override (ASK) or policy BREAK
+        $decisionStr = 'ask';
+        $reason = 'file_scan_issues_detected';
+        $tokenMeta = null;
+        $tokenOpaque = null;
+
+        if ($onFileScanError) {
+            // Issue install-override token bound to run_id; host decides
+            $ttl = $this->policy->getInstallOverrideTtl();
+            $tokenOpaque = $this->tokens->issueInstallOverrideToken(
+                zipId: $zipId,
+                validatorConfigHash: $validatorConfigHash,
+                actor: $actor,
+                runId: $runId,
+                ttlSeconds: $ttl
+            );
+            $tokenMeta = $this->tokens->summarize('install_override', time() + $ttl);
+
+            $hostDecision = $onFileScanError($summaryArray, $tokenOpaque);
+            $decisionStr = $this->mapInstallToDecisionStatus($hostDecision);
+            $reason = 'host_decision_on_scan_errors';
+        } elseif ($this->policy->shouldBreakOnFileScanErrors()) {
+            $decisionStr = 'break';
+            $reason = 'policy_break_on_scan_errors';
+        }
+
+        $this->log->writeDecision(new DecisionResult(
+            status: $decisionStr,
+            at: $nowIso,
+            run_id: $runId,
+            zip_id: $zipId,
+            fingerprint: $fpStr,
+            validator_config_hash: $validatorConfigHash,
+            file_scan_enabled: $enabled,
+            token: $tokenMeta,
+            reason: $reason,
+            last_error_codes: $codes,
+            counts: $counts
+        ));
+
+        $this->emitDecision(strtoupper($decisionStr), [
+            'reason' => $reason,
+            'zip_id' => (string)$zipId,
+            'token_summary' => $tokenMeta,
+        ]);
 
         return [
-            'status' => 'ask',
-            'tokenEncrypted' => $tokenEncrypted,
-            'expiresAt' => $expiresAt,
+            'decision' => $this->mapDecisionStatusToInstallEnum($decisionStr),
+            'meta' => array_filter(['token' => $tokenOpaque, 'token_summary' => $tokenMeta]),
         ];
+    }
+
+    /** @return list<string> */
+    private function uniqueTypes(array $logTuples): array
+    {
+        $types = [];
+        foreach ($logTuples as $t) {
+            $type = (string)($t[0] ?? '');
+            if ($type !== '') $types[$type] = true;
+        }
+        return array_keys($types);
+    }
+
+    private function mapInstallToDecisionStatus(Install $d): string
+    {
+        return match ($d) {
+            Install::INSTALL => 'installed',
+            Install::ASK => 'ask',
+            Install::BREAK => 'break',
+        };
+    }
+
+    private function mapDecisionStatusToInstallEnum(string $s): Install
+    {
+        return match ($s) {
+            'installed' => Install::INSTALL,
+            'break' => Install::BREAK,
+            default => Install::ASK,
+        };
+    }
+
+    /** neutral scan-level decision event (Installer handles high-level events) */
+    private function emitDecision(string $status, array $meta = []): void
+    {
+        $this->emit && ($this->emit)([
+            'title' => 'FILE_SCAN_DECISION',
+            'description' => $status,
+            'meta' => $meta,
+        ]);
     }
 }

@@ -15,7 +15,7 @@ return new class extends Migration {
 			$table->id();
 			$table
 				->foreignId("author_id")
-				->constrained("authors", "id")
+				->constrained("scpl_authors", "id")
 				->onDelete("no action")
 				->onUpdate("no action");
 			$table->string("token_hash");

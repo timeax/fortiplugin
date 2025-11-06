@@ -18,7 +18,7 @@ class MakePlugin extends Command
 {
     use AuthenticateSession, Stubber;
 
-    protected $signature = 'forti:make
+    protected $signature = 'fp:make
         {name : StudlyCase plugin name}
         {alias : StudlyCase plugin alias}
         {--force : Overwrite if plugin folder exists}
@@ -88,10 +88,8 @@ class MakePlugin extends Command
 
         // 6) Init placeholder (+ placeholder token)
         $init = $this->getJson($client->post('/forti/handshake/init', [
-            'json' => [
-                'slug' => $kebab,
-                'name' => $studly,
-            ]
+            'slug' => $kebab,
+            'name' => $studly,
         ]));
 
         if (!($init['ok'] ?? false)) {
@@ -119,7 +117,7 @@ class MakePlugin extends Command
         $psr4Root = $init['psr4_root'] ?? 'Plugins'; // e.g. "Plugins"
         $this->files->put(
             "$path/composer.json",
-            $this->renderStub('composer.json', [
+            $this->renderStub('composer', [
                 'PLUGIN_SLUG' => $kebab,
                 'AUTHOR_NAME' => $author['name'] ?? '',
                 'AUTHOR_EMAIL' => $author['email'] ?? '',
@@ -136,9 +134,11 @@ class MakePlugin extends Command
         // 8a) Host-provided signature block into Config.php via stub
         $this->files->put(
             "$internalDir/Config.php",
-            $this->renderStub('config-dev.php', [
+            $this->renderStub('config-dev', [
                 'PLUGIN_STUDLY' => $studly,
                 'PLUGIN_ALIAS' => $kebab,
+                "PLUGIN_NAMESPACE" => $psr4Root,
+                "PLUGIN_ID" => $init['placeholder']['id'] ?? 1,
                 // host returns this:
                 'SIGNATURE_BLOCK' => $signatureBlock ?? "// (signature block not returned by host)",
             ])
@@ -161,12 +161,12 @@ class MakePlugin extends Command
                 "$src/Support",
                 "$src/Http/Controllers",
                 "$src/Http/Middleware",
-                "$src/Http/Routes",
                 "$path/database/migrations",
                 "$path/database/factories",
                 "$path/routes",
                 "$path/config",
                 "$path/public",
+                "$path/public/index.php",
                 "$path/resources/shared/ts",
             ] as $dir
         ) {
@@ -190,7 +190,7 @@ class MakePlugin extends Command
 
         // 12) publish.json
         $publishPath = $path . "/publish.json";
-        if ($this->files->exists($publishPath) && !$this->confirm("publish.json already exists. Overwrite?")) {
+        if ($this->files->exists($publishPath) && $this->confirm("publish.json already exists. Overwrite?")) {
             $this->info("Skipping publish.json overwrite.");
             return self::SUCCESS;
         }
@@ -203,7 +203,6 @@ class MakePlugin extends Command
         ], JSON_THROW_ON_ERROR | JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES));
 
         $this->info("Plugin '$studly' scaffolded.");
-        $this->line("Next: php artisan forti:install $studly");
         return self::SUCCESS;
     }
 

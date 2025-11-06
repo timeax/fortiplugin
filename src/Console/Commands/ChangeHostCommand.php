@@ -9,7 +9,7 @@ use Timeax\FortiPlugin\Support\CliSessionManager;
 
 class ChangeHostCommand extends Command
 {
-    protected $signature = 'secure-plugin change:host {aliasOrHost?}';
+    protected $signature = 'fp:change {aliasOrHost?}';
     protected $description = 'Switch to a different saved host session (by alias or domain)';
 
     /**

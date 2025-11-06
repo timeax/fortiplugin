@@ -187,13 +187,49 @@ return [
             // Plugin repository driver: 'inmemory' (default) or 'eloquent'
             'plugin' => env('FORTIPLUGIN_INSTALL_PLUGIN_REPO', 'inmemory'),
         ],
+
         'tokens' => [
-            // TTLs in seconds; bounded in code to 60–3600
+            // TTLs in seconds; bounded in code to >=60
             'background_scan_ttl' => (int)env('FORTIPLUGIN_BG_SCAN_TTL', 600),
             'install_override_ttl' => (int)env('FORTIPLUGIN_INSTALL_OVERRIDE_TTL', 600),
         ],
+
         // Optional: a staging root; if null, Installer falls back to sys_get_temp_dir()
         'staging_root' => env('FORTIPLUGIN_STAGING_ROOT', null),
+
+        // ── Installer policy (feeds InstallerPolicy::fromArray()) ───────────────
+        'policy' => [
+            // Security file scan (content/token/AST). Default: OFF
+            'file_scan' => (bool)env('FORTIPLUGIN_FILE_SCAN', false),
+
+            // Vendor mode: 'STRIP_BUNDLED_VENDOR' or 'ALLOW_BUNDLED_VENDOR'
+            'vendor_mode' => env('FORTIPLUGIN_VENDOR_MODE', 'STRIP_BUNDLED_VENDOR'),
+
+            // Token TTLs (seconds)
+            'token_ttl' => [
+                'background_scan' => (int)env('FORTIPLUGIN_BG_SCAN_TTL', 600),
+                'install_override' => (int)env('FORTIPLUGIN_INSTALL_OVERRIDE_TTL', 600),
+            ],
+
+            // PSR-4 root and optional absolute route schema path
+            'psr4_root' => env('FORTIPLUGIN_PSR4_ROOT', 'Plugins'),
+            'route_schema' => env('FORTIPLUGIN_ROUTE_SCHEMA', null),
+
+            // CSV envs → arrays
+            'middleware_allowlist' => array_values(array_filter(array_map('trim', explode(',', (string)env('FORTIPLUGIN_MIDDLEWARE_ALLOW', 'web,api'))))),
+            'core_package_blocklist' => array_values(array_filter(array_map('trim', explode(',', (string)env('FORTIPLUGIN_CORE_BLOCKLIST', 'php,laravel/framework'))))),
+
+            // Decision behaviors
+            'ask_on_file_scan_errors' => (bool)env('FORTIPLUGIN_ASK_ON_SCAN_ERRORS', true),
+            'break_on_verification_errors' => (bool)env('FORTIPLUGIN_BREAK_ON_VERIFY_ERRORS', true),
+            'present_foreign_packages_for_scan' => (bool)env('FORTIPLUGIN_PRESENT_FOREIGN_FOR_SCAN', true),
+
+            // Log file locations inside plugin root
+            'logs_dir_name' => env('FORTIPLUGIN_LOGS_DIR', '.internal/logs'),
+            'installation_log_filename' => env('FORTIPLUGIN_INSTALL_LOG', 'installation.json'),
+
+            'break_on_file_scan_errors' => env('FORTIPLUGIN_BREAK_ON_FILE_SCAN_ERRORS', false),
+        ],
     ],
 
 ];

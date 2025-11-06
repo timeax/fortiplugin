@@ -12,6 +12,7 @@ use Illuminate\Database\Eloquent\Model;
  * @property string|null $private_pem
  * @property string $fingerprint
  * @property \Carbon\Carbon $created_at
+ * @property \Carbon\Carbon|null $updated_at
  * @property \Carbon\Carbon|null $rotated_at
  */
 class HostKey extends Model
@@ -32,6 +33,7 @@ class HostKey extends Model
 	protected $casts = [
 		"purpose" => KeyPurpose::class,
 		"created_at" => "datetime",
+		"updated_at" => "datetime",
 		"rotated_at" => "datetime",
 	];
 }

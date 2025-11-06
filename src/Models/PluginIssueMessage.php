@@ -10,6 +10,7 @@ use Illuminate\Database\Eloquent\Model;
  * @property int $author_id
  * @property string $message
  * @property \Carbon\Carbon $created_at
+ * @property \Carbon\Carbon $updated_at
  * @property PluginIssue::class $issue
  * @property Author::class $author
  */
@@ -21,7 +22,7 @@ class PluginIssueMessage extends Model
 
 	protected $guarded = ["id", "id"];
 
-	protected $casts = ["created_at" => "datetime"];
+	protected $casts = ["created_at" => "datetime", "updated_at" => "datetime"];
 
 	public function issue()
 	{

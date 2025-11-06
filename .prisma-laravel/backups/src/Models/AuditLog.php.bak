@@ -12,6 +12,7 @@ use Illuminate\Database\Eloquent\Model;
  * @property string $action
  * @property array|null $context
  * @property \Carbon\Carbon $created_at
+ * @property \Carbon\Carbon $updated_at
  * @property Author::class $actorAuthor
  */
 class AuditLog extends Model
@@ -25,6 +26,7 @@ class AuditLog extends Model
 	protected $casts = [
 		"context" => AsArrayObject::class,
 		"created_at" => "datetime",
+		"updated_at" => "datetime",
 	];
 
 	public function actorAuthor()

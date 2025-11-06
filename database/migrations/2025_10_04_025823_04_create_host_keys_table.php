@@ -17,7 +17,7 @@ return new class extends Migration {
 			$table->text("public_pem");
 			$table->text("private_pem")->nullable();
 			$table->string("fingerprint");
-			$table->timestamp("created_at")->useCurrent();
+			$table->timestamps();
 			$table->timestamp("rotated_at")->nullable();
 		});
 	}
