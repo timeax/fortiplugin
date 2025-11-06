@@ -13,10 +13,10 @@ return new class extends Migration {
 	{
 		Schema::create("scpl_authors", function (Blueprint $table) {
 			$table->id();
-			$table->string("slug");
+			$table->string("slug")->unique();
 			$table->string("name");
-			$table->string("handle")->nullable();
-			$table->string("email")->nullable();
+			$table->string("handle")->unique()->nullable();
+			$table->string("email")->unique()->nullable();
 			$table->string("password");
 			$table->string("avatar_url")->nullable();
 			$table->string("org")->nullable();

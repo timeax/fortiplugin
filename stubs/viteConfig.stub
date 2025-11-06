@@ -8,21 +8,24 @@ import {generatePluginInputs} from './resources/embed/vite.input.js';
 
 const inertiaEntry = 'resources/inertia/ts/app.tsx';
 const integrations = generatePluginInputs('resources/embed/ts');
-const embedRoot = resolve('resources/embed/ts');
 
-/** Only rewrite files that live inside embedRoot */
+// ── scope prep only to /resources/embed/ts (normalize for Win/Posix) ──
+const embedRoot = resolve('resources/embed/ts').replace(/\\/g, '/');
 function scopedTygerPrep() {
     const prep = origTygerPrep();
     return {
         ...prep,
         transform(code, id, ...rest) {
-            if (!id.startsWith(embedRoot)) return null;   // skip SPA & shared
+            const norm = id.replace(/\\/g, '/');
+            if (!norm.startsWith(embedRoot)) return null;
             return prep.transform.call(this, code, id, ...rest);
         },
     };
 }
 
 export default defineConfig({
+    appType: 'custom',          // ⟵ disables index.html mode
+    publicDir: false,           // optional: skip copying public/
     plugins: [tailwindcss(), react(), scopedTygerPrep()],
 
     build: {
@@ -31,13 +34,18 @@ export default defineConfig({
         manifest: true,
         rollupOptions: {
             external: ['react', 'react/jsx-runtime'],
-            input: {inertia: inertiaEntry, ...integrations},
+            input: {
+                inertia: resolve(inertiaEntry),
+                ...integrations,
+            },
             output: {
                 format: 'es',
                 entryFileNames: (chunk) =>
                     chunk.name === 'inertia'
                         ? 'spa/[name].[hash].js'
                         : 'integrations/[name].[hash].js',
+                chunkFileNames: 'chunks/[name].[hash].js',
+                assetFileNames: 'assets/[name].[hash][extname]',
             },
         },
     },
@@ -46,7 +54,7 @@ export default defineConfig({
         alias: {
             '@main': resolve('resources/inertia/ts'),
             '@embed': resolve('resources/embed/ts'),
-            '@shared': resolve('resources/shared/ts'),     // ← shared components live here
+            '@shared': resolve('resources/shared/ts'),
         },
     },
 });

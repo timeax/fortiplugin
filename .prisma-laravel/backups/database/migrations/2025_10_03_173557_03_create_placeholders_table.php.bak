@@ -13,9 +13,9 @@ return new class extends Migration {
 	{
 		Schema::create("scpl_placeholders", function (Blueprint $table) {
 			$table->id();
-			$table->string("slug");
-			$table->string("name");
-			$table->string("unique_key");
+			$table->string("slug")->unique();
+			$table->string("name")->unique();
+			$table->string("unique_key")->unique();
 			$table->string("owner_ref")->nullable();
 			$table->json("meta")->nullable();
 			$table->timestamps();

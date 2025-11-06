@@ -17,7 +17,7 @@ trait Stubber
             }
 
             $contents = file_get_contents($path);
-            $contents = str_replace("/IGNORE;\\n?/", "", $contents);
+            $contents = preg_replace('/IGNORE;[ \t]*\R?/', '', $contents);
             extract($params, EXTR_SKIP);
 
             return preg_replace_callback('/#\{(.+?)}/s', static function ($m) use (&$params) {

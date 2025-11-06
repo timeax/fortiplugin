@@ -18,7 +18,7 @@ return new class extends Migration {
 				->constrained("scpl_authors", "id")
 				->onDelete("no action")
 				->onUpdate("no action");
-			$table->string("token_hash");
+			$table->string("token_hash")->unique();
 			$table->timestamp("expires_at");
 			$table->timestamp("last_used")->nullable();
 			$table->boolean("revoked")->default(false);

@@ -51,8 +51,14 @@ class MakePlugin extends Command
             return self::FAILURE;
         }
 
+        $client = $this->getHttp();
+        if (!$client) {
+            $this->error('Could not create API client from your session.');
+            return self::FAILURE;
+        }
+        $structure = $client->get('/forti/structure');
         // 3) Prepare the local path
-        $base = rtrim(config('fortiplugin.directory', base_path('Plugins')), DIRECTORY_SEPARATOR);
+        $base = $structure['directory'] ?? 'Plugins';
         $path = $base . DIRECTORY_SEPARATOR . $studly;
 
         if ($this->files->exists($path) && !$this->option('force')) {
@@ -63,12 +69,6 @@ class MakePlugin extends Command
         $this->files->makeDirectory($path, 0755, true);
 
         // 4) Contact host: handshake (policy + verify + signature block)
-        $client = $this->getHttp();
-        if (!$client) {
-            $this->error('Could not create API client from your session.');
-            return self::FAILURE;
-        }
-
         $handshake = $this->getJson($client->get('/forti/handshake'));
         if (!($handshake['ok'] ?? false)) {
             $this->error('Handshake failed.');
@@ -211,16 +211,32 @@ class MakePlugin extends Command
     protected function defaultJson(string $studly, string $kebab): array
     {
         return [
+            '$schema' => 'https://github.com/timeax/fortiplugin/blob/main/schema/fortiplugin.schema.json',
             'name' => $studly,
             'alias' => $kebab,
             'description' => '',
             'version' => '0.1.0',
             'providers' => [],
-            'dependencies' => [],
-            'apiConfig' => [],
-            'uiConfig' => ['routes' => [], 'extend' => new stdClass()],
-            'routes' => [],
-            'exports' => [],
+
+            // Map<string, DependencySpec> → must be an object
+            'dependencies' => new stdClass(),
+
+            // Array<HostConfig>
+            'hostConfig' => [],
+
+            // { items: UiItem[] }
+            'uiConfig' => [
+                'items' => [],
+            ],
+
+            // { dir: string; glob?: string }
+            'routes' => [
+                'dir' => 'routes',
+                'glob' => '**/*.routes.json',
+            ],
+
+            // Record<Slug, ExportDefinition> → must be an object
+            'exports' => new stdClass(),
         ];
     }
 

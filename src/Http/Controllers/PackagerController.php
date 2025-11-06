@@ -87,6 +87,17 @@ final class PackagerController extends Controller
         ]);
     }
 
+    public function getStructure(Request $request): JsonResponse
+    {
+        Gate::authorize(FortiGates::PACKAGER_FETCH_POLICY);
+        //---
+
+        return response()->json([
+            'psr4_root' => config('fortiplugin.psr4_root', 'Plugins'),
+            'directory' => config('fortiplugin.directory', 'apps'),
+        ]);
+    }
+
     /**
      * First bootstrap (used by make/scaffold): create placeholder + issue placeholder token.
      *
@@ -204,7 +215,7 @@ final class PackagerController extends Controller
         Gate::authorize(FortiGates::PACKAGER_FETCH_POLICY);
 
         $snapshot = $this->policy->snapshot();
-        $verify = $this->keys->currentVerifyKey("plugin_packer");
+        $verify = $this->keys->currentVerifyKey(KeyPurpose::packager_sign);
 
         // ephemeral encryption key bound to a nonce
         $nonce = 'up_' . Str::random(24);
@@ -213,7 +224,7 @@ final class PackagerController extends Controller
 
         $exclude = [
             'vendor/**', 'node_modules/**', 'tests/**', '.git/**', 'logs/**',
-            'resources/inertia/ts/**', 'resources/embed/ts/**', 'resources/shared/ts/**',
+            'resources/inertia/ts/**', 'resources/embed/ts/**', 'resources/shared/ts/**', '.internal/**',
             '*.ts', '*.tsx', 'vite.config.*', 'vite.input.*', 'tsconfig.json',
         ];
 

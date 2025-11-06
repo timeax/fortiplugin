@@ -13,7 +13,7 @@ return new class extends Migration {
 	{
 		Schema::create("scpl_plugins", function (Blueprint $table) {
 			$table->id();
-			$table->string("name");
+			$table->string("name")->unique();
 			$table->string("image")->nullable();
 			$table
 				->enum("status", ["active", "inactive", "archived"])

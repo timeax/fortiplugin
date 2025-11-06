@@ -15,6 +15,7 @@ return new class extends Migration {
 			$table->id();
 			$table
 				->string("natural_key")
+				->unique()
 				->comment(
 					"Deterministic natural key (e.g., hash of allowed+access)",
 				);

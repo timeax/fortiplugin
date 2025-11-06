@@ -15,6 +15,7 @@ return new class extends Migration {
 			$table->id();
 			$table
 				->string("natural_key")
+				->unique()
 				->comment(
 					"Deterministic fingerprint for this rule (e.g., sha1 over hosts/methods/schemes/ports/paths).",
 				);

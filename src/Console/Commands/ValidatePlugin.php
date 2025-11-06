@@ -16,7 +16,7 @@ class ValidatePlugin extends Command
     protected $signature = 'fp:validate
         {name : Plugin directory name, e.g., OrdersPlugin}
         {--host-config : Fetch validator config from the connected host}
-        {--quiet : Suppress validation progress output}';
+        {--silent : Suppress validation progress output}';
 
     protected $description = 'Run plugin validation only (no packaging).';
 
@@ -51,7 +51,7 @@ class ValidatePlugin extends Command
             $policy = $policySvc->makePolicy();
 
             $validator = new ValidatorService($policy, $validatorConfig);
-            $emit = $this->option('quiet') ? null : $this->makeEmitCallback();
+            $emit = $this->option('silent') ? null : $this->makeEmitCallback();
             $summary = $validator->run($pluginPath, $emit);
 
             // Final output
@@ -59,7 +59,7 @@ class ValidatePlugin extends Command
             $files = (int)($summary['files_scanned'] ?? 0);
             $shouldFail = (bool)($summary['should_fail'] ?? false);
 
-            if (!$this->option('quiet')) {
+            if (!$this->option('silent')) {
                 $this->line("");
                 $this->info("Validation finished. Files scanned: $files, Issues: $issues");
                 if ($shouldFail) {

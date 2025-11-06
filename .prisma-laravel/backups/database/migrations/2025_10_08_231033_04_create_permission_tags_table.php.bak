@@ -13,7 +13,7 @@ return new class extends Migration {
 	{
 		Schema::create("scpl_permission_tags", function (Blueprint $table) {
 			$table->id();
-			$table->string("name");
+			$table->string("name")->unique();
 			$table->string("description")->nullable();
 			$table->boolean("is_system")->default(false);
 			$table

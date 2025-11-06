@@ -16,7 +16,7 @@ return new class extends Migration {
 			$table->enum("purpose", ["packager_sign", "installer_verify"]);
 			$table->text("public_pem");
 			$table->text("private_pem")->nullable();
-			$table->string("fingerprint");
+			$table->string("fingerprint")->unique();
 			$table->timestamps();
 			$table->timestamp("rotated_at")->nullable();
 		});

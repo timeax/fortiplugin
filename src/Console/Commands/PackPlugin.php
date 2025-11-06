@@ -27,7 +27,7 @@ class PackPlugin extends Command
         {name : Plugin directory name, e.g., OrdersPlugin}
         {--output= : Output path for zip}
         {--force : Overwrite if zip exists}
-        {--quiet : Suppress validation progress output}
+        {--silent : Suppress validation progress output}
         {--ignore-verbose : Alias to mute validation emissions}';
 
     protected $description = 'Validate and pack a plugin for upload to the host.';
@@ -41,8 +41,16 @@ class PackPlugin extends Command
         $session = $this->auth();
         if (!$session) return self::FAILURE;
 
+        $client = $this->getHttp();
+        if (!$client) {
+            $this->error('Could not create API client from your session.');
+            return self::FAILURE;
+        }
+
         $name = $this->argument('name');
-        $plugin = base_path("Plugins/$name");
+        $root = ($client->get("forti/structure"))['directory'] ?? 'Plugins';
+
+        $plugin = base_path("$root/$name");
         if (!is_dir($plugin)) {
             $this->error("Plugin not found: $plugin");
             return self::FAILURE;
@@ -67,7 +75,7 @@ class PackPlugin extends Command
             $this->readPlaceholderToken($plugin);
 
             // 2) Pack handshake — fetch exclude rules, validator config, limits, encryption nonce
-            $hs = $this->getHttp()?->post('/forti/pack/handshake');
+            $hs = $client->post('/forti/pack/handshake');
             $handshake = $this->safeJson($hs);
             if (!($handshake['ok'] ?? false)) {
                 $this->fail('Handshake failed.');
@@ -115,12 +123,12 @@ class PackPlugin extends Command
                 'created_at' => now()->toIso8601String(),
             ];
 
-            // 7) Local validation (no server-side validation). Can be muted by --quiet or --ignore-verbose
+            // 7) Local validation (no server-side validation). Can be muted by --silent or --ignore-verbose
             /** @var PolicyService $policySvc */
             $policySvc = app(PolicyService::class);
             $policy = $policySvc->makePolicy();
             $validator = new ValidatorService($policy, $validatorConfig);
-            $emit = ($this->option('quiet') || $this->option('ignore-verbose')) ? null : $this->makeEmitCallback();
+            $emit = ($this->option('silent') || $this->option('ignore-verbose')) ? null : $this->makeEmitCallback();
             $summary = $validator->run($tempPath, $emit);
             if ($summary['should_fail'] ?? false) {
                 $this->warn('Validation indicates failure according to fail_policy. Aborting pack.');
@@ -129,7 +137,7 @@ class PackPlugin extends Command
             }
 
             // 8) Ask server to sign manifest and issue upload token
-            $manifestResp = $this->getHttp()?->post('/forti/pack/manifest', [
+            $manifestResp = $client->post('/forti/pack/manifest', [
                 'placeholder' => $pluginSlug,
                 'plugin_key' => $pluginKey,
                 'nonce' => $encryptionNonce,
@@ -174,7 +182,7 @@ class PackPlugin extends Command
             }
 
             // 12) Finalize
-            $final = $this->getHttp()?->post('/forti/pack/complete', [
+            $final = $client->post('/forti/pack/complete', [
                 'receipt_id' => $upload['receipt_id'] ?? null,
                 'action' => 'auto',
             ]);
@@ -274,7 +282,7 @@ class PackPlugin extends Command
 
     protected function makeEmitCallback(): Closure
     {
-       return $this->initializeShared();
+        return $this->initializeShared();
     }
 
     protected function collectPluginFiles(string $basePath, array $excludeList = []): array

@@ -21,4 +21,5 @@ Route::prefix('forti')->name('forti.')->middleware(['web', FortiTokenGuard::clas
     Route::post('/pack/manifest', [PackagerController::class, 'packManifest'])->name('pack.manifest');   // sign & issue upload token
     Route::post('/pack/upload', [PackagerController::class, 'packUpload'])->name('pack.upload');       // receive artifact, server-side validate
     Route::post('/pack/complete', [PackagerController::class, 'packComplete'])->name('pack.complete');   // finalize
+    Route::get('/structure', [PackagerController::class, 'getStructure'])->name('get-structure');
 });
