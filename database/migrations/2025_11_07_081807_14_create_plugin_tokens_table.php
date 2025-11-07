@@ -11,11 +11,11 @@ return new class extends Migration {
 	 */
 	public function up(): void
 	{
-		Schema::create("scpl_plugin_tokens", function (Blueprint $table) {
+		Schema::create("plugin_tokens", function (Blueprint $table) {
 			$table->id();
 			$table
 				->foreignId("plugin_placeholder_id")
-				->constrained("scpl_placeholders", "id")
+				->constrained("placeholders", "id")
 				->onDelete("no action")
 				->onUpdate("no action");
 			$table->string("token_hash")->unique();
@@ -26,7 +26,7 @@ return new class extends Migration {
 			$table
 				->foreignId("author_id")
 				->nullable()
-				->constrained("scpl_authors", "id")
+				->constrained("authors", "id")
 				->onDelete("no action")
 				->onUpdate("no action");
 			$table->timestamps();
@@ -40,6 +40,6 @@ return new class extends Migration {
 	 */
 	public function down(): void
 	{
-		Schema::dropIfExists("scpl_plugin_tokens");
+		Schema::dropIfExists("plugin_tokens");
 	}
 };

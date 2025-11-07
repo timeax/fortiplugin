@@ -11,11 +11,11 @@ return new class extends Migration {
 	 */
 	public function up(): void
 	{
-		Schema::create("scpl_plugin_signatures", function (Blueprint $table) {
+		Schema::create("plugin_signatures", function (Blueprint $table) {
 			$table->id();
 			$table
 				->foreignId("placeholder_id")
-				->constrained("scpl_placeholders", "id")
+				->constrained("placeholders", "id")
 				->onDelete("no action")
 				->onUpdate("no action");
 			$table->string("host_domain");
@@ -32,6 +32,6 @@ return new class extends Migration {
 	 */
 	public function down(): void
 	{
-		Schema::dropIfExists("scpl_plugin_signatures");
+		Schema::dropIfExists("plugin_signatures");
 	}
 };

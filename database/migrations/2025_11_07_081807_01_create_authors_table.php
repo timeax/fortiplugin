@@ -11,7 +11,7 @@ return new class extends Migration {
 	 */
 	public function up(): void
 	{
-		Schema::create("scpl_authors", function (Blueprint $table) {
+		Schema::create("authors", function (Blueprint $table) {
 			$table->id();
 			$table->string("slug")->unique();
 			$table->string("name");
@@ -35,6 +35,6 @@ return new class extends Migration {
 	 */
 	public function down(): void
 	{
-		Schema::dropIfExists("scpl_authors");
+		Schema::dropIfExists("authors");
 	}
 };

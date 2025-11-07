@@ -11,13 +11,11 @@ return new class extends Migration {
 	 */
 	public function up(): void
 	{
-		Schema::create("scpl_plugin_route_permissions", function (
-			Blueprint $table,
-		) {
+		Schema::create("plugin_route_permissions", function (Blueprint $table) {
 			$table->id();
 			$table
 				->foreignId("plugin_id")
-				->constrained("scpl_plugins", "id")
+				->constrained("plugins", "id")
 				->onDelete("no action")
 				->onUpdate("no action");
 			$table
@@ -51,6 +49,6 @@ return new class extends Migration {
 	 */
 	public function down(): void
 	{
-		Schema::dropIfExists("scpl_plugin_route_permissions");
+		Schema::dropIfExists("plugin_route_permissions");
 	}
 };

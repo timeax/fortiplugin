@@ -11,17 +11,13 @@ return new class extends Migration {
 	 */
 	public function up(): void
 	{
-		Schema::create("scpl_codec_permissions", function (Blueprint $table) {
+		Schema::create("placeholders", function (Blueprint $table) {
 			$table->id();
-			$table
-				->string("natural_key")
-				->unique()
-				->comment(
-					"Deterministic natural key (e.g., hash of allowed+access)",
-				);
-			$table->string("module")->default("codec");
-			$table->json("allowed")->nullable();
-			$table->boolean("access")->default(false);
+			$table->string("slug")->unique();
+			$table->string("name")->unique();
+			$table->string("unique_key")->unique();
+			$table->string("owner_ref")->nullable();
+			$table->json("meta")->nullable();
 			$table->timestamps();
 		});
 	}
@@ -31,6 +27,6 @@ return new class extends Migration {
 	 */
 	public function down(): void
 	{
-		Schema::dropIfExists("scpl_codec_permissions");
+		Schema::dropIfExists("placeholders");
 	}
 };

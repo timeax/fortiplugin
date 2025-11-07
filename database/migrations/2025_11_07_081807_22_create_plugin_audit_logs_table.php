@@ -11,28 +11,27 @@ return new class extends Migration {
 	 */
 	public function up(): void
 	{
-		Schema::create("scpl_plugin_versions", function (Blueprint $table) {
+		Schema::create("plugin_audit_logs", function (Blueprint $table) {
 			$table->id();
 			$table
 				->foreignId("plugin_id")
-				->constrained("scpl_plugins", "id")
+				->constrained("plugins", "id")
 				->onDelete("no action")
 				->onUpdate("no action");
-			$table->string("version");
-			$table->string("archive_url");
-			$table->json("manifest")->nullable();
-			$table->json("validation_report")->nullable();
+			$table->string("actor")->nullable();
 			$table
-				->enum("status", [
-					"valid",
-					"unchecked",
-					"unverified",
-					"failed",
-					"pending",
-				])
-				->default("unchecked");
+				->foreignId("actor_author_id")
+				->nullable()
+				->constrained("authors", "id")
+				->onDelete("no action")
+				->onUpdate("no action");
+			$table->string("type");
+			$table->string("action");
+			$table->string("resource");
+			$table->json("context")->nullable();
 			$table->timestamps();
 			$table->index("plugin_id");
+			$table->index("actor_author_id");
 		});
 	}
 
@@ -41,6 +40,6 @@ return new class extends Migration {
 	 */
 	public function down(): void
 	{
-		Schema::dropIfExists("scpl_plugin_versions");
+		Schema::dropIfExists("plugin_audit_logs");
 	}
 };

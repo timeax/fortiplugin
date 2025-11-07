@@ -11,27 +11,38 @@ return new class extends Migration {
 	 */
 	public function up(): void
 	{
-		Schema::create("scpl_plugin_audit_logs", function (Blueprint $table) {
+		Schema::create("plugin_issues", function (Blueprint $table) {
 			$table->id();
 			$table
 				->foreignId("plugin_id")
-				->constrained("scpl_plugins", "id")
+				->constrained("plugins", "id")
 				->onDelete("no action")
 				->onUpdate("no action");
-			$table->string("actor")->nullable();
 			$table
-				->foreignId("actor_author_id")
-				->nullable()
-				->constrained("scpl_authors", "id")
+				->foreignId("reporter_id")
+				->constrained("authors", "id")
 				->onDelete("no action")
 				->onUpdate("no action");
 			$table->string("type");
-			$table->string("action");
-			$table->string("resource");
-			$table->json("context")->nullable();
+			$table->text("description");
+			$table
+				->enum("status", [
+					"open",
+					"triage",
+					"in_progress",
+					"resolved",
+					"rejected",
+					"closed",
+				])
+				->default("open");
+			$table
+				->string("severity")
+				->nullable()
+				->comment("optional (low|med|high|critical or free-form)");
+			$table->json("meta")->nullable();
 			$table->timestamps();
 			$table->index("plugin_id");
-			$table->index("actor_author_id");
+			$table->index("reporter_id");
 		});
 	}
 
@@ -40,6 +51,6 @@ return new class extends Migration {
 	 */
 	public function down(): void
 	{
-		Schema::dropIfExists("scpl_plugin_audit_logs");
+		Schema::dropIfExists("plugin_issues");
 	}
 };

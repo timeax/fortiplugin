@@ -11,28 +11,28 @@ return new class extends Migration {
 	 */
 	public function up(): void
 	{
-		Schema::create("scpl_plugin_settings", function (Blueprint $table) {
+		Schema::create("plugin_versions", function (Blueprint $table) {
 			$table->id();
 			$table
 				->foreignId("plugin_id")
-				->constrained("scpl_plugins", "id")
-				->onDelete("cascade")
+				->constrained("plugins", "id")
+				->onDelete("no action")
 				->onUpdate("no action");
-			$table->string("key");
-			$table->longText("value");
+			$table->string("version");
+			$table->string("archive_url");
+			$table->json("manifest")->nullable();
+			$table->json("validation_report")->nullable();
 			$table
-				->enum("type", [
-					"string",
-					"number",
-					"boolean",
-					"json",
-					"file",
-					"blob",
+				->enum("status", [
+					"valid",
+					"unchecked",
+					"unverified",
+					"failed",
+					"pending",
 				])
-				->default("string");
+				->default("unchecked");
 			$table->timestamps();
 			$table->index("plugin_id");
-			$table->unique(["plugin_id", "key"]);
 		});
 	}
 
@@ -41,6 +41,6 @@ return new class extends Migration {
 	 */
 	public function down(): void
 	{
-		Schema::dropIfExists("scpl_plugin_settings");
+		Schema::dropIfExists("plugin_versions");
 	}
 };

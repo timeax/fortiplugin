@@ -11,19 +11,22 @@ return new class extends Migration {
 	 */
 	public function up(): void
 	{
-		Schema::create("scpl_audit_logs", function (Blueprint $table) {
+		Schema::create("plugin_issue_messages", function (Blueprint $table) {
 			$table->id();
-			$table->string("actor")->nullable();
 			$table
-				->foreignId("actor_author_id")
-				->nullable()
-				->constrained("scpl_authors", "id")
+				->foreignId("issue_id")
+				->constrained("plugin_issues", "id")
 				->onDelete("no action")
 				->onUpdate("no action");
-			$table->string("action");
-			$table->json("context")->nullable();
+			$table
+				->foreignId("author_id")
+				->constrained("authors", "id")
+				->onDelete("no action")
+				->onUpdate("no action");
+			$table->text("message");
 			$table->timestamps();
-			$table->index("actor_author_id");
+			$table->index("issue_id");
+			$table->index("author_id");
 		});
 	}
 
@@ -32,6 +35,6 @@ return new class extends Migration {
 	 */
 	public function down(): void
 	{
-		Schema::dropIfExists("scpl_audit_logs");
+		Schema::dropIfExists("plugin_issue_messages");
 	}
 };

@@ -11,15 +11,14 @@ return new class extends Migration {
 	 */
 	public function up(): void
 	{
-		Schema::create("scpl_permission_tags", function (Blueprint $table) {
+		Schema::create("host_keys", function (Blueprint $table) {
 			$table->id();
-			$table->string("name")->unique();
-			$table->string("description")->nullable();
-			$table->boolean("is_system")->default(false);
-			$table
-				->enum("status", ["active", "inactive", "archived"])
-				->default("active");
+			$table->enum("purpose", ["packager_sign", "installer_verify"]);
+			$table->text("public_pem");
+			$table->text("private_pem")->nullable();
+			$table->string("fingerprint")->unique();
 			$table->timestamps();
+			$table->timestamp("rotated_at")->nullable();
 		});
 	}
 
@@ -28,6 +27,6 @@ return new class extends Migration {
 	 */
 	public function down(): void
 	{
-		Schema::dropIfExists("scpl_permission_tags");
+		Schema::dropIfExists("host_keys");
 	}
 };

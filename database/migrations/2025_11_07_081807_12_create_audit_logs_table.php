@@ -11,18 +11,19 @@ return new class extends Migration {
 	 */
 	public function up(): void
 	{
-		Schema::create("scpl_module_permissions", function (Blueprint $table) {
+		Schema::create("audit_logs", function (Blueprint $table) {
 			$table->id();
+			$table->string("actor")->nullable();
 			$table
-				->string("natural_key")
-				->unique()
-				->comment(
-					"Deterministic natural key (e.g., hash of module/apis)",
-				);
-			$table->string("module");
-			$table->json("apis");
-			$table->boolean("access")->default(false);
+				->foreignId("actor_author_id")
+				->nullable()
+				->constrained("authors", "id")
+				->onDelete("no action")
+				->onUpdate("no action");
+			$table->string("action");
+			$table->json("context")->nullable();
 			$table->timestamps();
+			$table->index("actor_author_id");
 		});
 	}
 
@@ -31,6 +32,6 @@ return new class extends Migration {
 	 */
 	public function down(): void
 	{
-		Schema::dropIfExists("scpl_module_permissions");
+		Schema::dropIfExists("audit_logs");
 	}
 };

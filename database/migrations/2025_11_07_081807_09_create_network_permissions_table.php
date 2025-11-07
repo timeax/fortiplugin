@@ -11,7 +11,7 @@ return new class extends Migration {
 	 */
 	public function up(): void
 	{
-		Schema::create("scpl_network_permissions", function (Blueprint $table) {
+		Schema::create("network_permissions", function (Blueprint $table) {
 			$table->id();
 			$table
 				->string("natural_key")
@@ -53,6 +53,6 @@ return new class extends Migration {
 	 */
 	public function down(): void
 	{
-		Schema::dropIfExists("scpl_network_permissions");
+		Schema::dropIfExists("network_permissions");
 	}
 };

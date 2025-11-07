@@ -11,23 +11,24 @@ return new class extends Migration {
 	 */
 	public function up(): void
 	{
-		Schema::create("scpl_plugin_issue_messages", function (
-			Blueprint $table,
-		) {
+		Schema::create("author_tokens", function (Blueprint $table) {
 			$table->id();
 			$table
-				->foreignId("issue_id")
-				->constrained("scpl_plugin_issues", "id")
-				->onDelete("no action")
-				->onUpdate("no action");
-			$table
 				->foreignId("author_id")
-				->constrained("scpl_authors", "id")
+				->constrained("authors", "id")
 				->onDelete("no action")
 				->onUpdate("no action");
-			$table->text("message");
+			$table->string("token_hash")->unique();
+			$table->timestamp("expires_at");
+			$table->timestamp("last_used")->nullable();
+			$table->boolean("revoked")->default(false);
+			$table
+				->json("meta")
+				->nullable()
+				->comment(
+					"e.g. { \"scopes\": [\"forti-packager-fetch-policy\"] }",
+				);
 			$table->timestamps();
-			$table->index("issue_id");
 			$table->index("author_id");
 		});
 	}
@@ -37,6 +38,6 @@ return new class extends Migration {
 	 */
 	public function down(): void
 	{
-		Schema::dropIfExists("scpl_plugin_issue_messages");
+		Schema::dropIfExists("author_tokens");
 	}
 };

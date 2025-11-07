@@ -11,7 +11,7 @@ return new class extends Migration {
 	 */
 	public function up(): void
 	{
-		Schema::create("scpl_plugins", function (Blueprint $table) {
+		Schema::create("plugins", function (Blueprint $table) {
 			$table->id();
 			$table->string("name")->unique();
 			$table->string("image")->nullable();
@@ -22,7 +22,7 @@ return new class extends Migration {
 			$table->json("meta")->nullable();
 			$table
 				->foreignId("plugin_placeholder_id")
-				->constrained("scpl_placeholders", "id")
+				->constrained("placeholders", "id")
 				->onDelete("no action")
 				->onUpdate("no action");
 			$table->bigInteger("active_version_id");
@@ -38,6 +38,6 @@ return new class extends Migration {
 	 */
 	public function down(): void
 	{
-		Schema::dropIfExists("scpl_plugins");
+		Schema::dropIfExists("plugins");
 	}
 };

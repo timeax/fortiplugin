@@ -11,9 +11,7 @@ return new class extends Migration {
 	 */
 	public function up(): void
 	{
-		Schema::create("scpl_notification_permissions", function (
-			Blueprint $table,
-		) {
+		Schema::create("notification_permissions", function (Blueprint $table) {
 			$table->id();
 			$table
 				->string("natural_key")
@@ -34,6 +32,6 @@ return new class extends Migration {
 	 */
 	public function down(): void
 	{
-		Schema::dropIfExists("scpl_notification_permissions");
+		Schema::dropIfExists("notification_permissions");
 	}
 };

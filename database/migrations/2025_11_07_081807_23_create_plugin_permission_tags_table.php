@@ -11,18 +11,16 @@ return new class extends Migration {
 	 */
 	public function up(): void
 	{
-		Schema::create("scpl_plugin_permission_tags", function (
-			Blueprint $table,
-		) {
+		Schema::create("plugin_permission_tags", function (Blueprint $table) {
 			$table->id();
 			$table
 				->foreignId("plugin_id")
-				->constrained("scpl_plugins", "id")
+				->constrained("plugins", "id")
 				->onDelete("no action")
 				->onUpdate("no action");
 			$table
 				->foreignId("tag_id")
-				->constrained("scpl_permission_tags", "id")
+				->constrained("permission_tags", "id")
 				->onDelete("no action")
 				->onUpdate("no action");
 			$table->boolean("active")->default(true);
@@ -41,6 +39,6 @@ return new class extends Migration {
 	 */
 	public function down(): void
 	{
-		Schema::dropIfExists("scpl_plugin_permission_tags");
+		Schema::dropIfExists("plugin_permission_tags");
 	}
 };

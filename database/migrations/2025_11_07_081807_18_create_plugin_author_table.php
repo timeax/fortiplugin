@@ -11,15 +11,15 @@ return new class extends Migration {
 	 */
 	public function up(): void
 	{
-		Schema::create("scpl_plugin_author", function (Blueprint $table) {
+		Schema::create("plugin_author", function (Blueprint $table) {
 			$table
 				->foreignId("plugin_id")
-				->constrained("scpl_plugins", "id")
+				->constrained("plugins", "id")
 				->onDelete("no action")
 				->onUpdate("no action");
 			$table
 				->foreignId("author_id")
-				->constrained("scpl_authors", "id")
+				->constrained("authors", "id")
 				->onDelete("no action")
 				->onUpdate("no action");
 			$table
@@ -36,6 +36,6 @@ return new class extends Migration {
 	 */
 	public function down(): void
 	{
-		Schema::dropIfExists("scpl_plugin_author");
+		Schema::dropIfExists("plugin_author");
 	}
 };

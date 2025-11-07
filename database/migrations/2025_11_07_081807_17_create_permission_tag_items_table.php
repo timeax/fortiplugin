@@ -11,13 +11,11 @@ return new class extends Migration {
 	 */
 	public function up(): void
 	{
-		Schema::create("scpl_permission_tag_items", function (
-			Blueprint $table,
-		) {
+		Schema::create("permission_tag_items", function (Blueprint $table) {
 			$table->id();
 			$table
 				->foreignId("tag_id")
-				->constrained("scpl_permission_tags", "id")
+				->constrained("permission_tags", "id")
 				->onDelete("no action")
 				->onUpdate("no action");
 			$table->enum("permission_type", [
@@ -42,6 +40,6 @@ return new class extends Migration {
 	 */
 	public function down(): void
 	{
-		Schema::dropIfExists("scpl_permission_tag_items");
+		Schema::dropIfExists("permission_tag_items");
 	}
 };

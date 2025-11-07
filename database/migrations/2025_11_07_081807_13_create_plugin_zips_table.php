@@ -11,11 +11,11 @@ return new class extends Migration {
 	 */
 	public function up(): void
 	{
-		Schema::create("scpl_plugin_zips", function (Blueprint $table) {
+		Schema::create("plugin_zips", function (Blueprint $table) {
 			$table->id();
 			$table
 				->foreignId("placeholder_id")
-				->constrained("scpl_placeholders", "id")
+				->constrained("placeholders", "id")
 				->onDelete("no action")
 				->onUpdate("no action");
 			$table->text("path");
@@ -35,7 +35,7 @@ return new class extends Migration {
 			$table
 				->foreignId("uploaded_by_author_id")
 				->nullable()
-				->constrained("scpl_authors", "id")
+				->constrained("authors", "id")
 				->onDelete("no action")
 				->onUpdate("no action");
 			$table->timestamps();
@@ -49,6 +49,6 @@ return new class extends Migration {
 	 */
 	public function down(): void
 	{
-		Schema::dropIfExists("scpl_plugin_zips");
+		Schema::dropIfExists("plugin_zips");
 	}
 };
