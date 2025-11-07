@@ -3,6 +3,6 @@
     "db": "bash merge-prisma.sh"
   },
   "devDependencies": {
-    "prisma-laravel-migrate": "^3.0.1"
+    "prisma-laravel-migrate": "^3.0.2"
   }
 }
