@@ -88,7 +88,7 @@ model PermissionTagItem {
 
   tag PermissionTag @relation(fields: [tag_id], references: [id])
 
-  @@unique([tag_id, permission_type, permission_id], map: "pti_tag_type_pid_unique", name: "pti_tag_type_pid_unique")
+  @@unique([tag_id, permission_type, permission_id], name: "pti_tag_type_pid_unique")
   @@index([tag_id])
   @@map("permission_tag_items")
 }
@@ -122,7 +122,7 @@ model PluginPermission {
 
   plugin Plugin @relation(fields: [plugin_id], references: [id])
 
-  @@unique([plugin_id, permission_type, permission_id])
+  @@unique([plugin_id, permission_type, permission_id], name: "pti_permissions_unique")
   @@index([plugin_id])
   @@map("plugin_permissions")
 }
@@ -297,8 +297,8 @@ model PluginRoutePermission {
   created_at  DateTime  @default(now())
   updated_at  DateTime  @updatedAt
 
-  @@unique([plugin_id, route_id])
-  @@index([plugin_id, status])
+  @@unique([plugin_id, route_id], name: "rp_pid_unique")
+  @@index([plugin_id, status], name: "rp_ns_index")
   @@map("plugin_route_permissions")
 }
 

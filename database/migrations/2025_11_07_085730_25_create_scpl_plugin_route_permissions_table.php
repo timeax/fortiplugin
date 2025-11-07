@@ -42,7 +42,7 @@ return new class extends Migration {
 			$table->timestamp("approved_at")->nullable();
 			$table->timestamps();
 			$table->index(["plugin_id", "status"]);
-			$table->unique(["plugin_id", "route_id"]);
+			$table->unique(["plugin_id", "route_id"], "rp_pid_unique");
 		});
 	}
 
