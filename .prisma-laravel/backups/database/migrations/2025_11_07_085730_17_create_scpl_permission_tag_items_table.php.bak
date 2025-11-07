@@ -33,7 +33,10 @@ return new class extends Migration {
 			$table->json("audit")->nullable();
 			$table->timestamps();
 			$table->index("tag_id");
-			$table->unique(["tag_id", "permission_type", "permission_id"]);
+			$table->unique(
+				["tag_id", "permission_type", "permission_id"],
+				"pti_tag_type_pid_unique",
+			);
 		});
 	}
 

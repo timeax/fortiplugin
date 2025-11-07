@@ -88,7 +88,7 @@ model PermissionTagItem {
 
   tag PermissionTag @relation(fields: [tag_id], references: [id])
 
-  @@unique([tag_id, permission_type, permission_id])
+  @@unique([tag_id, permission_type, permission_id], map: "pti_tag_type_pid_unique", name: "pti_tag_type_pid_unique")
   @@index([tag_id])
   @@map("permission_tag_items")
 }
