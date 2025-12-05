@@ -1,5 +1,6 @@
 {
   "version": 3.1,
+  "$schema": "https://raw.githubusercontent.com/emxhive/prodex/main/schema/prodex.schema.json",
   "output": {
     "dir": "prodex",
     "versioned": true,
@@ -7,37 +8,60 @@
     "format": "md"
   },
   "entry": {
-    "files": [
-      "src/Installations/Activation/Activator.php",
-      "src/Installations/Installer.php"
-    ],
+    "files": [],
     "ui": {
-      "roots": [
-        "app",
-        "routes",
-        "resources/js/**"
-      ],
+      "roots": ["app", "routes", "resources/js/**"],
       "scanDepth": 2,
-      "priority": [
-        "src/Installations/Installer.php"
-      ]
+      "priority": ["**/routes/web.php", "**/app.*"]
     }
   },
   "resolve": {
-    "include": [
-      "src/Installations/*",
-      "src/Installations/Activation/Activator.php"
-    ],
+    "include": ["**/*.d.ts"],
     "aliases": {
-      "@hooks": "resources/js/hooks",
-      "@data": "resources/js/data"
+      "@": "resources/js"
     },
-    "exclude": [
-      "node_modules/**",
-      "@shadcn/**",
-      "**/components/ui/**"
-    ],
+    "exclude": ["node_modules/**", "@shadcn/**", "**/components/ui/**"],
     "depth": 10,
     "limit": 200
+  },
+  "shortcuts": {
+    "make": {
+      "files": ["**/Commands/MakePlugin.php"],
+      "prefix": ["make-plugin"]
+    },
+    "login": {
+      "prefix": "login",
+      "files": ["**/Commands/LoginCommand.php"]
+    },
+    "pack": {
+      "files": ["**/Console/Commands/PackPlugin.php"],
+      "prefix": "pack-plugin"
+    },
+    "install": {
+      "files": ["**/Installations/Installer.php"],
+      "prefix": "installer"
+    },
+    "valid": {
+      "prefix": "validate-plugin",
+      "files": "**/Console/Commands/ValidatePlugin.php"
+    },
+    "act": {
+      "prefix": "activator",
+      "files": ["**/Installations/Activation/Activator.php"]
+    },
+    "db": {
+      "prefix": "fortiplug-migrations",
+      "files": "**/migrations/**"
+    },
+    "commands": {
+      "prefix": "commands",
+      "files": "**/Console/Commands/**",
+      "include": []
+    },
+    "provider": {
+      "prefix": "service-provider",
+      "files": ["src/FortiPluginServiceProvider.php"],
+      "include": ["**/Console/Commands/**", "**/composer.json"]
+    }
   }
 }

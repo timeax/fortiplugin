@@ -2,8 +2,8 @@
 
 namespace Timeax\FortiPlugin;
 
-use Illuminate\Support\ServiceProvider;
 use Illuminate\Filesystem\Filesystem as LaravelFs;
+use Illuminate\Support\ServiceProvider;
 use Timeax\FortiPlugin\Console\Commands\ChangeHostCommand;
 use Timeax\FortiPlugin\Console\Commands\CreateAuthorCommand;
 use Timeax\FortiPlugin\Console\Commands\GenerateHostKeyCommand;
@@ -15,61 +15,56 @@ use Timeax\FortiPlugin\Console\Commands\PackPlugin;
 use Timeax\FortiPlugin\Console\Commands\ValidatePlugin;
 use Timeax\FortiPlugin\Core\Install\JsonRouteCompiler;
 use Timeax\FortiPlugin\Core\Install\RouteWriter;
-
 use Timeax\FortiPlugin\Installations\Activation\Activator;
 use Timeax\FortiPlugin\Installations\Activation\Writers\ProvidersRegistryWriter;
 use Timeax\FortiPlugin\Installations\Activation\Writers\RoutesRegistryWriter;
 use Timeax\FortiPlugin\Installations\Activation\Writers\UiRegistryWriter;
 use Timeax\FortiPlugin\Installations\Contracts\ActorResolver;
+use Timeax\FortiPlugin\Installations\Contracts\Filesystem as FsContract;
+use Timeax\FortiPlugin\Installations\Contracts\HostKeyService as TokenContract;
+use Timeax\FortiPlugin\Installations\Contracts\PluginRepository;
+use Timeax\FortiPlugin\Installations\Contracts\ZipRepository;
 use Timeax\FortiPlugin\Installations\Infra\EloquentPluginRepository;
 use Timeax\FortiPlugin\Installations\Infra\EloquentZipRepository;
 use Timeax\FortiPlugin\Installations\Infra\InMemoryFilesystem;
 use Timeax\FortiPlugin\Installations\Infra\InMemoryPluginRepository;
 use Timeax\FortiPlugin\Installations\Infra\InMemoryZipRepository;
 use Timeax\FortiPlugin\Installations\Infra\LocalFilesystem;
+use Timeax\FortiPlugin\Installations\Installer;
+use Timeax\FortiPlugin\Installations\InstallerPolicy;
+use Timeax\FortiPlugin\Installations\Sections\ComposerPlanSection;
+use Timeax\FortiPlugin\Installations\Sections\DbPersistSection;
+use Timeax\FortiPlugin\Installations\Sections\FileScanSection;
+use Timeax\FortiPlugin\Installations\Sections\InstallFilesSection;
+use Timeax\FortiPlugin\Installations\Sections\ProviderValidationSection;
+use Timeax\FortiPlugin\Installations\Sections\RouteWriteSection;
+use Timeax\FortiPlugin\Installations\Sections\UiConfigValidationSection;
+use Timeax\FortiPlugin\Installations\Sections\VendorPolicySection;
+use Timeax\FortiPlugin\Installations\Sections\VerificationSection;
 use Timeax\FortiPlugin\Installations\Sections\ZipValidationGate;
+use Timeax\FortiPlugin\Installations\Support\AtomicFilesystem;
+use Timeax\FortiPlugin\Installations\Support\BackgroundScanDispatcher;
+use Timeax\FortiPlugin\Installations\Support\ComposerInspector;
+use Timeax\FortiPlugin\Installations\Support\DefaultActorResolver;
 use Timeax\FortiPlugin\Installations\Support\InstallationLogStore;
+use Timeax\FortiPlugin\Installations\Support\InstallerTokenManager;
+use Timeax\FortiPlugin\Installations\Support\Psr4Checker;
 use Timeax\FortiPlugin\Installations\Support\RouteMaterializer;
 use Timeax\FortiPlugin\Installations\Support\RouteRegistryStore;
+use Timeax\FortiPlugin\Installations\Support\RouteUiBridge;
+use Timeax\FortiPlugin\Installations\Support\ValidatorBridge;
 use Timeax\FortiPlugin\Permissions\Bootstrap\FortiPermissions;
 use Timeax\FortiPlugin\Permissions\Contracts\PermissionServiceInterface;
 use Timeax\FortiPlugin\Permissions\Evaluation\PermissionService;
 use Timeax\FortiPlugin\Services\HostKeyService;
-
-// crypto service
-
-use Timeax\FortiPlugin\Installations\Installer;
-use Timeax\FortiPlugin\Installations\InstallerPolicy;
-use Timeax\FortiPlugin\Installations\Support\AtomicFilesystem;
-use Timeax\FortiPlugin\Installations\Support\Psr4Checker;
-use Timeax\FortiPlugin\Installations\Support\RouteUiBridge;
-use Timeax\FortiPlugin\Installations\Support\ValidatorBridge;
-use Timeax\FortiPlugin\Installations\Support\BackgroundScanDispatcher;
-
-use Timeax\FortiPlugin\Installations\Contracts\Filesystem as FsContract;
-use Timeax\FortiPlugin\Installations\Contracts\ZipRepository;
-use Timeax\FortiPlugin\Installations\Contracts\PluginRepository;
-use Timeax\FortiPlugin\Installations\Contracts\HostKeyService as TokenContract;
-
-
-use Timeax\FortiPlugin\Installations\Sections\VerificationSection;
-use Timeax\FortiPlugin\Installations\Sections\FileScanSection;
-use Timeax\FortiPlugin\Installations\Sections\ProviderValidationSection;
-use Timeax\FortiPlugin\Installations\Sections\ComposerPlanSection;
-use Timeax\FortiPlugin\Installations\Sections\VendorPolicySection;
-use Timeax\FortiPlugin\Installations\Sections\RouteWriteSection;
-use Timeax\FortiPlugin\Installations\Sections\DbPersistSection;
-use Timeax\FortiPlugin\Installations\Sections\InstallFilesSection;
-use Timeax\FortiPlugin\Installations\Sections\UiConfigValidationSection;
-
-use Timeax\FortiPlugin\Installations\Support\ComposerInspector;
-use Timeax\FortiPlugin\Installations\Support\InstallerTokenManager;
-
-// Optional host-provided actor resolver abstraction
-use Timeax\FortiPlugin\Installations\Support\DefaultActorResolver;
 use Timeax\FortiPlugin\Services\PolicyService;
 use Timeax\FortiPlugin\Services\ValidatorService;
 use Timeax\FortiPlugin\Support\FortiGateRegistrar;
+
+// crypto service
+
+
+// Optional host-provided actor resolver abstraction
 
 class FortiPluginServiceProvider extends ServiceProvider
 {
