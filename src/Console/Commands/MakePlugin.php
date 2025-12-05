@@ -166,7 +166,7 @@ class MakePlugin extends Command
                 "$path/routes",
                 "$path/config",
                 "$path/public",
-                "$path/public/index.php",
+//                "$path/public/index.php",
                 "$path/resources/shared/ts",
             ] as $dir
         ) {
@@ -266,7 +266,7 @@ import React from 'react';
 import { createInertiaApp } from '@inertiajs/react';
 
 createInertiaApp({
-  resolve: (name) => import(\`./Pages/\${name}.tsx\`),
+  resolve: (name) => import(`./Pages/\${name}.tsx`),
   setup({ el, App, props }) {
     return <App {...props} />;
   },
