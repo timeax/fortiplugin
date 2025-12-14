@@ -36,7 +36,8 @@ final readonly class VendorPolicySection
      * @param callable(array):void|null $emit Verbatim emitter
      *
      * @return array{
-     *   vendor_policy: array{mode:'STRIP_BUNDLED_VENDOR'|'ALLOW_BUNDLED_VENDOR'},
+     *   vendor_policy: array{mode:'strip_bundled_vendor'|'allow_bundled_vendor'
+},
      *   meta: array<string,mixed>
      * }
      * @throws JsonException
@@ -154,6 +155,8 @@ final readonly class VendorPolicySection
         return [
             'vendor_policy' => ['mode' => $mode->name],
             'meta' => $block,
+            'packages_dto' => $packages,
+
         ];
     }
 

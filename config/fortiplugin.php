@@ -181,11 +181,12 @@ return [
 
     // Installations module configuration (phase 2)
     'installations' => [
+
         'repositories' => [
             // Zip repository driver: 'inmemory' (default) or 'eloquent'
-            'zip' => env('FORTIPLUGIN_INSTALL_ZIP_REPO', 'inmemory'),
+            'zip' => env('FORTIPLUGIN_INSTALL_ZIP_REPO', 'eloquent'),
             // Plugin repository driver: 'inmemory' (default) or 'eloquent'
-            'plugin' => env('FORTIPLUGIN_INSTALL_PLUGIN_REPO', 'inmemory'),
+            'plugin' => env('FORTIPLUGIN_INSTALL_PLUGIN_REPO', 'eloquent'),
         ],
 
         'tokens' => [
@@ -202,8 +203,8 @@ return [
             // Security file scan (content/token/AST). Default: OFF
             'file_scan' => (bool)env('FORTIPLUGIN_FILE_SCAN', false),
 
-            // Vendor mode: 'STRIP_BUNDLED_VENDOR' or 'ALLOW_BUNDLED_VENDOR'
-            'vendor_mode' => env('FORTIPLUGIN_VENDOR_MODE', 'STRIP_BUNDLED_VENDOR'),
+            // Vendor mode: 'strip_bundled_vendor'|'allow_bundled_vendor'
+            'vendor_mode' => env('FORTIPLUGIN_VENDOR_MODE', 'strip_bundled_vendor'),
 
             // Token TTLs (seconds)
             'token_ttl' => [

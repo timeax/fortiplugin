@@ -16,7 +16,8 @@ namespace Timeax\FortiPlugin\Installations\DTO;
  *   errors?: list<string>
  * }
  * @phpstan-type TZipGate array{ plugin_zip_status: 'verified'|'pending'|'failed'|'unknown' }
- * @phpstan-type TVendorPolicy array{ mode: 'STRIP_BUNDLED_VENDOR'|'ALLOW_BUNDLED_VENDOR' }
+ * @phpstan-type TVendorPolicy array{ mode: 'strip_bundled_vendor'|'allow_bundled_vendor'
+ }
  * @phpstan-type TComposerPlan TComposerPlan
  * @phpstan-type TInstallSummary array{
  *   verification: TVerificationSection,

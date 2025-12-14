@@ -26,42 +26,56 @@
   },
   "shortcuts": {
     "make": {
-      "files": ["**/Commands/MakePlugin.php"],
-      "prefix": ["make-plugin"]
+      "files": ["src/Console/Commands/MakePlugin.php"],
+      "prefix": "make-plugin"
     },
     "login": {
       "prefix": "login",
-      "files": ["**/Commands/LoginCommand.php"]
+      "files": ["src/Console/Commands/LoginCommand.php"]
     },
     "pack": {
-      "files": ["**/Console/Commands/PackPlugin.php"],
+      "files": ["src/Console/Commands/PackPlugin.php"],
       "prefix": "pack-plugin"
     },
     "install": {
-      "files": ["**/Installations/Installer.php"],
+      "files": ["src/Installations/Installer.php"],
+      "include": ["test/Feature/PluginInstallFlowTest.php"],
       "prefix": "installer"
+    },
+    "act": {
+      "files": ["src/Installations/Activation/Activator.php"],
+      "include": [
+        "src/Installations/Activation/Writers/ProvidersRegistryWriter.php",
+        "src/Installations/Activation/Writers/RoutesRegistryWriter.php",
+        "src/Installations/Activation/Writers/UiRegistryWriter.php"
+      ],
+      "prefix": "activation"
     },
     "valid": {
       "prefix": "validate-plugin",
-      "files": "**/Console/Commands/ValidatePlugin.php"
-    },
-    "act": {
-      "prefix": "activator",
-      "files": ["**/Installations/Activation/Activator.php"]
+      "files": "src/Console/Commands/ValidatePlugin.php"
     },
     "db": {
       "prefix": "fortiplug-migrations",
-      "files": "**/migrations/**"
+      "files": "src/database/migrations/**"
     },
     "commands": {
       "prefix": "commands",
-      "files": "**/Console/Commands/**",
+      "files": "src/Console/Commands/**",
       "include": []
     },
-    "provider": {
-      "prefix": "service-provider",
-      "files": ["src/FortiPluginServiceProvider.php"],
-      "include": ["**/Console/Commands/**", "**/composer.json"]
+    "context": {
+      "prefix": "context",
+      "files": [],
+      "include": [
+        "composer.json",
+        "config/fortiplugin.php",
+        "config/fortipluginui.php",
+        "config/fortiplugin-maps.php",
+        "src/FortiPluginServiceProvider.php",
+        "src/Helpers/helpers.php",
+        "src/Console/Commands/**"
+      ]
     }
   }
 }

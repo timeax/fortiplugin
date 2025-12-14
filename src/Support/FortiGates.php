@@ -43,7 +43,6 @@ final class FortiGates
     // Reports & provenance
     public const PLUGIN_VIEW_REPORT = 'forti-plugin-view-report';
     public const PLUGIN_DOWNLOAD_REPORT = 'forti-plugin-download-report';
-
     // ── Permission Manifests (per-plugin capability grants) ──────────────────
     public const PERMS_MANAGE = 'forti-perms-manage';
     public const PERMS_DB_MANAGE = 'forti-perms-db-manage';

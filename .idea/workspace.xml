@@ -5,13 +5,30 @@
   </component>
   <component name="ChangeListManager">
     <list default="true" id="eaf4cbc6-d298-4694-b042-183ced7c77f7" name="Changes" comment="">
+      <change beforePath="$PROJECT_DIR$/.gitignore" beforeDir="false" afterPath="$PROJECT_DIR$/.gitignore" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/.idea/fortiplugin.iml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/fortiplugin.iml" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/prodex.json" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/Console/Commands/CreateAuthorCommand.php" beforeDir="false" afterPath="$PROJECT_DIR$/src/Console/Commands/CreateAuthorCommand.php" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/config/fortiplugin.php" beforeDir="false" afterPath="$PROJECT_DIR$/config/fortiplugin.php" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/prodex.json" beforeDir="false" afterPath="$PROJECT_DIR$/prodex.json" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/routes/api.php" beforeDir="false" afterPath="$PROJECT_DIR$/routes/api.php" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/src/Console/Commands/MakePlugin.php" beforeDir="false" afterPath="$PROJECT_DIR$/src/Console/Commands/MakePlugin.php" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/Console/Commands/PackPlugin.php" beforeDir="false" afterPath="$PROJECT_DIR$/src/Console/Commands/PackPlugin.php" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/Core/Install/JsonRouteCompiler.php" beforeDir="false" afterPath="$PROJECT_DIR$/src/Core/Install/JsonRouteCompiler.php" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/Core/Security/ConfigValidator.php" beforeDir="false" afterPath="$PROJECT_DIR$/src/Core/Security/ConfigValidator.php" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/src/FortiPluginServiceProvider.php" beforeDir="false" afterPath="$PROJECT_DIR$/src/FortiPluginServiceProvider.php" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/Traits/AuthenticateSession.php" beforeDir="false" afterPath="$PROJECT_DIR$/src/Traits/AuthenticateSession.php" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/Http/Controllers/PackagerController.php" beforeDir="false" afterPath="$PROJECT_DIR$/src/Http/Controllers/PackagerController.php" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/Installations/DTO/InstallSummary.php" beforeDir="false" afterPath="$PROJECT_DIR$/src/Installations/DTO/InstallSummary.php" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/Installations/Installer.php" beforeDir="false" afterPath="$PROJECT_DIR$/src/Installations/Installer.php" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/Installations/InstallerPolicy.php" beforeDir="false" afterPath="$PROJECT_DIR$/src/Installations/InstallerPolicy.php" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/Installations/Sections/ComposerPlanSection.php" beforeDir="false" afterPath="$PROJECT_DIR$/src/Installations/Sections/ComposerPlanSection.php" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/Installations/Sections/VendorPolicySection.php" beforeDir="false" afterPath="$PROJECT_DIR$/src/Installations/Sections/VendorPolicySection.php" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/Installations/Support/InstallationLogStore.php" beforeDir="false" afterPath="$PROJECT_DIR$/src/Installations/Support/InstallationLogStore.php" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/Services/AuthService.php" beforeDir="false" afterPath="$PROJECT_DIR$/src/Services/AuthService.php" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/Services/ValidatorService.php" beforeDir="false" afterPath="$PROJECT_DIR$/src/Services/ValidatorService.php" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/Support/AuditLogger.php" beforeDir="false" afterPath="$PROJECT_DIR$/src/Support/AuditLogger.php" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/Support/FortiGates.php" beforeDir="false" afterPath="$PROJECT_DIR$/src/Support/FortiGates.php" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/Traits/ClientSession.php" beforeDir="false" afterPath="$PROJECT_DIR$/src/Traits/ClientSession.php" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/test/Core/Install/JsonRouteCompilerTest.php" beforeDir="false" afterPath="$PROJECT_DIR$/test/Core/Install/JsonRouteCompilerTest.php" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -23,6 +40,10 @@
     <execution>
       <executable path="composer" />
     </execution>
+  </component>
+  <component name="EmbeddingIndexingInfo">
+    <option name="cachedIndexableFilesCount" value="9370" />
+    <option name="fileBasedEmbeddingIndicesEnabled" value="true" />
   </component>
   <component name="FileTemplateManagerImpl">
     <option name="RECENT_TEMPLATES">
@@ -41,14 +62,16 @@
   <component name="Git.Settings">
     <option name="RECENT_GIT_ROOT_PATH" value="$PROJECT_DIR$" />
   </component>
+  <component name="HighlightingSettingsPerFile">
+    <setting file="file://$PROJECT_DIR$/config/fortiplugin.php" root0="FORCE_HIGHLIGHTING" root1="FORCE_HIGHLIGHTING" />
+    <setting file="file://$PROJECT_DIR$/src/FortiPluginServiceProvider.php" root0="FORCE_HIGHLIGHTING" root1="FORCE_HIGHLIGHTING" />
+    <setting file="file://$PROJECT_DIR$/src/Installations/InstallerPolicy.php" root0="FORCE_HIGHLIGHTING" root1="SKIP_INSPECTION" />
+  </component>
   <component name="NamedScopeManager">
     <scope name="Work" pattern="file[fortiplugin]:src//*||file[fortiplugin]:prisma//*||file[fortiplugin]:stubs//*||file[fortiplugin]:config//*||file[fortiplugin]:schema//*||file[fortiplugin]:routes//*||file[fortiplugin]:test//*||file[fortiplugin]:workbench//*" />
     <order>
       <scope name="App" />
     </order>
-  </component>
-  <component name="OptimizeOnSaveOptions">
-    <option name="myRunOnSave" value="true" />
   </component>
   <component name="PhpWorkspaceProjectConfiguration" interpreter_name="PHP">
     <include_path>
@@ -180,7 +203,7 @@
     </include_path>
   </component>
   <component name="ProblemsViewState">
-    <option name="selectedTabId" value="CurrentFile" />
+    <option name="selectedTabId" value="ProjectErrors" />
   </component>
   <component name="ProjectColorInfo">{
   &quot;associatedIndex&quot;: 6
@@ -201,15 +224,18 @@
     &quot;PHPUnit.EncryptionTest.executor&quot;: &quot;Run&quot;,
     &quot;PHPUnit.EncryptionTest.test_decrypt_returns_null_when_keymap_missing.executor&quot;: &quot;Run&quot;,
     &quot;PHPUnit.JsonRouteCompilerTest.executor&quot;: &quot;Run&quot;,
-    &quot;PHPUnit.JsonRouteCompilerTest.test_http_variants_any_and_match_and_action_expr_variants.executor&quot;: &quot;Debug&quot;,
+    &quot;PHPUnit.JsonRouteCompilerTest.test_compileData_with_http_and_group_emits_expected_snippets_and_collects_ids.executor&quot;: &quot;Run&quot;,
+    &quot;PHPUnit.JsonRouteCompilerTest.test_http_variants_any_and_match_and_action_expr_variants.executor&quot;: &quot;Run&quot;,
     &quot;PHPUnit.PermissionManifestValidatorTest.executor&quot;: &quot;Run&quot;,
     &quot;PHPUnit.PermissionManifestValidatorTest.testRejectsUnknownTopLevelKeys.executor&quot;: &quot;Debug&quot;,
     &quot;PHPUnit.PermissionsListingAndTagsTest.executor&quot;: &quot;Run&quot;,
+    &quot;PHPUnit.PluginInstallFlowTest.executor&quot;: &quot;Run&quot;,
     &quot;PHPUnit.PluginSecurityScannerTest.executor&quot;: &quot;Run&quot;,
     &quot;PHPUnit.PluginSecurityScannerTest.testBlocklistClassMethodAllowlist.executor&quot;: &quot;Debug&quot;,
     &quot;RunOnceActivity.ShowReadmeOnStart&quot;: &quot;true&quot;,
     &quot;RunOnceActivity.TerminalTabsStorage.copyFrom.TerminalArrangementManager.252&quot;: &quot;true&quot;,
     &quot;RunOnceActivity.git.unshallow&quot;: &quot;true&quot;,
+    &quot;RunOnceActivity.typescript.service.memoryLimit.init&quot;: &quot;true&quot;,
     &quot;com.intellij.ml.llm.matterhorn.ej.ui.settings.DefaultAutoModeForALLUsers.v1&quot;: &quot;true&quot;,
     &quot;com.intellij.ml.llm.matterhorn.ej.ui.settings.DefaultModelSelectionForGA.v1&quot;: &quot;true&quot;,
     &quot;git-widget-placeholder&quot;: &quot;zeki&quot;,
@@ -234,7 +260,7 @@
     &quot;php.override.implement.member.chooser.php.doc&quot;: &quot;NONE&quot;,
     &quot;prettierjs.PrettierConfiguration.Package&quot;: &quot;C:\\Users\\USER\\GitHub\\timex\\fortiplugin\\node_modules\\prettier&quot;,
     &quot;run.code.analysis.last.selected.profile&quot;: &quot;pProject Default&quot;,
-    &quot;settings.editor.selected.configurable&quot;: &quot;settings.javascript.prettier&quot;,
+    &quot;settings.editor.selected.configurable&quot;: &quot;preferences.updates&quot;,
     &quot;to.speed.mode.migration.done&quot;: &quot;true&quot;,
     &quot;vue.rearranger.settings.migration&quot;: &quot;true&quot;
   }
@@ -248,24 +274,24 @@
       <recent name="C:\Users\David\OneDrive\Documents\GitHub\fortiplugin\prisma" />
     </key>
     <key name="MoveFile.RECENT_KEYS">
+      <recent name="C:\Users\USER\GitHub\timex\fortiplugin\src\Http\Controllers" />
       <recent name="D:\Projects\GitHub\fortiplugin\database" />
       <recent name="D:\Projects\GitHub\fortiplugin\workbench\resources\views" />
       <recent name="D:\Projects\GitHub\fortiplugin\src\Installations\Sections" />
       <recent name="D:\Projects\GitHub\fortiplugin\prisma\schema" />
-      <recent name="C:\Users\David\OneDrive\Documents\GitHub\fortiplugin\src" />
     </key>
   </component>
-  <component name="RunManager" selected="PHPUnit.PluginSecurityScannerTest.testBlocklistClassMethodAllowlist">
-    <configuration name="JsonRouteCompilerTest" type="PHPUnitRunConfigurationType" factoryName="PHPUnit" temporary="true">
-      <TestRunner class="Tests\Core\Install\JsonRouteCompilerTest" file="$PROJECT_DIR$/test/Core/Install/JsonRouteCompilerTest.php" scope="Class" />
+  <component name="RunManager" selected="PHPUnit.PluginInstallFlowTest">
+    <configuration name="LegacyJsonRouteCompilerTest.test_compileData_with_http_and_group_emits_expected_snippets_and_collects_ids" type="PHPUnitRunConfigurationType" factoryName="PHPUnit" temporary="true">
+      <TestRunner class="Tests\Core\Install\LegacyJsonRouteCompilerTest" file="$PROJECT_DIR$/test/Core/Install/LegacyJsonRouteCompilerTest.php" method="test_compileData_with_http_and_group_emits_expected_snippets_and_collects_ids" scope="Method" />
       <method v="2" />
     </configuration>
-    <configuration name="PermissionManifestValidatorTest" type="PHPUnitRunConfigurationType" factoryName="PHPUnit" temporary="true">
-      <TestRunner class="PermissionManifestValidatorTest" file="$PROJECT_DIR$/test/PermissionManifestValidatorTest.php" scope="Class" />
+    <configuration name="LegacyJsonRouteCompilerTest.test_http_variants_any_and_match_and_action_expr_variants" type="PHPUnitRunConfigurationType" factoryName="PHPUnit" temporary="true">
+      <TestRunner class="Tests\Core\Install\LegacyJsonRouteCompilerTest" file="$PROJECT_DIR$/test/Core/Install/LegacyJsonRouteCompilerTest.php" method="test_http_variants_any_and_match_and_action_expr_variants" scope="Method" />
       <method v="2" />
     </configuration>
-    <configuration name="PermissionsListingAndTagsTest" type="PHPUnitRunConfigurationType" factoryName="PHPUnit" temporary="true">
-      <TestRunner class="Tests\Feature\PermissionsListingAndTagsTest" file="$PROJECT_DIR$/test/Feature/PermissionsListingAndTagsTest.php" scope="Class" />
+    <configuration name="PluginInstallFlowTest" type="PHPUnitRunConfigurationType" factoryName="PHPUnit" temporary="true">
+      <TestRunner class="Tests\Feature\PluginInstallFlowTest" file="$PROJECT_DIR$/test/Feature/PluginInstallFlowTest.php" scope="Class" />
       <method v="2" />
     </configuration>
     <configuration name="PluginSecurityScannerTest" type="PHPUnitRunConfigurationType" factoryName="PHPUnit" temporary="true">
@@ -278,19 +304,19 @@
     </configuration>
     <recent_temporary>
       <list>
+        <item itemvalue="PHPUnit.PluginInstallFlowTest" />
         <item itemvalue="PHPUnit.PluginSecurityScannerTest.testBlocklistClassMethodAllowlist" />
         <item itemvalue="PHPUnit.PluginSecurityScannerTest" />
-        <item itemvalue="PHPUnit.PermissionManifestValidatorTest" />
-        <item itemvalue="PHPUnit.JsonRouteCompilerTest" />
-        <item itemvalue="PHPUnit.PermissionsListingAndTagsTest" />
+        <item itemvalue="PHPUnit.LegacyJsonRouteCompilerTest.test_http_variants_any_and_match_and_action_expr_variants" />
+        <item itemvalue="PHPUnit.LegacyJsonRouteCompilerTest.test_compileData_with_http_and_group_emits_expected_snippets_and_collects_ids" />
       </list>
     </recent_temporary>
   </component>
   <component name="SharedIndexes">
     <attachedChunks>
       <set>
-        <option value="bundled-js-predefined-d6986cc7102b-a71380e98a7c-JavaScript-PS-252.28238.9" />
-        <option value="bundled-php-predefined-a98d8de5180a-58f58c5035b3-com.jetbrains.php.sharedIndexes-PS-252.28238.9" />
+        <option value="bundled-js-predefined-d6986cc7102b-c7e53b3be11b-JavaScript-PS-253.28294.345" />
+        <option value="bundled-php-predefined-a98d8de5180a-09080813851e-com.jetbrains.php.sharedIndexes-PS-253.28294.345" />
       </set>
     </attachedChunks>
   </component>
@@ -317,6 +343,12 @@
       <workItem from="1764330064751" duration="11000" />
       <workItem from="1764649258950" duration="2282000" />
       <workItem from="1764652515115" duration="41875000" />
+      <workItem from="1764912610030" duration="25569000" />
+      <workItem from="1765008137313" duration="74325000" />
+      <workItem from="1765423819908" duration="3078000" />
+      <workItem from="1765428000752" duration="532000" />
+      <workItem from="1765428768358" duration="313000" />
+      <workItem from="1765429104918" duration="63174000" />
     </task>
     <servers />
   </component>
@@ -330,6 +362,11 @@
           <url>file://$PROJECT_DIR$/test/PluginSecurityScannerTest.php</url>
           <line>151</line>
           <option name="timeStamp" value="2" />
+        </line-breakpoint>
+        <line-breakpoint enabled="true" type="php">
+          <url>file://$PROJECT_DIR$/src/Console/Commands/PackPlugin.php</url>
+          <line>45</line>
+          <option name="timeStamp" value="3" />
         </line-breakpoint>
       </breakpoints>
     </breakpoint-manager>

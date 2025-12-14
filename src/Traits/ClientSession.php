@@ -4,6 +4,7 @@ namespace Timeax\FortiPlugin\Traits;
 
 use Illuminate\Http\Client\PendingRequest;
 use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Log;
 use JsonException;
 use SodiumException;
 use Timeax\FortiPlugin\Support\CliSessionManager;
@@ -45,7 +46,36 @@ trait ClientSession
             ->withHeaders(['User-Agent' => 'FortiPlugin-CLI'])
             // Use ONLY the main login bearer here.
             ->withToken($session['token']);
+
     }
+
+
+//    public function makeHttp(?array $session): ?PendingRequest
+//    {
+//        if (!$session || empty($session['host']) || empty($session['token'])) {
+//            return null;
+//        }
+//
+//        $client = Http::baseUrl($this->normalizeBaseUri((string)$session['host']))
+//            ->timeout(20)
+//            ->connectTimeout(5)
+//            ->acceptJson()
+//            ->withHeaders(['User-Agent' => 'FortiPlugin-CLI']);
+//
+//        // 🚨 TEMPORARY DEV OVERRIDE: Disable ALL SSL verification.
+//        // This bypasses cert chain, hostname checks, and revocation.
+//        // Comment this out when done debugging.
+//        $client = $client->withOptions([
+//            'verify' => false,      // <--- disables certificate validation completely
+//            'curl' => [
+//                CURLOPT_SSL_VERIFYPEER => false,
+//                CURLOPT_SSL_VERIFYHOST => false,
+//            ],
+//        ]);
+//
+//        return $client->withToken($session['token']);
+//    }
+
 
     /**
      * Build a client that uses a short-lived *placeholder token* (NOT a bearer).

@@ -4,22 +4,50 @@ use Illuminate\Foundation\Http\Middleware\VerifyCsrfToken;
 use Illuminate\Support\Facades\Route;
 use Timeax\FortiPlugin\Http\Controllers\AuthController;
 use Timeax\FortiPlugin\Http\Controllers\PackagerController;
+use Timeax\FortiPlugin\Http\Controllers\PluginInstallController;
 use Timeax\FortiPlugin\Http\Middleware\FortiTokenGuard;
 
-Route::prefix('forti')->name('forti.')->middleware(['web', FortiTokenGuard::class])->withoutMiddleware(VerifyCsrfToken::class)->group(function () {
-    // Auth
-    Route::post('/login', [AuthController::class, 'login'])->withoutMiddleware(FortiTokenGuard::class)->name('login');
-    Route::post('/logout', [AuthController::class, 'logout'])->name('logout');
+// --- Main 'forti' Route Group ---
+// All routes under 'forti' prefix, with 'forti.' name prefix, 'web' middleware,
+// and protected by the custom FortiTokenGuard.
+Route::prefix('forti')
+    ->name('forti.')
+    ->middleware(['web', FortiTokenGuard::class])
+    ->withoutMiddleware(VerifyCsrfToken::class) // Skip CSRF check for this API/Plugin-like flow
+    ->group(function () {
 
-    // Simple handshake (+ signature block for local dev config)
-    Route::get('/handshake', [PackagerController::class, 'handshake'])->name('handshake');
-    // Placeholder + placeholder token bootstrap
-    Route::post('/handshake/init', [PackagerController::class, 'init'])->name('handshake.init');
+        // 🛡️ Authentication Routes
+        // These handle login/logout, and the 'login' route must bypass the token guard.
+        Route::group(['without' => [FortiTokenGuard::class]], function () {
+            // Login must be outside the token guard to get a token!
+            Route::post('/login', [AuthController::class, 'login'])->name('login');
+        });
+        Route::post('/logout', [AuthController::class, 'logout'])->name('logout');
 
-    // New packaging flow (4 steps)
-    Route::post('/pack/handshake', [PackagerController::class, 'packHandshake'])->name('pack.handshake'); // prepare
-    Route::post('/pack/manifest', [PackagerController::class, 'packManifest'])->name('pack.manifest');   // sign & issue upload token
-    Route::post('/pack/upload', [PackagerController::class, 'packUpload'])->name('pack.upload');       // receive artifact, server-side validate
-    Route::post('/pack/complete', [PackagerController::class, 'packComplete'])->name('pack.complete');   // finalize
-    Route::get('/structure', [PackagerController::class, 'getStructure'])->name('get-structure');
-});
+
+        // 🤝 Handshake & Initialization Routes (Low-Level Communication)
+        // These are typically for connection health and bootstrapping.
+        Route::get('/handshake', [PackagerController::class, 'handshake'])->name('handshake');
+        Route::post('/handshake/init', [PackagerController::class, 'init'])->name('handshake.init');
+
+
+        // 📦 Packaging Flow Routes
+        // The four-step process for artifact creation and upload.
+        Route::prefix('pack')->name('pack.')->group(function () {
+            Route::post('/handshake', [PackagerController::class, 'packHandshake'])->name('handshake'); // prepare
+            Route::post('/manifest', [PackagerController::class, 'packManifest'])->name('manifest');   // sign and issue upload token
+            Route::post('/upload', [PackagerController::class, 'packUpload'])->name('upload');       // receive artifact, server-side validate
+            Route::post('/complete', [PackagerController::class, 'packComplete'])->name('complete');   // finalize
+        });
+
+        Route::controller(PluginInstallController::class)
+            ->prefix('plugin')
+            ->name('plugin.')
+            ->group(function () {
+                Route::post('{zip}/install', 'queueInstall')->name('install');
+                Route::post('{zip}/activate', 'queueActivate')->name('activate');
+            });
+
+        // 🔍 Utility/Diagnostic Routes
+        Route::get('/structure', [PackagerController::class, 'getStructure'])->name('get-structure');
+    });

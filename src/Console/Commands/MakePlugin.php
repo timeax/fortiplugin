@@ -329,7 +329,8 @@ JSON
             'npm', 'install', '-D',
             'vite', 'typescript', '@vitejs/plugin-react',
             '@types/react', '@types/react-dom',
-            'tailwindcss'
+            'tailwindcss',
+            'tyger-plugin-prep'
         ];
         (new Process($cmd, $cwd))->setTimeout(600)->run(fn($t, $b) => $this->output->write($b));
     }
