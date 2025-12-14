@@ -5,20 +5,15 @@ declare(strict_types=1);
 namespace Tests\Core\Install;
 
 use PHPUnit\Framework\TestCase;
-use Timeax\FortiPlugin\Core\Exceptions\RouteCompileException;
 use Timeax\FortiPlugin\Core\Install\JsonRouteCompiler;
+use Timeax\FortiPlugin\Core\Exceptions\RouteCompileException;
 
-final class JsonRouteCompilerTest extends TestCase
+final class LegacyJsonRouteCompilerTest extends TestCase
 {
     private function compiler(): JsonRouteCompiler
     {
         return new JsonRouteCompiler();
     }
-
-    /* -----------------------------------------------------------------
-     |  LEGACY FLOW TESTS (compileData) - Ensuring no regressions
-     | -----------------------------------------------------------------
-     */
 
     public function test_compileData_with_http_and_group_emits_expected_snippets_and_collects_ids(): void
     {
@@ -54,7 +49,7 @@ final class JsonRouteCompilerTest extends TestCase
         $this->assertStringContainsString("->name('users.index')", $php);
         $this->assertStringContainsString("->domain('api.example.com')", $php);
         $this->assertStringContainsString("->prefix('v1')", $php);
-        $this->assertStringContainsString("->where(", $php);
+        $this->assertStringContainsString("->where(", $php); // format from var_export is environment-dependent; just check presence
     }
 
     public function test_http_variants_any_and_match_and_action_expr_variants(): void
@@ -83,24 +78,16 @@ final class JsonRouteCompilerTest extends TestCase
                     'desc' => 'class only action',
                     'method' => 'POST',
                     'path' => '/post',
-                    'action' => 'App\\Jobs\\DoThing',
+                    'action' => 'App\\Jobs\\DoThing', // should become App\\Jobs\\DoThing::class
                 ],
             ],
         ];
 
         $php = $this->compiler()->compileData($data)['php'];
-
-        // 1. Array-based action: Compiler produces ['App\Handler'::class, 'update']
-        // Notice the quotes around the class name
-        $this->assertStringContainsString("->match(['PUT', 'PATCH'], '/item/{id}', ['App\\\\Handler'::class, 'update'])", $php);
-
-        // 2. Class-only action: Compiler produces 'App\Jobs\DoThing'::class
-        $this->assertStringContainsString("->post('/post', 'App\\\\Jobs\\\\DoThing'::class)", $php);
-
-        // 3. String-based action remains normal
         $this->assertStringContainsString("->any('/any', ['App\\\\Controller', 'handle'])", $php);
+        $this->assertStringContainsString("->match(['PUT', 'PATCH'], '/item/{id}', [App\\\\Handler::class, 'update'])", $php);
+        $this->assertStringContainsString("->post('/post', App\\\\Jobs\\\\DoThing::class)", $php);
     }
-
 
     public function test_resource_compact_emits_expected_chain(): void
     {
@@ -130,94 +117,105 @@ final class JsonRouteCompilerTest extends TestCase
         $this->assertStringContainsString("->shallow()", $php);
     }
 
-    /* -----------------------------------------------------------------
-     |  REGISTRY FLOW TESTS (compileDataToRegistry) - The New Standard
-     | -----------------------------------------------------------------
-     */
-
-    public function test_compileDataToRegistry_returns_atomic_entries(): void
+    public function test_resource_with_where_is_expanded_with_verbs_and_where(): void
     {
         $data = [
             'routes' => [
                 [
-                    'type' => 'http',
-                    'id' => 'users.list',
-                    'desc' => 'List users',
-                    'method' => 'GET',
-                    'path' => '/users',
-                    'action' => 'App\\C@index',
+                    'type' => 'resource',
+                    'id' => 'res2',
+                    'desc' => 'resource expanded',
+                    'name' => 'photos',
+                    'controller' => 'App\\Http\\Controllers\\PhotoController',
+                    'where' => ['photo' => '[0-9]+'],
+                    'names' => [
+                        'show' => 'photos.show.alias'
+                    ],
+                ],
+            ],
+        ];
+
+        $php = $this->compiler()->compileData($data)['php'];
+        // index
+        $this->assertStringContainsString("->get('/photos', ['App\\\\Http\\\\Controllers\\\\PhotoController', 'index'])", $php);
+        // create
+        $this->assertStringContainsString("->get('/photos/create', ['App\\\\Http\\\\Controllers\\\\PhotoController', 'create'])", $php);
+        // show with alias name
+        $this->assertStringContainsString("->get('/photos/{photo}', ['App\\\\Http\\\\Controllers\\\\PhotoController', 'show'])->name('photos.show.alias')", $php);
+        // update must be match PUT/PATCH
+        $this->assertStringContainsString("->match(['PUT', 'PATCH'], '/photos/{photo}', ['App\\\\Http\\\\Controllers\\\\PhotoController', 'update'])", $php);
+        // where applied to each expanded route
+        $this->assertStringContainsString("->where(array (\n  'photo' => '[0-9]+'", $php);
+    }
+
+    public function test_redirect_view_and_fallback(): void
+    {
+        $data = [
+            'routes' => [
+                [
+                    'type' => 'redirect',
+                    'id' => 'redir1',
+                    'desc' => 'redir',
+                    'path' => '/old',
+                    'to' => '/new',
+                    'status' => 301,
+                    'name' => 'redir',
                 ],
                 [
-                    'type' => 'http',
-                    'id' => 'users.create',
-                    'desc' => 'Create user',
-                    'method' => 'POST',
-                    'path' => '/users',
-                    'action' => 'App\\C@store',
-                ]
-            ]
+                    'type' => 'view',
+                    'id' => 'view1',
+                    'desc' => 'view',
+                    'path' => '/welcome',
+                    'view' => 'welcome',
+                    'data' => ['a' => 1],
+                    'name' => 'welcome',
+                ],
+                [
+                    'type' => 'fallback',
+                    'id' => 'fb',
+                    'desc' => 'fb',
+                    'action' => 'App\\Http\\Controllers\\FallbackController@handle',
+                    'name' => 'fb.name',
+                ],
+            ],
         ];
 
-        // Perform the compilation using the Registry method
-        $result = $this->compiler()->compileDataToRegistry($data);
-
-        // Assert 1: We got exactly 2 entries (Atomic check)
-        $this->assertCount(2, $result['entries'], 'Registry should return one entry per route');
-        $this->assertSame(['users.list', 'users.create'], $result['routeIds']);
-
-        // Assert 2: Check the first entry structure
-        $entry1 = $result['entries'][0];
-        $this->assertSame('users.list', $entry1['id']);
-        // Ensure it contains the PHP boilerplate required for independent file writing
-        $this->assertStringContainsString('<?php', $entry1['content']);
-        $this->assertStringContainsString('declare(strict_types=1);', $entry1['content']);
-        $this->assertStringContainsString("->get('/users', ['App\\\\C', 'index'])", $entry1['content']);
-
-        // Assert 3: Check the second entry
-        $entry2 = $result['entries'][1];
-        $this->assertSame('users.create', $entry2['id']);
-        $this->assertStringContainsString("->post('/users', ['App\\\\C', 'store'])", $entry2['content']);
+        $php = $this->compiler()->compileData($data)['php'];
+        $this->assertStringContainsString("->redirect('/old', '/new', 301)->name('redir')", $php);
+        $this->assertStringContainsString("->view('/welcome', 'welcome', array (\n  'a' => 1,\n))", $php);
+        $this->assertStringContainsString("->fallback(['App\\\\Http\\\\Controllers\\\\FallbackController', 'handle'])->name('fb.name')", $php);
     }
 
-    public function test_compileDataToRegistry_inherits_group_settings_in_isolated_entries(): void
+    public function test_compileFile_reads_and_compiles_json(): void
     {
-        $data = [
-            'group' => [
-                'prefix' => 'api/v1',
-                'middleware' => ['api', 'auth'],
-            ],
+        $json = json_encode([
             'routes' => [
                 [
                     'type' => 'http',
-                    'id' => 'dashboard',
-                    'desc' => 'Dash',
+                    'id' => 'r',
+                    'desc' => 'from file',
                     'method' => 'GET',
-                    'path' => '/dashboard',
-                    'action' => 'App\\Dash@show',
-                    'middleware' => ['admin'], // Should merge with group
+                    'path' => '/',
+                    'action' => 'App\\C@i',
                 ]
             ]
-        ];
+        ], JSON_THROW_ON_ERROR);
 
-        $result = $this->compiler()->compileDataToRegistry($data);
-        $content = $result['entries'][0]['content'];
+        $tmp = tempnam(sys_get_temp_dir(), 'routes_');
+        file_put_contents($tmp, $json);
 
-        // Prefix check (usually applied via ->prefix() or baked into route path depending on implementation)
-        // Assuming your compiler chains ->prefix('api/v1')
-        $this->assertStringContainsString("->prefix('api/v1')", $content);
-
-        // Middleware check (Group + Local)
-        // Expected: ['api', 'auth', 'admin']
-        $this->assertStringContainsString("->middleware(array (\n  0 => 'api',\n  1 => 'auth',\n  2 => 'admin',", $content);
+        try {
+            $out = $this->compiler()->compileFile($tmp);
+            $this->assertSame([$tmp, true], [$out['source'], str_contains($out['php'], "->get('/', ['App\\\\C', 'i'])")]);
+            $this->assertSame(['r'], $out['routeIds']);
+        } finally {
+            @unlink($tmp);
+        }
     }
-
-    /* -----------------------------------------------------------------
-     |  ERROR HANDLING
-     | -----------------------------------------------------------------
-     */
 
     public function test_errors_are_thrown_for_invalid_inputs(): void
     {
+        // missing routes
         $this->expectException(RouteCompileException::class);
         $this->compiler()->compileData([]);
     }
@@ -226,5 +224,24 @@ final class JsonRouteCompilerTest extends TestCase
     {
         $this->expectException(RouteCompileException::class);
         $this->compiler()->compileData(['routes' => [['id' => 'x', 'desc' => 'no type']]]);
+    }
+
+    public function test_errors_node_missing_id_or_desc(): void
+    {
+        $this->expectException(RouteCompileException::class);
+        $this->compiler()->compileData(['routes' => [['type' => 'http']]]);
+    }
+
+    public function test_errors_redirect_missing_to(): void
+    {
+        $this->expectException(RouteCompileException::class);
+        $this->compiler()->compileData([
+            'routes' => [[
+                'type' => 'redirect',
+                'id' => 'x',
+                'desc' => 'x',
+                'path' => '/a',
+            ]]
+        ]);
     }
 }

@@ -1,9 +1,12 @@
 <?php
 
-namespace Timeax\SecurePlugin\Support;
+namespace Timeax\FortiPlugin\Support;
 
-use Timeax\SecurePlugin\Models\AuditLog;
+//use Timeax\FortiPlugin\Models\AuditLog;
 use Illuminate\Support\Facades\Auth;
+use Timeax\FortiPlugin\Models\AuditLog;
+
+//use Timeax\SecurePlugin\Models\AuditLog;
 
 class AuditLogger
 {

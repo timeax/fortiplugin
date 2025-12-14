@@ -239,7 +239,8 @@ final class InstallerPolicy
      *
      * Supported keys:
      *  - file_scan (bool)
-     *  - vendor_mode ('STRIP_BUNDLED_VENDOR'|'ALLOW_BUNDLED_VENDOR')
+     *  - vendor_mode ('strip_bundled_vendor'|'allow_bundled_vendor'
+)
      *  - token_ttl: { background_scan:int, install_override:int }
      *  - psr4_root (string)
      *  - route_schema (string|null)
@@ -311,7 +312,7 @@ final class InstallerPolicy
     {
         return [
             'file_scan' => $this->fileScanEnabled,
-            'vendor_mode' => $this->vendorMode->name,
+            'vendor_mode' => $this->vendorMode->value,
             'token_ttl' => [
                 'background_scan' => $this->backgroundScanTtl,
                 'install_override' => $this->installOverrideTtl,

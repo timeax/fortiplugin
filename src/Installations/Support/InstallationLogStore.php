@@ -6,9 +6,9 @@ namespace Timeax\FortiPlugin\Installations\Support;
 use JsonException;
 use RuntimeException;
 use Timeax\FortiPlugin\Installations\Contracts\Filesystem;
+use Timeax\FortiPlugin\Installations\DTO\DecisionResult;
 use Timeax\FortiPlugin\Installations\DTO\InstallMeta;
 use Timeax\FortiPlugin\Installations\DTO\InstallSummary;
-use Timeax\FortiPlugin\Installations\DTO\DecisionResult;
 
 /**
  * Concrete installation.json store with atomic writes and verbatim validation logs.
@@ -28,23 +28,33 @@ final class InstallationLogStore
 {
     private AtomicFilesystem $atomFs;
     private Filesystem $fs;
-    private string $installationJsonPath;
+    private ?string $installationJsonPath = null;
     /** @var array{meta?:array,logs?:array,summary?:array,decision?:array} */
     private array $doc = [];
 
 
-    public function __construct(AtomicFilesystem $atomFs, string $installationJsonPath)
+    public function __construct(AtomicFilesystem $atomFs)
     {
         $this->atomFs = $atomFs;
         $this->fs = $atomFs->fs();
-        $this->installationJsonPath = $installationJsonPath;
+
+    }
+
+    private function assertReady(): void
+    {
+        if ($this->installationJsonPath === null || $this->installationJsonPath === '') {
+            throw new RuntimeException('InstallationLogStore has no path. Call init() or openOrInit() first.');
+        }
     }
 
     /**
      * @throws JsonException
      */
-    public function init(InstallMeta $meta): string
+    public function init(InstallMeta $meta, string $installationJsonPath): string
     {
+
+
+        $this->installationJsonPath = $installationJsonPath;
         $dir = dirname($this->installationJsonPath);
         $this->fs->ensureDirectory($dir);
 
@@ -60,6 +70,32 @@ final class InstallationLogStore
         $this->persist();
         return $this->installationJsonPath;
     }
+
+    /**
+     * @throws JsonException
+     */
+    public function openOrInit(InstallMeta $meta, string $installationJsonPath): string
+    {
+        if ($this->installationJsonPath !== null) {
+            // already bound to a run; don't allow switching silently
+            if ($this->installationJsonPath !== $installationJsonPath) {
+                throw new RuntimeException('InstallationLogStore already initialized with a different path.');
+            }
+            return $this->installationJsonPath;
+        }
+
+        $this->installationJsonPath = $installationJsonPath;
+
+        // If file exists, just attach (do NOT overwrite)
+        if ($this->fs->exists($this->installationJsonPath)) {
+            $this->doc = []; // force read() to load fresh when called
+            return $this->installationJsonPath;
+        }
+
+        // Otherwise create it
+        return $this->init($meta, $this->installationJsonPath);
+    }
+
 
     /** @param array $payload
      * @throws JsonException
@@ -109,12 +145,15 @@ final class InstallationLogStore
 
     public function path(): string
     {
+        $this->assertReady();
         return $this->installationJsonPath;
     }
 
     /** @return array{meta?:array,logs?:array,summary?:array,decision?:array} */
     public function read(): array
     {
+        $this->assertReady();
+
         if ($this->doc !== []) {
             return $this->doc;
         }
@@ -135,6 +174,8 @@ final class InstallationLogStore
      */
     public function writeSection(string $key, array $block): void
     {
+        $this->assertReady();
+
         $doc = $this->read();
         $doc[$key] = $block;
         $this->doc = $doc;

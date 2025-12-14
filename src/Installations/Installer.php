@@ -9,29 +9,28 @@ use JsonException;
 use Random\RandomException;
 use RuntimeException;
 use Throwable;
-
 use Timeax\FortiPlugin\Installations\DTO\InstallerResult;
-use Timeax\FortiPlugin\Installations\Sections\UiConfigValidationSection;
-use Timeax\FortiPlugin\Models\Plugin;
 use Timeax\FortiPlugin\Installations\DTO\InstallMeta;
 use Timeax\FortiPlugin\Installations\DTO\InstallSummary;
 use Timeax\FortiPlugin\Installations\Enums\Install;
+use Timeax\FortiPlugin\Installations\Sections\ComposerPlanSection;
+use Timeax\FortiPlugin\Installations\Sections\DbPersistSection;
+use Timeax\FortiPlugin\Installations\Sections\InstallFilesSection;
+use Timeax\FortiPlugin\Installations\Sections\ProviderValidationSection;
+use Timeax\FortiPlugin\Installations\Sections\RouteWriteSection;
+use Timeax\FortiPlugin\Installations\Sections\UiConfigValidationSection;
+use Timeax\FortiPlugin\Installations\Sections\VendorPolicySection;
+use Timeax\FortiPlugin\Installations\Sections\VerificationSection;
+use Timeax\FortiPlugin\Installations\Sections\ZipValidationGate;
 use Timeax\FortiPlugin\Installations\Support\AtomicFilesystem;
 use Timeax\FortiPlugin\Installations\Support\InstallationLogStore;
+use Timeax\FortiPlugin\Installations\Support\InstallerTokenManager;
 use Timeax\FortiPlugin\Installations\Support\RouteUiBridge;
 use Timeax\FortiPlugin\Installations\Support\ValidatorBridge;
-use Timeax\FortiPlugin\Installations\Support\InstallerTokenManager;
-use Timeax\FortiPlugin\Installations\Sections\ZipValidationGate;
+use Timeax\FortiPlugin\Models\Plugin;
 use Timeax\FortiPlugin\Services\ValidatorService;
 
 // Sections (for DI completeness)
-use Timeax\FortiPlugin\Installations\Sections\VerificationSection;
-use Timeax\FortiPlugin\Installations\Sections\ProviderValidationSection;
-use Timeax\FortiPlugin\Installations\Sections\ComposerPlanSection;
-use Timeax\FortiPlugin\Installations\Sections\VendorPolicySection;
-use Timeax\FortiPlugin\Installations\Sections\RouteWriteSection;
-use Timeax\FortiPlugin\Installations\Sections\DbPersistSection;
-use Timeax\FortiPlugin\Installations\Sections\InstallFilesSection;
 
 final readonly class Installer
 {
@@ -101,6 +100,18 @@ final readonly class Installer
 
         $pluginName = $meta->placeholder_name;
         $psr4Root = $this->policy->getPsr4Root();
+
+        $logsDir = (string)($meta->paths['logs'] ?? '');
+        if ($logsDir === '') {
+            // fallback: staging/.internal/logs (uses policy dir name)
+            $logsDir = $pluginDir . DIRECTORY_SEPARATOR . $this->policy->getLogsDirName();
+        }
+
+        $installationJsonPath = rtrim($logsDir, '/\\') . DIRECTORY_SEPARATOR . $this->policy->getInstallationLogFilename();
+
+        // Must happen BEFORE resume-token read() and before sections append emits
+        $this->logStore->openOrInit($meta, $installationJsonPath);
+
 
         // ─────────────────────────────────────────────────────────────
         // 0) PREFLIGHT: resume path via installer override token
@@ -250,7 +261,7 @@ final readonly class Installer
             emit: $emit
         );
 
-        $packagesMap = $plan['packages'] ?? null;
+        $packagesForDb = $plan['packages_dto'] ?? $vendor['packages_dto'] ?? null;
 
         // Refresh summary with advisory info
         $summary = new InstallSummary(
@@ -274,7 +285,7 @@ final readonly class Installer
                 meta: $meta,
                 versionTag: $versionTag,
                 zipId: $zipId,
-                packages: $packagesMap,
+                packages: $packagesForDb,
                 emit: $emit
             );
             if (($persist['status'] ?? 'fail') !== 'ok') {

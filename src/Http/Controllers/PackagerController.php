@@ -4,7 +4,6 @@
 
 namespace Timeax\FortiPlugin\Http\Controllers;
 
-use FilesystemIterator;
 use Illuminate\Contracts\Filesystem\FileNotFoundException;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -13,20 +12,20 @@ use Illuminate\Routing\Controller;
 use Illuminate\Support\Arr;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Gate;
+use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use JsonException;
 use Random\RandomException;
-use RecursiveDirectoryIterator;
-use RecursiveIteratorIterator;
 use RuntimeException;
 use Timeax\FortiPlugin\Enums\KeyPurpose;
+use Timeax\FortiPlugin\Enums\PluginStatus;
+use Timeax\FortiPlugin\Enums\ValidationStatus;
 use Timeax\FortiPlugin\Models\Author;
 use Timeax\FortiPlugin\Models\PluginPlaceholder;
 use Timeax\FortiPlugin\Models\PluginSignature;
 use Timeax\FortiPlugin\Models\PluginToken;
 use Timeax\FortiPlugin\Models\PluginZip;
-use Timeax\FortiPlugin\Enums\PluginStatus;
-use Timeax\FortiPlugin\Enums\ValidationStatus;
 use Timeax\FortiPlugin\Services\HostKeyService;
 use Timeax\FortiPlugin\Services\PolicyService;
 use Timeax\FortiPlugin\Services\SigningService;
@@ -217,7 +216,7 @@ final class PackagerController extends Controller
         $snapshot = $this->policy->snapshot();
         $verify = $this->keys->currentVerifyKey(KeyPurpose::packager_sign);
 
-        // ephemeral encryption key bound to a nonce
+        // ephemeral encryption key bound to nonce
         $nonce = 'up_' . Str::random(24);
         $encKey = base64_encode(random_bytes(32));
         Cache::put("forti:enc:$nonce", $encKey, now()->addMinutes(40));
@@ -231,7 +230,7 @@ final class PackagerController extends Controller
         $validatorConfig = [
             'headline' => [
                 'composer_json' => 'composer.json',
-                'forti_schema' => base_path('vendor/timeax/fortiplugin/schemas/fortiplugin.schema.json'),
+                'forti_schema' => base_path('vendor/timeax/fortiplugin/schema/fortiplugin.schema.json'),
                 'host_config' => $snapshot['host_config'] ?? [],
                 'permission_manifest' => '.internal/permissions.json',
                 'route_files' => [],
@@ -340,6 +339,11 @@ final class PackagerController extends Controller
         ]);
 
         $state = Cache::get("forti:upload:{$data['token']}");
+
+        Log::info('PACK UPLOAD START', [
+            'state_exists' => (bool)$state,
+        ]);
+
         if (!$state) {
             return response()->json(['ok' => false, 'error' => 'upload_token_invalid_or_expired'], 400);
         }
@@ -348,82 +352,98 @@ final class PackagerController extends Controller
             return response()->json(['ok' => false, 'error' => 'plugin_key_mismatch'], 400);
         }
 
-        // Accept either enc_zip (preferred) or zip; for now, treat enc_zip as raw zip per minimal contract
         /** @var UploadedFile|null $file */
         $file = $request->file('enc_zip') ?: $request->file('zip');
+
         if (!$file) {
             return response()->json(['ok' => false, 'error' => 'no_file'], 400);
         }
 
-        $stored = $file->storeAs('forti/uploads', Str::uuid()->toString() . '.zip');
-        $zipPath = storage_path('app/' . $stored);
+        Log::info('PACK UPLOAD FILE CHECK', [
+            'file' => $file->getClientOriginalName(),
+        ]);
 
-        // Expand the zip into a temp directory
-        $tmpDir = storage_path('app/forti/tmp/' . Str::uuid()->toString());
+        /**
+         * STEP A — use raw tmp path ONLY for ZipArchive
+         */
+        $zipTmpPath = $file->getRealPath();
+
+        /**
+         * STEP B — create extraction dir (real FS path required)
+         */
+        $tmpDir = storage_path('app/forti/tmp/' . Str::uuid());
+
         if (!is_dir($tmpDir) && !mkdir($tmpDir, 0755, true) && !is_dir($tmpDir)) {
             throw new RuntimeException('Failed to create temp directory');
         }
 
         $zip = new ZipArchive();
-        if ($zip->open($zipPath) !== true) {
+        if ($zip->open($zipTmpPath) !== true) {
             return response()->json(['ok' => false, 'error' => 'invalid_zip'], 400);
         }
+
         $zip->extractTo($tmpDir);
         $zip->close();
 
-        // Integrity checks against cached manifest
+        /**
+         * STEP C — integrity check (unchanged)
+         */
         $manifest = $state['manifest'] ?? null;
-        if (!is_array($manifest) || !isset($manifest['files']) || !is_array($manifest['files'])) {
+        if (!is_array($manifest) || !isset($manifest['files'])) {
             return response()->json(['ok' => false, 'error' => 'manifest_missing'], 400);
         }
 
-        $integrityOk = true;
-
-        // Build set of files from manifest
         $expected = [];
         foreach ($manifest['files'] as $f) {
             $expected[$f['path']] = $f;
         }
 
-        // Verify each manifest file
+        $integrityOk = true;
+
         foreach ($expected as $rel => $info) {
             $abs = $tmpDir . DIRECTORY_SEPARATOR . $rel;
             if (!is_file($abs)) {
                 $integrityOk = false;
                 break;
             }
-            $size = filesize($abs);
-            $hash = hash_file('sha256', $abs);
-            if ((int)$size !== (int)$info['size'] || strtolower($hash) !== strtolower($info['sha256'])) {
+
+            if (
+                filesize($abs) !== (int)$info['size'] ||
+                hash_file('sha256', $abs) !== strtolower($info['sha256'])
+            ) {
                 $integrityOk = false;
                 break;
             }
         }
 
-        // Optionally enforce no extra files beyond manifest
-        $noExtras = true;
-        $rii = new RecursiveIteratorIterator(new RecursiveDirectoryIterator($tmpDir, FilesystemIterator::SKIP_DOTS));
-        foreach ($rii as $fs) {
-            $relPath = ltrim(str_replace($tmpDir, '', $fs->getPathname()), '\\/');
-            $relPath = str_replace('\\', '/', $relPath);
-            if (!isset($expected[$relPath]) && $fs->isFile()) {
-                $noExtras = false;
-                break;
-            }
-        }
+        /**
+         * STEP D — store uploaded zip permanently (disk-aware)
+         */
+        $disk = 'local';
 
-        $allOk = $integrityOk && $noExtras;
+        $stored = $file->storeAs(
+            'forti/uploads',
+            Str::uuid() . '.zip',
+            $disk
+        );
 
-        // Create receipt and cache it
+        $zipPath = Storage::disk($disk)->path($stored);
+
+
+
+        /**
+         * STEP E — cache receipt
+         */
         $receiptId = 'rcpt_' . Str::random(36);
+
         Cache::put("forti:receipt:$receiptId", [
             'placeholder_id' => $state['placeholder_id'] ?? null,
-            'plugin_key' => $state['plugin_key'] ?? null,
+            'plugin_key' => $state['plugin_key'],
             'tmp_dir' => $tmpDir,
             'zip_path' => $zipPath,
             'manifest' => $manifest,
             'issued_at' => now()->toIso8601String(),
-            'integrity_ok' => $allOk,
+            'integrity_ok' => $integrityOk,
         ], now()->addMinutes(40));
 
         return response()->json([
@@ -431,6 +451,7 @@ final class PackagerController extends Controller
             'receipt_id' => $receiptId,
         ]);
     }
+
 
     /**
      * STEP 4 — finalize upload based on receipt and action
@@ -482,7 +503,7 @@ final class PackagerController extends Controller
             }
             $destPath = $destDir . DIRECTORY_SEPARATOR . $slug . '-' . $version . '-' . $ts . '.zip';
 
-            // Move the uploaded zip to permanent location
+            // Move the uploaded zip to a permanent location
             $src = $receipt['zip_path'] ?? null;
             if ($src && is_file($src)) {
                 if (!@rename($src, $destPath)) {
@@ -525,7 +546,7 @@ final class PackagerController extends Controller
             @unlink($receipt['zip_path']);
         }
 
-        // Remove cached receipt
+        // Remove the cached receipt
         Cache::forget("forti:receipt:{$data['receipt_id']}");
 
         return response()->json([

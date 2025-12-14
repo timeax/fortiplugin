@@ -26,26 +26,35 @@ class ConfigValidator
 
         $schema = json_decode(file_get_contents($schemaPath), false, 512, JSON_THROW_ON_ERROR); // <-- just the decoded schema object!
         $validator = new Validator();
-        $error = $validator->schemaValidation($data, $schema);
+        $result = $validator->validate($data, $schema);
 
-        if ($error !== null) {
-            $details = $this->extractErrors($error);
-            return [
-                'error' => 'Schema validation failed',
-                'details' => $details,
-            ];
+        if ($result->isValid()) {
+            return []; // Valid!
         }
 
-        return []; // Valid!
+        $error = $result->error();
+        if ($error === null) {
+            // No detailed error available, but it's invalid
+            return ['error' => 'Schema validation failed (no details available)'];
+        }
+
+        $details = $this->extractErrors($error);
+
+        return [
+            'error' => 'Schema validation failed',
+            'details' => $details,
+        ];
     }
 
-    protected function extractErrors($error, $parentPointer = ''): array
+    protected function extractErrors($error): array
     {
         if (!$error) {
             return [];
         }
 
-        $pointer = $parentPointer . $error->data()->pointer();
+        $pointer = $error->data()->fullPath();
+
+
         $message = $error->message();
         $keyword = $error->keyword();
         $args = $error->args();

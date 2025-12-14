@@ -72,7 +72,6 @@ class CreateAuthorCommand extends Command
             return self::FAILURE;
         }
     }
-
     private function generateUniqueEmail(): string
     {
         // Example domain; adjust if you prefer using your app domain

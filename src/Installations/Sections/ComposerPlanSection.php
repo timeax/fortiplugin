@@ -5,10 +5,10 @@ namespace Timeax\FortiPlugin\Installations\Sections;
 
 use Throwable;
 use Timeax\FortiPlugin\Installations\Support\ComposerInspector;
-use Timeax\FortiPlugin\Installations\Support\InstallationLogStore;
 use Timeax\FortiPlugin\Installations\Support\EmitsEvents;
-use Timeax\FortiPlugin\Installations\Support\Events;
 use Timeax\FortiPlugin\Installations\Support\ErrorCodes;
+use Timeax\FortiPlugin\Installations\Support\Events;
+use Timeax\FortiPlugin\Installations\Support\InstallationLogStore;
 
 /**
  * ComposerPlanSection
@@ -78,11 +78,16 @@ final class ComposerPlanSection
                 'core_conflicts' => $plan->core_conflicts,
             ]]);
 
+            $packagesMeta = array_map(static fn($e) => $e->toArray(), $packages);
+
             return [
                 'status' => 'ok',
-                'packages' => array_map(static fn($e) => $e->toArray(), $packages),
+                'packages' => $packagesMeta,     // keep for summary/UI
+                'packages_dto' => $packages,     // NEW: for DbPersist (DTO map)
                 'plan' => $plan->toArray(),
             ];
+
+
         } catch (Throwable $e) {
             // Emit a concise failure and return
             $this->emitFail(

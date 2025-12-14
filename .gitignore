@@ -6,3 +6,5 @@ composer.phar
 # composer.lock
 /prodex
 *.sh
+/.idea
+/.idea
