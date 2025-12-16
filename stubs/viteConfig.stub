@@ -15,10 +15,23 @@ function scopedTygerPrep() {
     const prep = origTygerPrep();
     return {
         ...prep,
-        transform(code, id, ...rest) {
-            const norm = id.replace(/\\/g, '/');
-            if (!norm.startsWith(embedRoot)) return null;
-            return prep.transform.call(this, code, id, ...rest);
+
+        writeBundle(options, bundle) {
+            const filteredBundle = {};
+
+            for (const [fileName, chunk] of Object.entries(bundle)) {
+                // If this is the main Inertia app, SKIP IT.
+                // The plugin will never see it, so it won't rewrite React imports.
+                if (chunk.name === 'inertia') continue;
+
+                // Pass the "integrations" (embeds) through to the plugin
+                filteredBundle[fileName] = chunk;
+            }
+
+            // Execute the original plugin logic with our filtered list
+            if (prep.writeBundle) {
+                return prep.writeBundle.call(this, options, filteredBundle);
+            }
         },
     };
 }

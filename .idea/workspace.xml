@@ -5,30 +5,23 @@
   </component>
   <component name="ChangeListManager">
     <list default="true" id="eaf4cbc6-d298-4694-b042-183ced7c77f7" name="Changes" comment="">
-      <change beforePath="$PROJECT_DIR$/.gitignore" beforeDir="false" afterPath="$PROJECT_DIR$/.gitignore" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/.idea/fortiplugin.iml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/fortiplugin.iml" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/config/fortiplugin.php" beforeDir="false" afterPath="$PROJECT_DIR$/config/fortiplugin.php" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/database/migrations/2025_11_07_085730_16_create_scpl_plugins_table.php" beforeDir="false" afterPath="$PROJECT_DIR$/database/migrations/2025_11_07_085730_16_create_scpl_plugins_table.php" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/prisma/schema/permissions.prisma" beforeDir="false" afterPath="$PROJECT_DIR$/prisma/schema/permissions.prisma" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/prodex.json" beforeDir="false" afterPath="$PROJECT_DIR$/prodex.json" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/routes/api.php" beforeDir="false" afterPath="$PROJECT_DIR$/routes/api.php" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/Console/Commands/MakePlugin.php" beforeDir="false" afterPath="$PROJECT_DIR$/src/Console/Commands/MakePlugin.php" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/Console/Commands/PackPlugin.php" beforeDir="false" afterPath="$PROJECT_DIR$/src/Console/Commands/PackPlugin.php" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/Core/Install/JsonRouteCompiler.php" beforeDir="false" afterPath="$PROJECT_DIR$/src/Core/Install/JsonRouteCompiler.php" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/Core/Security/ConfigValidator.php" beforeDir="false" afterPath="$PROJECT_DIR$/src/Core/Security/ConfigValidator.php" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/FortiPluginServiceProvider.php" beforeDir="false" afterPath="$PROJECT_DIR$/src/FortiPluginServiceProvider.php" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/Http/Controllers/PackagerController.php" beforeDir="false" afterPath="$PROJECT_DIR$/src/Http/Controllers/PackagerController.php" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/Installations/DTO/InstallSummary.php" beforeDir="false" afterPath="$PROJECT_DIR$/src/Installations/DTO/InstallSummary.php" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/src/Installations/Installer.php" beforeDir="false" afterPath="$PROJECT_DIR$/src/Installations/Installer.php" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/Installations/InstallerPolicy.php" beforeDir="false" afterPath="$PROJECT_DIR$/src/Installations/InstallerPolicy.php" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/src/Installations/Sections/ComposerPlanSection.php" beforeDir="false" afterPath="$PROJECT_DIR$/src/Installations/Sections/ComposerPlanSection.php" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/Installations/Sections/DbPersistSection.php" beforeDir="false" afterPath="$PROJECT_DIR$/src/Installations/Sections/DbPersistSection.php" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/Installations/Sections/InstallFilesSection.php" beforeDir="false" afterPath="$PROJECT_DIR$/src/Installations/Sections/InstallFilesSection.php" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/Installations/Sections/ProviderValidationSection.php" beforeDir="false" afterPath="$PROJECT_DIR$/src/Installations/Sections/ProviderValidationSection.php" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/Installations/Sections/RouteWriteSection.php" beforeDir="false" afterPath="$PROJECT_DIR$/src/Installations/Sections/RouteWriteSection.php" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/Installations/Sections/UiConfigValidationSection.php" beforeDir="false" afterPath="$PROJECT_DIR$/src/Installations/Sections/UiConfigValidationSection.php" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/src/Installations/Sections/VendorPolicySection.php" beforeDir="false" afterPath="$PROJECT_DIR$/src/Installations/Sections/VendorPolicySection.php" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/Installations/Sections/ZipValidationGate.php" beforeDir="false" afterPath="$PROJECT_DIR$/src/Installations/Sections/ZipValidationGate.php" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/src/Installations/Support/InstallationLogStore.php" beforeDir="false" afterPath="$PROJECT_DIR$/src/Installations/Support/InstallationLogStore.php" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/Services/AuthService.php" beforeDir="false" afterPath="$PROJECT_DIR$/src/Services/AuthService.php" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/Services/ValidatorService.php" beforeDir="false" afterPath="$PROJECT_DIR$/src/Services/ValidatorService.php" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/Support/AuditLogger.php" beforeDir="false" afterPath="$PROJECT_DIR$/src/Support/AuditLogger.php" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/Support/FortiGates.php" beforeDir="false" afterPath="$PROJECT_DIR$/src/Support/FortiGates.php" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/Traits/ClientSession.php" beforeDir="false" afterPath="$PROJECT_DIR$/src/Traits/ClientSession.php" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/test/Core/Install/JsonRouteCompilerTest.php" beforeDir="false" afterPath="$PROJECT_DIR$/test/Core/Install/JsonRouteCompilerTest.php" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/Installations/Support/RouteUiBridge.php" beforeDir="false" afterPath="$PROJECT_DIR$/src/Installations/Support/RouteUiBridge.php" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/Models/PluginPlaceholder.php" beforeDir="false" afterPath="$PROJECT_DIR$/src/Models/PluginPlaceholder.php" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/stubs/viteConfig.stub" beforeDir="false" afterPath="$PROJECT_DIR$/stubs/viteConfig.stub" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -42,7 +35,7 @@
     </execution>
   </component>
   <component name="EmbeddingIndexingInfo">
-    <option name="cachedIndexableFilesCount" value="9370" />
+    <option name="cachedIndexableFilesCount" value="9383" />
     <option name="fileBasedEmbeddingIndicesEnabled" value="true" />
   </component>
   <component name="FileTemplateManagerImpl">
@@ -60,6 +53,11 @@
     </option>
   </component>
   <component name="Git.Settings">
+    <option name="RECENT_BRANCH_BY_REPOSITORY">
+      <map>
+        <entry key="$PROJECT_DIR$" value="master" />
+      </map>
+    </option>
     <option name="RECENT_GIT_ROOT_PATH" value="$PROJECT_DIR$" />
   </component>
   <component name="HighlightingSettingsPerFile">
@@ -304,9 +302,9 @@
     </configuration>
     <recent_temporary>
       <list>
-        <item itemvalue="PHPUnit.PluginInstallFlowTest" />
         <item itemvalue="PHPUnit.PluginSecurityScannerTest.testBlocklistClassMethodAllowlist" />
         <item itemvalue="PHPUnit.PluginSecurityScannerTest" />
+        <item itemvalue="PHPUnit.PluginInstallFlowTest" />
         <item itemvalue="PHPUnit.LegacyJsonRouteCompilerTest.test_http_variants_any_and_match_and_action_expr_variants" />
         <item itemvalue="PHPUnit.LegacyJsonRouteCompilerTest.test_compileData_with_http_and_group_emits_expected_snippets_and_collects_ids" />
       </list>
@@ -349,27 +347,12 @@
       <workItem from="1765428000752" duration="532000" />
       <workItem from="1765428768358" duration="313000" />
       <workItem from="1765429104918" duration="63174000" />
+      <workItem from="1765882070094" duration="2620000" />
     </task>
     <servers />
   </component>
   <component name="TypeScriptGeneratedFilesManager">
     <option name="version" value="3" />
-  </component>
-  <component name="XDebuggerManager">
-    <breakpoint-manager>
-      <breakpoints>
-        <line-breakpoint enabled="true" type="php">
-          <url>file://$PROJECT_DIR$/test/PluginSecurityScannerTest.php</url>
-          <line>151</line>
-          <option name="timeStamp" value="2" />
-        </line-breakpoint>
-        <line-breakpoint enabled="true" type="php">
-          <url>file://$PROJECT_DIR$/src/Console/Commands/PackPlugin.php</url>
-          <line>45</line>
-          <option name="timeStamp" value="3" />
-        </line-breakpoint>
-      </breakpoints>
-    </breakpoint-manager>
   </component>
   <component name="XSLT-Support.FileAssociations.UIState">
     <expand />

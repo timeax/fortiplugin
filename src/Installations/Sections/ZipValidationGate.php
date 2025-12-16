@@ -2,8 +2,6 @@
 declare(strict_types=1);
 
 namespace Timeax\FortiPlugin\Installations\Sections;
-
-use Closure;
 use JsonException;
 use Random\RandomException;
 use Throwable;
@@ -31,8 +29,6 @@ final readonly class ZipValidationGate
         private InstallerTokenManager $tokens,
         private ZipRepository         $zips,
         private AtomicFilesystem      $afs,
-        /** optional installer-level emitter: fn(array $payload): void */
-        private ?Closure              $emit = null
     ) {}
 
     /**
@@ -47,12 +43,13 @@ final readonly class ZipValidationGate
      * @throws RandomException
      */
     public function run(
-        string $pluginDir,
+        string   $pluginDir,
         int|string $zipId,
-        string $actor,
-        string $runId,
-        string $validatorConfigHash,
-        ?string $installerToken = null
+        string   $actor,
+        string   $runId,
+        string   $validatorConfigHash,
+        ?string  $installerToken = null,
+        callable $emit
     ): array {
         $status = $this->zips->getValidationStatus($zipId);
 
@@ -63,7 +60,7 @@ final readonly class ZipValidationGate
                 $claims = $this->tokens->validate($installerToken);
                 $tokenPurpose = $claims->purpose;
             } catch (Throwable $e) {
-                $this->emit && ($this->emit)([
+                $emit([
                     'title' => 'TOKEN_INVALID',
                     'description' => 'Installer token invalid or expired',
                     'meta' => ['zip_id' => (string)$zipId, 'reason' => $e->getMessage()],
@@ -71,13 +68,13 @@ final readonly class ZipValidationGate
             }
         }
 
-        $this->emit && ($this->emit)(['title' => 'ZIP_STATUS_CHECK', 'description' => 'Evaluating zip validation status', 'meta' => ['zip_id' => (string)$zipId, 'status' => $status->value]]);
+        $emit(['title' => 'ZIP_STATUS_CHECK', 'description' => 'Evaluating zip validation status', 'meta' => ['zip_id' => (string)$zipId, 'status' => $status->value]]);
 
         return match ($status) {
-            ZipValidationStatus::VERIFIED => $this->allow($pluginDir, $zipId),
-            ZipValidationStatus::PENDING  => $this->pending($pluginDir, $zipId, $actor, $runId, $validatorConfigHash, $tokenPurpose),
-            ZipValidationStatus::FAILED   => $this->deny($pluginDir, $zipId, 'zip_validation_failed'),
-            default                       => $this->deny($pluginDir, $zipId, 'zip_validation_unknown'),
+            ZipValidationStatus::VERIFIED => $this->allow($pluginDir, $zipId, $emit),
+            ZipValidationStatus::PENDING  => $this->pending($pluginDir, $zipId, $actor, $runId, $validatorConfigHash, $tokenPurpose, $emit),
+            ZipValidationStatus::FAILED   => $this->deny($pluginDir, $zipId, 'zip_validation_failed', $emit),
+            default                       => $this->deny($pluginDir, $zipId, 'zip_validation_unknown', $emit),
         };
     }
 
@@ -86,11 +83,11 @@ final readonly class ZipValidationGate
     /**
      * @throws JsonException
      */
-    private function allow(string $pluginDir, int|string $zipId): array
+    private function allow(string $pluginDir, int|string $zipId, callable $emit): array
     {
         $this->persistGate($pluginDir, 'verified');
         $this->persistDecision($pluginDir, Install::INSTALL, 'zip_verified');
-        $this->emit && ($this->emit)(['title' => 'INSTALL_DECISION', 'description' => 'INSTALL: zip verified', 'meta' => ['zip_id' => (string)$zipId]]);
+        $emit(['title' => 'INSTALL_DECISION', 'description' => 'INSTALL: zip verified', 'meta' => ['zip_id' => (string)$zipId]]);
         return ['decision' => Install::INSTALL, 'meta' => []];
     }
 
@@ -104,7 +101,8 @@ final readonly class ZipValidationGate
         string $actor,
         string $runId,
         string $validatorConfigHash,
-        ?string $tokenPurpose
+        ?string $tokenPurpose,
+        callable $emit
     ): array {
         // idempotent set
         $this->zips->setValidationStatus($zipId, ZipValidationStatus::PENDING);
@@ -115,7 +113,7 @@ final readonly class ZipValidationGate
 
         $this->persistGate($pluginDir, 'pending', $summary);
         $this->persistDecision($pluginDir, Install::ASK, 'background_scans_pending', $summary);
-        $this->emit && ($this->emit)(['title' => 'INSTALL_DECISION', 'description' => 'ASK: waiting on background scans', 'meta' => ['zip_id' => (string)$zipId]]);
+        $emit(['title' => 'INSTALL_DECISION', 'description' => 'ASK: waiting on background scans', 'meta' => ['zip_id' => (string)$zipId]]);
 
         return ['decision' => Install::ASK, 'meta' => ['token' => $token, 'token_summary' => $summary]];
     }
@@ -123,11 +121,11 @@ final readonly class ZipValidationGate
     /**
      * @throws JsonException
      */
-    private function deny(string $pluginDir, int|string $zipId, string $reason): array
+    private function deny(string $pluginDir, int|string $zipId, string $reason, callable $emit): array
     {
         $this->persistGate($pluginDir, $reason === 'zip_validation_failed' ? 'failed' : 'unknown');
         $this->persistDecision($pluginDir, Install::BREAK, $reason);
-        $this->emit && ($this->emit)(['title' => 'INSTALL_DECISION', 'description' => 'BREAK: zip not eligible', 'meta' => ['zip_id' => (string)$zipId, 'reason' => $reason]]);
+        $emit(['title' => 'INSTALL_DECISION', 'description' => 'BREAK: zip not eligible', 'meta' => ['zip_id' => (string)$zipId, 'reason' => $reason]]);
         return ['decision' => Install::BREAK, 'meta' => []];
     }
 

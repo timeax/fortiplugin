@@ -6,6 +6,7 @@ namespace Timeax\FortiPlugin\Installations;
 
 use Illuminate\Support\Facades\DB;
 use JsonException;
+use Log;
 use Random\RandomException;
 use RuntimeException;
 use Throwable;
@@ -93,6 +94,26 @@ final readonly class Installer
         ?string          $installerToken = null,
     ): InstallerResult
     {
+        $cliTee = app()->runningInConsole()
+            ? function (array $p): void {
+                $title = $p['title'] ?? 'EVENT';
+                $desc = $p['description'] ?? '';
+                fwrite(STDOUT, "[{$title}] {$desc}\n");
+            }
+            : null;
+
+        // 1) installer emitter: persist + tee + forward
+        $emitInstaller = $this->logStore->makeInstallerEmitter(
+            forward: $emit,     // original caller emitter
+            tee: $cliTee
+        );
+
+        // 2) validation emitter: tee + forward only (NO persistence here)
+        $emitValidation = function (array $p) use ($emit, $cliTee): void {
+            if ($cliTee) $cliTee($p);
+            if ($emit) $emit($p);
+        };
+
         $pluginDir = (string)($meta->paths['staging'] ?? '');
         if ($pluginDir === '') {
             throw new RuntimeException('InstallMeta.paths.staging is required.');
@@ -121,23 +142,23 @@ final readonly class Installer
             try {
                 $claims = $this->tokens->validate($installerToken);
             } catch (Throwable $e) {
-                $emit && $emit([
+                $emitInstaller([
                     'title' => 'INSTALLER_TOKEN_INVALID',
                     'description' => 'Installer override token invalid or expired',
                     'meta' => ['zip_id' => (string)$zipId, 'reason' => $e->getMessage()],
                 ]);
                 // Treat as ASK (UI should re-request confirmation or new token)
-                return $this->emitAsk($emit, null, ['reason' => 'token_invalid']);
+                return $this->emitAsk($emitInstaller, null, ['reason' => 'token_invalid']);
             }
 
             // Purpose & run parity
             if (($claims->purpose ?? null) !== 'install_override' || ($claims->run_id ?? null) !== $runId) {
-                $emit && $emit([
+                $emitInstaller([
                     'title' => 'INSTALLER_TOKEN_MISMATCH',
                     'description' => 'Token purpose or run_id mismatch',
                     'meta' => ['expected_run' => $runId, 'token_run' => $claims->run_id ?? null, 'purpose' => $claims->purpose ?? null],
                 ]);
-                return $this->emitAsk($emit, null, ['reason' => 'token_mismatch']);
+                return $this->emitAsk($emitInstaller, null, ['reason' => 'token_mismatch']);
             }
 
             // Ensure prior validators ran and produced ASK for this run
@@ -146,12 +167,12 @@ final readonly class Installer
             $hasFileScanAsk = $this->hasDecisionAskForRun($doc, $runId);
 
             if (!$hasVerificationOk || !$hasFileScanAsk) {
-                $emit && $emit([
+                $emitInstaller([
                     'title' => 'RESUME_PRECHECK_FAILED',
                     'description' => 'Logs do not confirm prior verification OK and ASK decision for this run',
                     'meta' => ['verification_ok' => $hasVerificationOk, 'ask_for_run' => $hasFileScanAsk, 'run_id' => $runId],
                 ]);
-                return $this->emitAsk($emit, null, ['reason' => 'precheck_failed']);
+                return $this->emitAsk($emitInstaller, null, ['reason' => 'precheck_failed']);
             }
 
             // Delegate to ZipValidationGate to finalize the gate decision on resume
@@ -162,15 +183,16 @@ final readonly class Installer
                 runId: $runId,
                 validatorConfigHash: $validatorConfigHash,
                 installerToken: $installerToken,
+                emit: $emitInstaller,
             );
             $gateDecision = $gate['decision'] ?? null;
             $gateMeta = $gate['meta'] ?? [];
 
             if ($gateDecision === Install::ASK) {
-                return $this->emitAsk($emit, null, $gateMeta);
+                return $this->emitAsk($emitInstaller, null, $gateMeta);
             }
             if ($gateDecision === Install::BREAK) {
-                return $this->emitBreak($emit, null, ['reason' => 'zip_gate_break'] + $gateMeta);
+                return $this->emitBreak($emitInstaller, null, ['reason' => 'zip_gate_break'] + $gateMeta);
             }
 
             // If ZIP gate says INSTALL, we skip ValidatorBridge and continue below at Provider Validation (step 2).
@@ -196,7 +218,7 @@ final readonly class Installer
                 validatorConfigHash: $validatorConfigHash,
                 actor: $actor,
                 runId: $runId,
-                emit: $emit,
+                emit: $emitValidation,
                 onValidationEnd: $onValidationEnd,
                 onFileScanError: $onFileScanError
             );
@@ -207,10 +229,10 @@ final readonly class Installer
 
             if ($gateDecision instanceof Install) {
                 if ($gateDecision === Install::ASK) {
-                    return $this->emitAsk($emit, $summary, is_array($gateMeta) ? $gateMeta : []);
+                    return $this->emitAsk($emitInstaller, $summary, is_array($gateMeta) ? $gateMeta : []);
                 }
                 if ($gateDecision === Install::BREAK) {
-                    return $this->emitBreak($emit, $summary, []);
+                    return $this->emitBreak($emitInstaller, $summary, []);
                 }
                 // INSTALL → continue
             }
@@ -231,7 +253,7 @@ final readonly class Installer
             pluginName: $pluginName,
             psr4Root: $psr4Root,
             providers: $providers,
-            emit: $emit
+            emit: $emitInstaller
         );
         if (($prov['status'] ?? 'ok') !== 'ok') {
             return InstallerResult::fromArray(['status' => 'fail', 'summary' => $summary]);
@@ -252,13 +274,13 @@ final readonly class Installer
         $vendor = $this->vendorPolicy->run(
             pluginDir: $pluginDir,
             hostComposerLock: $hostComposerLock,
-            emit: $emit
+            emit: $emitInstaller
         );
 
         $plan = $this->composerPlan->run(
             pluginDir: $pluginDir,
             hostComposerLock: $hostComposerLock,
-            emit: $emit
+            emit: $emitInstaller
         );
 
         $packagesForDb = $plan['packages_dto'] ?? $vendor['packages_dto'] ?? null;
@@ -286,7 +308,7 @@ final readonly class Installer
                 versionTag: $versionTag,
                 zipId: $zipId,
                 packages: $packagesForDb,
-                emit: $emit
+                emit: $emitInstaller
             );
             if (($persist['status'] ?? 'fail') !== 'ok') {
                 throw new RuntimeException('DB persist failed');
@@ -298,7 +320,8 @@ final readonly class Installer
             }
 
             // Routes: discover + compile JSON, then write PHP into STAGING
-            $bundle = $this->routeUiBridge->discoverAndCompile($pluginDir, $emit);
+            $bundle = $this->routeUiBridge->discoverAndCompile($pluginDir, $emitInstaller);
+            Log::info('Route write bundle: ' . json_encode($bundle));
             $compiled = $bundle['compiled'] ?? [];
 
             if (!empty($compiled)) {
@@ -306,7 +329,7 @@ final readonly class Installer
                 $write = $this->routeWriterSection->run(
                     plugin: $plugin,
                     compiled: $compiled,
-                    emit: $emit
+                    emit: $emitInstaller
                 );
                 if (($write['status'] ?? 'fail') !== 'ok') {
                     throw new RuntimeException('Route write failed: ' . ($write['reason'] ?? 'unknown'));
@@ -318,14 +341,20 @@ final readonly class Installer
                     meta: $meta,
                     knownRouteIds: $bundle['route_ids'] ?? [],
                     hostScheme: $hostScheme,
-                    emit: $emit
+                    emit: $emitInstaller
                 );
+            } else {
+                $emitInstaller([
+                    'title' => 'ROUTES_NONE_DISCOVERED',
+                    'description' => 'No route files discovered or compiled',
+                    'meta' => ['plugin_dir' => $pluginDir],
+                ]);
             }
 
             DB::commit();
         } catch (Throwable $e) {
             DB::rollBack();
-            $emit && $emit([
+            $emitInstaller([
                 'title' => 'DB_TRANSACTION_ROLLBACK',
                 'description' => 'Persistence or route write failed; rolled back',
                 'meta' => ['exception' => $e->getMessage()],
@@ -342,10 +371,10 @@ final readonly class Installer
         $files = $this->installFiles->run(
             meta: $meta,
             stagingPluginRoot: $pluginDir,
-            emit: $emit
+            emit: $emitInstaller
         );
         if (($files['status'] ?? 'fail') !== 'ok') {
-            $emit && $emit(['title' => 'INSTALL_FILES_FAIL', 'description' => 'Failed moving staged files into place']);
+            $emitInstaller(['title' => 'INSTALL_FILES_FAIL', 'description' => 'Failed moving staged files into place']);
             return InstallerResult::fromArray([
                 'status' => 'fail',
                 'summary' => $summary,
@@ -401,14 +430,14 @@ final readonly class Installer
         return false;
     }
 
-    private function emitAsk(?callable $emit, ?InstallSummary $summary, array $meta): InstallerResult
+    private function emitAsk(callable $emit, ?InstallSummary $summary, array $meta): InstallerResult
     {
         $payload = [
             'title' => 'INSTALLATION_ASK',
             'description' => 'Installation paused for host decision',
             'meta' => $meta,
         ];
-        $emit && $emit($payload);
+        $emit($payload);
 
         return InstallerResult::fromArray([
             'status' => 'ask',
@@ -417,14 +446,14 @@ final readonly class Installer
         ]);
     }
 
-    private function emitBreak(?callable $emit, ?InstallSummary $summary, array $meta): InstallerResult
+    private function emitBreak(callable $emit, ?InstallSummary $summary, array $meta): InstallerResult
     {
         $payload = [
             'title' => 'INSTALLATION_BREAK',
             'description' => 'Installation halted by policy',
             'meta' => $meta,
         ];
-        $emit && $emit($payload);
+        $emit($payload);
 
         return InstallerResult::fromArray([
             'status' => 'break',

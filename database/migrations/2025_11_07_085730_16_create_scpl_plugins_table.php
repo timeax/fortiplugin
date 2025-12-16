@@ -25,7 +25,7 @@ return new class extends Migration {
 				->constrained("scpl_placeholders", "id")
 				->onDelete("no action")
 				->onUpdate("no action");
-			$table->bigInteger("active_version_id");
+			$table->bigInteger("active_version_id")->nullable();
 			$table->string("owner_ref")->nullable();
 			$table->timestamp("activated_at")->nullable();
 			$table->bigInteger("activated_by")->nullable();

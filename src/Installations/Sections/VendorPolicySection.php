@@ -33,7 +33,7 @@ final readonly class VendorPolicySection
     /**
      * @param string $pluginDir Unpacked plugin root
      * @param string|null $hostComposerLock Absolute path to host composer.lock (optional)
-     * @param callable(array):void|null $emit Verbatim emitter
+     * @param callable(array):void $emit Installer-level emitter (non-null; persistence handled upstream)
      *
      * @return array{
      *   vendor_policy: array{mode:'strip_bundled_vendor'|'allow_bundled_vendor'
@@ -45,8 +45,8 @@ final readonly class VendorPolicySection
      */
     public function run(
         string    $pluginDir,
-        string   $hostComposerLock = null,
-        ?callable $emit = null
+        ?string   $hostComposerLock = null,
+        callable  $emit
     ): array
     {
         $mode = $this->policy->getVendorMode(); // VendorMode enum
@@ -58,7 +58,7 @@ final readonly class VendorPolicySection
             && $hostComposerLock !== ''
             && $this->afs->fs()->exists($hostComposerLock);
 
-        $emit && $emit([
+        $emit([
             'title' => 'VendorPolicy: Inspect',
             'description' => $hostLockPresent
                 ? 'Collecting packages using host composer.lock'
@@ -110,7 +110,7 @@ final readonly class VendorPolicySection
                 $this->afs->fs()->rename($pluginVendor, $parkTo);
                 $stripped = true;
 
-                $emit && $emit([
+                $emit([
                     'title' => 'VendorPolicy: Stripped vendor',
                     'description' => 'Plugin vendor/ moved out per policy',
                     'error' => null,
@@ -120,7 +120,7 @@ final readonly class VendorPolicySection
             } catch (RuntimeException $e) {
                 $notes[] = 'Failed to move vendor/: ' . $e->getMessage();
 
-                $emit && $emit([
+                $emit([
                     'title' => 'VendorPolicy: Strip failed',
                     'description' => $e->getMessage(),
                     'error' => ['detail' => 'rename_failed', 'count' => 1],
@@ -129,7 +129,7 @@ final readonly class VendorPolicySection
                 ]);
             }
         } else {
-            $emit && $emit([
+            $emit([
                 'title' => 'VendorPolicy: Keep vendor',
                 'description' => $hasVendorDir ? 'Bundled vendor retained per policy' : 'No bundled vendor found',
                 'error' => null,
