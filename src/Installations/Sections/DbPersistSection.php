@@ -41,7 +41,7 @@ final readonly class DbPersistSection
      * @param string $versionTag Free-form version tag/fingerprint for PluginVersion
      * @param int|string $zipId PluginZip id to link to the created version
      * @param array<string,PackageEntry>|null $packages Optional packages map: name => PackageEntry
-     * @param callable|null $emit Optional installer-level emitter fn(array $payload): void
+     * @param callable $emit Installer-level emitter fn(array $payload): void (non-null; persists via Installer emitter)
      * @return array{status:'ok'|'fail', plugin_id?:int, plugin_version_id?:int}
      * @throws JsonException
      * @noinspection PhpUndefinedClassInspection
@@ -52,10 +52,11 @@ final readonly class DbPersistSection
         string      $versionTag,
         int|string  $zipId,
         ?array      $packages = null,
-        ?callable   $emit = null
+        callable    $emit
     ): array
     {
-        $emit && $emit([
+
+        $payload = [
             'title' => 'DB_PERSIST_START',
             'description' => 'Persisting plugin + version',
             'meta' => [
@@ -63,16 +64,10 @@ final readonly class DbPersistSection
                 'zip_id' => (string)$zipId,
                 'version_tag' => $versionTag,
             ],
-        ]);
-        $this->log->appendInstallerEmit([
-            'title' => 'DB_PERSIST_START',
-            'description' => 'Persisting plugin + version',
-            'meta' => [
-                'placeholder_name' => $meta->placeholder_name,
-                'zip_id' => (string)$zipId,
-                'version_tag' => $versionTag,
-            ],
-        ]);
+        ];
+
+        $emit($payload);
+
 
         try {
             // 1) Upsert Plugin (by placeholder id/name per your repo impl)
@@ -116,8 +111,7 @@ final readonly class DbPersistSection
                     'plugin_version_id' => $pluginVersionId,
                 ],
             ];
-            $emit && $emit($okEmit);
-            $this->log->appendInstallerEmit($okEmit);
+            $emit($okEmit);
 
             return ['status' => 'ok', 'plugin_id' => $pluginId, 'plugin_version_id' => $pluginVersionId];
         } catch (Throwable $e) {
@@ -139,8 +133,7 @@ final readonly class DbPersistSection
                 'description' => 'Failed to persist DB records',
                 'meta' => $failMeta,
             ];
-            $emit && $emit($failEmit);
-            $this->log->appendInstallerEmit($failEmit);
+            $emit($failEmit);
 
             return ['status' => 'fail'];
         }

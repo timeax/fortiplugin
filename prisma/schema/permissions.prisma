@@ -315,7 +315,7 @@ model Plugin {
   config                Json?
   meta                  Json?
   plugin_placeholder_id BigInt       @unique @db.BigInt
-  active_version_id     BigInt
+  active_version_id     BigInt?
   owner_ref             String?
 
   // existing relations (assumed to exist)
