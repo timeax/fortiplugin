@@ -5,23 +5,14 @@
   </component>
   <component name="ChangeListManager">
     <list default="true" id="eaf4cbc6-d298-4694-b042-183ced7c77f7" name="Changes" comment="">
+      <change beforePath="$PROJECT_DIR$/.idea/fortiplugin.iml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/fortiplugin.iml" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/database/migrations/2025_11_07_085730_16_create_scpl_plugins_table.php" beforeDir="false" afterPath="$PROJECT_DIR$/database/migrations/2025_11_07_085730_16_create_scpl_plugins_table.php" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/prisma/schema/permissions.prisma" beforeDir="false" afterPath="$PROJECT_DIR$/prisma/schema/permissions.prisma" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/prodex.json" beforeDir="false" afterPath="$PROJECT_DIR$/prodex.json" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/Core/Install/JsonRouteCompiler.php" beforeDir="false" afterPath="$PROJECT_DIR$/src/Core/Install/JsonRouteCompiler.php" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/Installations/Activation/Activator.php" beforeDir="false" afterPath="$PROJECT_DIR$/src/Installations/Activation/Activator.php" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/src/Installations/Installer.php" beforeDir="false" afterPath="$PROJECT_DIR$/src/Installations/Installer.php" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/Installations/Sections/ComposerPlanSection.php" beforeDir="false" afterPath="$PROJECT_DIR$/src/Installations/Sections/ComposerPlanSection.php" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/Installations/Sections/DbPersistSection.php" beforeDir="false" afterPath="$PROJECT_DIR$/src/Installations/Sections/DbPersistSection.php" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/Installations/Sections/InstallFilesSection.php" beforeDir="false" afterPath="$PROJECT_DIR$/src/Installations/Sections/InstallFilesSection.php" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/Installations/Sections/ProviderValidationSection.php" beforeDir="false" afterPath="$PROJECT_DIR$/src/Installations/Sections/ProviderValidationSection.php" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/Installations/Sections/RouteWriteSection.php" beforeDir="false" afterPath="$PROJECT_DIR$/src/Installations/Sections/RouteWriteSection.php" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/Installations/Sections/UiConfigValidationSection.php" beforeDir="false" afterPath="$PROJECT_DIR$/src/Installations/Sections/UiConfigValidationSection.php" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/Installations/Sections/VendorPolicySection.php" beforeDir="false" afterPath="$PROJECT_DIR$/src/Installations/Sections/VendorPolicySection.php" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/Installations/Sections/ZipValidationGate.php" beforeDir="false" afterPath="$PROJECT_DIR$/src/Installations/Sections/ZipValidationGate.php" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/Installations/Sections/Decision.php" beforeDir="false" afterPath="$PROJECT_DIR$/src/Installations/Sections/Decision.php" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/src/Installations/Support/InstallationLogStore.php" beforeDir="false" afterPath="$PROJECT_DIR$/src/Installations/Support/InstallationLogStore.php" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/Installations/Support/RouteUiBridge.php" beforeDir="false" afterPath="$PROJECT_DIR$/src/Installations/Support/RouteUiBridge.php" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/Models/PluginPlaceholder.php" beforeDir="false" afterPath="$PROJECT_DIR$/src/Models/PluginPlaceholder.php" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/stubs/viteConfig.stub" beforeDir="false" afterPath="$PROJECT_DIR$/stubs/viteConfig.stub" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -35,7 +26,7 @@
     </execution>
   </component>
   <component name="EmbeddingIndexingInfo">
-    <option name="cachedIndexableFilesCount" value="9383" />
+    <option name="cachedIndexableFilesCount" value="9312" />
     <option name="fileBasedEmbeddingIndicesEnabled" value="true" />
   </component>
   <component name="FileTemplateManagerImpl">
@@ -63,7 +54,13 @@
   <component name="HighlightingSettingsPerFile">
     <setting file="file://$PROJECT_DIR$/config/fortiplugin.php" root0="FORCE_HIGHLIGHTING" root1="FORCE_HIGHLIGHTING" />
     <setting file="file://$PROJECT_DIR$/src/FortiPluginServiceProvider.php" root0="FORCE_HIGHLIGHTING" root1="FORCE_HIGHLIGHTING" />
+    <setting file="file://$PROJECT_DIR$/src/Installations/Activation/Activator.php" root0="FORCE_HIGHLIGHTING" root1="FORCE_HIGHLIGHTING" />
+    <setting file="file://$PROJECT_DIR$/src/Installations/Activation/Writers/ProvidersRegistryWriter.php" root0="FORCE_HIGHLIGHTING" root1="FORCE_HIGHLIGHTING" />
+    <setting file="file://$PROJECT_DIR$/src/Installations/Installer.php" root0="FORCE_HIGHLIGHTING" root1="SKIP_INSPECTION" />
     <setting file="file://$PROJECT_DIR$/src/Installations/InstallerPolicy.php" root0="FORCE_HIGHLIGHTING" root1="SKIP_INSPECTION" />
+    <setting file="file://$PROJECT_DIR$/src/Installations/Sections/Decision.php" root0="FORCE_HIGHLIGHTING" root1="SKIP_INSPECTION" />
+    <setting file="file://$PROJECT_DIR$/src/Installations/Sections/FileScanSection.php" root0="FORCE_HIGHLIGHTING" root1="SKIP_INSPECTION" />
+    <setting file="file://$PROJECT_DIR$/src/Installations/Support/InstallationLogStore.php" root0="FORCE_HIGHLIGHTING" root1="SKIP_INSPECTION" />
   </component>
   <component name="NamedScopeManager">
     <scope name="Work" pattern="file[fortiplugin]:src//*||file[fortiplugin]:prisma//*||file[fortiplugin]:stubs//*||file[fortiplugin]:config//*||file[fortiplugin]:schema//*||file[fortiplugin]:routes//*||file[fortiplugin]:test//*||file[fortiplugin]:workbench//*" />
@@ -201,7 +198,7 @@
     </include_path>
   </component>
   <component name="ProblemsViewState">
-    <option name="selectedTabId" value="ProjectErrors" />
+    <option name="selectedTabId" value="CurrentFile" />
   </component>
   <component name="ProjectColorInfo">{
   &quot;associatedIndex&quot;: 6

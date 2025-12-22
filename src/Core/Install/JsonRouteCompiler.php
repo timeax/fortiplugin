@@ -72,6 +72,10 @@ final class JsonRouteCompiler
         // Optional comment header (no <?php tag; RouteWriter/Materializer will wrap if needed)
         $em->line("/** FortiPlugin compiled routes " . ($source ? basename($source) : '') . " **/");
 
+        // Always import Route facade for generated chains
+        $em->line("use Illuminate\\Support\\Facades\\Route;");
+        $em->line("");
+
         // File-level group wrapper
         $this->emitGroupOpen($em, $group);
 
@@ -163,7 +167,7 @@ final class JsonRouteCompiler
                         throw new RouteCompileException("HTTP route requires 'method','path','action' at $jsonPath");
                     }
                     [$chain, $mw, $name, $where, $domain, $prefix] = $this->commonProps($node, $inheritedGroup, $guard);
-                    $emitOne($chain . '->' . $this->methodCallFor($method, $path, $action) . $this->tail($name, $mw, $where, $domain, $prefix) . ';');
+                    $emitOne($this->chainCall($chain, $this->methodCallFor($method, $path, $action)) . $this->tail($name, $mw, $where, $domain, $prefix) . ';');
                     $routesForId = $path;
                     break;
                 }
@@ -174,7 +178,7 @@ final class JsonRouteCompiler
                     $status = (int)($node['status'] ?? 302);
                     if (!$path || !$to) throw new RouteCompileException("Redirect requires 'path' and 'to' at $jsonPath");
                     [$chain, $mw, $name, , $domain, $prefix] = $this->commonProps($node, $inheritedGroup, $guard);
-                    $emitOne($chain . '->redirect(' . $this->s($path) . ', ' . $this->s($to) . ', ' . $status . ')' . $this->tail($name, $mw, null, $domain, $prefix) . ';');
+                    $emitOne($this->chainCall($chain, 'redirect(' . $this->s($path) . ', ' . $this->s($to) . ', ' . $status . ')') . $this->tail($name, $mw, null, $domain, $prefix) . ';');
                     $routesForId = $path;
                     break;
                 }
@@ -185,7 +189,7 @@ final class JsonRouteCompiler
                     $data = (array)($node['data'] ?? []);
                     if (!$path || !$view) throw new RouteCompileException("View requires 'path' and 'view' at $jsonPath");
                     [$chain, $mw, $name, , $domain, $prefix] = $this->commonProps($node, $inheritedGroup, $guard);
-                    $emitOne($chain . '->view(' . $this->s($path) . ', ' . $this->s($view) . ', ' . var_export($data, true) . ')' . $this->tail($name, $mw, null, $domain, $prefix) . ';');
+                    $emitOne($this->chainCall($chain, 'view(' . $this->s($path) . ', ' . $this->s($view) . ', ' . var_export($data, true) . ')') . $this->tail($name, $mw, null, $domain, $prefix) . ';');
                     $routesForId = $path;
                     break;
                 }
@@ -194,7 +198,7 @@ final class JsonRouteCompiler
                     [$chain, $mw, $name] = $this->commonProps($node, $inheritedGroup, $guard);
                     $action = $node['action'] ?? null;
                     if (!$action) throw new RouteCompileException("Fallback requires 'action' at $jsonPath");
-                    $emitOne($chain . '->fallback(' . $this->actionExpr($action) . ')' . $this->tail($name, $mw, null, null, null) . ';');
+                    $emitOne($this->chainCall($chain, 'fallback(' . $this->actionExpr($action) . ')') . $this->tail($name, $mw, null, null, null) . ';');
                     $routesForId = '__fallback__';
                     break;
                 }
@@ -231,7 +235,7 @@ final class JsonRouteCompiler
                             $verb = $this->resourceVerb($action);
                             $act = $controller . '@' . $this->resourceControllerMethod($action);
                             $rname = $names[$action] ?? ($base ? "$base.$action" : null);
-                            $emitOne($chain . '->' . $this->methodCallFor($verb, $path, $act) . $this->tail($rname, $mw, (array)$where, $domain, $prefix) . ';');
+                            $emitOne($this->chainCall($chain, $this->methodCallFor($verb, $path, $act)) . $this->tail($rname, $mw, (array)$where, $domain, $prefix) . ';');
                             $paths[] = $path;
                         }
                     } else {
@@ -239,7 +243,7 @@ final class JsonRouteCompiler
                             ? "apiResource(" . $this->s($resource) . ', ' . $this->s($controller) . ')'
                             : "resource(" . $this->s($resource) . ', ' . $this->s($controller) . ')';
 
-                        $line = $chain . '->' . $call;
+                        $line = $this->chainCall($chain, $call);
                         if (!empty($node['only'])) $line .= "->only(" . $this->exportArraySimple($node['only']) . ")";
                         if (!empty($node['except'])) $line .= "->except(" . $this->exportArraySimple($node['except']) . ")";
                         if (!empty($node['parameters'])) $line .= "->parameters(" . var_export((array)$node['parameters'], true) . ")";
@@ -353,7 +357,7 @@ final class JsonRouteCompiler
     private function emitGroupOpen(PhpEmitter $em, array $group): void
     {
         if ($group === []) return;
-        $em->open($this->startChain($group) . '->group(function () {');
+        $em->open($this->chainCall($this->startChain($group), 'group(function () {'));
     }
 
     private function emitGroupClose(PhpEmitter $em, array $group): void
@@ -367,7 +371,7 @@ final class JsonRouteCompiler
         $group = (array)($node['group'] ?? []);
         $merged = $this->mergeGroups($inheritedGroup, $group);
 
-        $em->open($this->startChain($merged) . '->group(function () {');
+        $em->open($this->chainCall($this->startChain($merged), 'group(function () {'));
 
         foreach (array_values((array)($node['routes'] ?? [])) as $i => $child) {
             $this->emitNode($em, (array)$child, $merged, $routeIds, "$jsonPath/routes[$i]");
@@ -390,7 +394,7 @@ final class JsonRouteCompiler
         $methodCall = $this->methodCallFor($method, $path, $action);
         $suffix = $this->tail($name, $mw, $where, $domain, $prefix);
 
-        $em->line($chain . '->' . $methodCall . $suffix . ';');
+        $em->line($this->chainCall($chain, $methodCall) . $suffix . ';');
     }
 
     private function emitResource(PhpEmitter $em, array $node, array $group, ?string $routeGuard): void
@@ -413,7 +417,7 @@ final class JsonRouteCompiler
             ? "apiResource(" . $this->s($resource) . ', ' . $this->s($controller) . ')'
             : "resource(" . $this->s($resource) . ', ' . $this->s($controller) . ')';
 
-        $em->open($chain . '->' . $call);
+        $em->open($this->chainCall($chain, $call));
         if (!empty($node['only'])) $em->line("->only(" . $this->exportArraySimple($node['only']) . ")");
         if (!empty($node['except'])) $em->line("->except(" . $this->exportArraySimple($node['except']) . ")");
         if (!empty($node['parameters'])) $em->line("->parameters(" . var_export((array)$node['parameters'], true) . ")");
@@ -460,7 +464,7 @@ final class JsonRouteCompiler
             $verb = $this->resourceVerb($action);
             $act = $controller . '@' . $this->resourceControllerMethod($action);
             $rname = $names[$action] ?? ($base ? "$base.$action" : null);
-            $em->line($chain . '->' . $this->methodCallFor($verb, $path, $act) . $this->tail($rname, $mw, $where, $domain, $prefix) . ';');
+            $em->line($this->chainCall($chain, $this->methodCallFor($verb, $path, $act)) . $this->tail($rname, $mw, $where, $domain, $prefix) . ';');
         }
     }
 
@@ -502,7 +506,7 @@ final class JsonRouteCompiler
         }
         [$chain, $mw, $name, , $domain, $prefix] = $this->commonProps($node, $group, $routeGuard);
         $suffix = $this->tail($name, $mw, null, $domain, $prefix);
-        $em->line($chain . '->redirect(' . $this->s($path) . ', ' . $this->s($to) . ', ' . (int)$status . ')' . $suffix . ';');
+        $em->line($this->chainCall($chain, 'redirect(' . $this->s($path) . ', ' . $this->s($to) . ', ' . (int)$status . ')') . $suffix . ';');
     }
 
     private function emitView(PhpEmitter $em, array $node, array $group, ?string $routeGuard): void
@@ -515,7 +519,7 @@ final class JsonRouteCompiler
         }
         [$chain, $mw, $name, , $domain, $prefix] = $this->commonProps($node, $group, $routeGuard);
         $suffix = $this->tail($name, $mw, null, $domain, $prefix);
-        $em->line($chain . '->view(' . $this->s($path) . ', ' . $this->s($view) . ', ' . var_export((array)$data, true) . ')' . $suffix . ';');
+        $em->line($this->chainCall($chain, 'view(' . $this->s($path) . ', ' . $this->s($view) . ', ' . var_export((array)$data, true) . ')') . $suffix . ';');
     }
 
     private function emitFallback(PhpEmitter $em, array $node, array $group, ?string $routeGuard): void
@@ -526,7 +530,7 @@ final class JsonRouteCompiler
             throw new RouteCompileException("Fallback route requires 'action'");
         }
         $suffix = $this->tail($name, $mw, null, null, null);
-        $em->line($chain . '->fallback(' . $this->actionExpr($action) . ')' . $suffix . ';');
+        $em->line($this->chainCall($chain, 'fallback(' . $this->actionExpr($action) . ')') . $suffix . ';');
     }
 
     /* ========================= UTILITIES ========================= */
@@ -546,8 +550,8 @@ final class JsonRouteCompiler
     private function getChain(array $group): string
     {
         $chain = 'Route';
-        if (!empty($group['domain'])) $chain .= '->domain(' . $this->s($group['domain']) . ')';
-        if (!empty($group['prefix'])) $chain .= '->prefix(' . $this->s($group['prefix']) . ')';
+        if (!empty($group['domain'])) $chain = $this->appendChain($chain, 'domain(' . $this->s($group['domain']) . ')');
+        if (!empty($group['prefix'])) $chain = $this->appendChain($chain, 'prefix(' . $this->s($group['prefix']) . ')');
         return $chain;
     }
 
@@ -557,12 +561,12 @@ final class JsonRouteCompiler
 
         $mw = MiddlewareNormalizer::normalize($group['guard'] ?? null, null, (array)($group['middleware'] ?? []));
 //        if ($mw) $chain .= '->middleware(' . $this->exportArraySimple($mw) . ')';
-        if ($mw) $chain .= '->middleware(' . var_export($mw, true) . ')';
+        if ($mw) $chain = $this->appendChain($chain, 'middleware(' . var_export($mw, true) . ')');
 
         if (!empty($group['namePrefix'])) {
             $np = (string)$group['namePrefix'];
             if ($np !== '' && !str_ends_with($np, '.')) $np .= '.';
-            $chain .= '->name(' . $this->s($np) . ')';
+            $chain = $this->appendChain($chain, 'name(' . $this->s($np) . ')');
         }
 
         return $chain;
@@ -599,9 +603,9 @@ final class JsonRouteCompiler
     private function tailParts(?string $name, array $mw, ?array $where, ?string $domain, ?string $prefix): array
     {
         $parts = [];
-//        if ($mw) $parts[] = '->middleware(' . $this->exportArraySimple($mw) . ')';
+        if ($mw) $parts[] = '->middleware(' . $this->exportArraySimple($mw) . ')';
 
-        if ($mw) $parts[] = '->middleware(' . var_export($mw, true) . ')';
+//        if ($mw) $parts[] = '->middleware(' . var_export($mw, true) . ')';
 
         if ($name) $parts[] = '->name(' . $this->s($name) . ')';
         if ($where) $parts[] = '->where(' . var_export($where, true) . ')';
@@ -629,9 +633,9 @@ final class JsonRouteCompiler
         if (is_string($action)) {
             if (str_contains($action, '@')) {
                 [$class, $method] = explode('@', $action, 2);
-                return '[' . $this->s($class) . ', ' . $this->s($method) . ']';
+                return '[' . $this->classLiteral($class) . ', ' . $this->s($method) . ']';
             }
-            return $this->s($action) . '::class';
+            return $this->classLiteral($action);
         }
 
         $class = $action['class'] ?? null;
@@ -641,8 +645,8 @@ final class JsonRouteCompiler
         $method = $action['method'] ?? null;
 
         return $method
-            ? '[' . $this->s($class) . '::class, ' . $this->s($method) . ']'
-            : $this->s($class) . '::class';
+            ? '[' . $this->classLiteral($class) . ', ' . $this->s($method) . ']'
+            : $this->classLiteral($class);
     }
 
     private function exportArraySimple(array $arr): string
@@ -653,6 +657,23 @@ final class JsonRouteCompiler
     private function s(string $value): string
     {
         return var_export($value, true);
+    }
+
+    private function classLiteral(string $class): string
+    {
+        // Ensure fully-qualified class literal without quotes
+        $fqcn = '\\' . ltrim($class, '\\');
+        return $fqcn . '::class';
+    }
+
+    private function chainCall(string $chain, string $call): string
+    {
+        return $chain . ($chain === 'Route' ? '::' : '->') . $call;
+    }
+
+    private function appendChain(string $chain, string $call): string
+    {
+        return $this->chainCall($chain, $call);
     }
 
     private function slugFromPath(string $path): string

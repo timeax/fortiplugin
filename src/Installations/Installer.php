@@ -321,7 +321,6 @@ final readonly class Installer
 
             // Routes: discover + compile JSON, then write PHP into STAGING
             $bundle = $this->routeUiBridge->discoverAndCompile($pluginDir, $emitInstaller);
-            Log::info('Route write bundle: ' . json_encode($bundle));
             $compiled = $bundle['compiled'] ?? [];
 
             if (!empty($compiled)) {

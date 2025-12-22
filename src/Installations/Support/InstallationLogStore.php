@@ -21,7 +21,7 @@ use Timeax\FortiPlugin\Installations\DTO\InstallSummary;
  *     "installer_emits":  [ ... ]
  *   },
  *   "summary": {...}|null,
- *   "decision": {...}|null
+ *   "decisions": {...}|null
  * }
  */
 final class InstallationLogStore
@@ -29,7 +29,7 @@ final class InstallationLogStore
     private AtomicFilesystem $atomFs;
     private Filesystem $fs;
     private ?string $installationJsonPath = null;
-    /** @var array{meta?:array,logs?:array,summary?:array,decision?:array} */
+    /** @var array{meta?:array,logs?:array,summary?:array,decisions?:array} */
     private array $doc = [];
 
 
@@ -65,7 +65,7 @@ final class InstallationLogStore
                 'installer_emits' => [],
             ],
             'summary' => null,
-            'decision' => null,
+            'decisions' => null,
         ];
         $this->persist();
         return $this->installationJsonPath;

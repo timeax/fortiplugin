@@ -8,6 +8,7 @@
       <sourceFolder url="file://$MODULE_DIR$/workbench/database/factories" isTestSource="true" packagePrefix="Workbench\Database\Factories\" />
       <sourceFolder url="file://$MODULE_DIR$/workbench/database/seeders" isTestSource="true" packagePrefix="Workbench\Database\Seeders\" />
       <sourceFolder url="file://$MODULE_DIR$/spec" isTestSource="true" />
+      <excludeFolder url="file://$MODULE_DIR$/prodex" />
       <excludeFolder url="file://$MODULE_DIR$/vendor/_laravel_idea" />
     </content>
     <orderEntry type="inheritedJdk" />
