@@ -5,8 +5,8 @@ namespace Timeax\FortiPlugin\Installations\Activation\Writers;
 
 use RuntimeException;
 use Timeax\FortiPlugin\Installations\Contracts\RegistryWriter;
-use Timeax\FortiPlugin\Installations\Support\AtomicFilesystem;
 use Timeax\FortiPlugin\Installations\InstallerPolicy;
+use Timeax\FortiPlugin\Installations\Support\AtomicFilesystem;
 use Timeax\FortiPlugin\Models\Plugin;
 
 final readonly class RoutesRegistryWriter implements RegistryWriter
@@ -27,9 +27,9 @@ final readonly class RoutesRegistryWriter implements RegistryWriter
         $fs = $this->afs->fs();
 
         // 1) Locate installation log in installed root
-        $logsDir   = trim($this->policy->getLogsDirName(), "\\/");
-        $logFile   = $this->policy->getInstallationLogFilename();
-        $logPath   = rtrim($installedPluginRoot, "\\/") . DIRECTORY_SEPARATOR . $logsDir . DIRECTORY_SEPARATOR . $logFile;
+        $logsDir = trim($this->policy->getLogsDirName(), "\\/");
+        $logFile = $this->policy->getInstallationLogFilename();
+        $logPath = rtrim($installedPluginRoot, "\\/") . DIRECTORY_SEPARATOR . $logsDir . DIRECTORY_SEPARATOR . $logFile;
 
         if (!$fs->exists($logPath)) {
             throw new RuntimeException("activation: installation log not found at $logPath");
@@ -39,26 +39,35 @@ final readonly class RoutesRegistryWriter implements RegistryWriter
         if (!is_array($routesWrite) || empty($routesWrite['aggregator'])) {
             // No routes for this plugin — nothing to publish
             return [
-                'commit'   => static function (): void {},
-                'rollback' => static function (): void {},
-                'meta'     => ['changed' => false, 'reason' => 'no_routes_aggregator'],
+                'commit' => static function (): void {
+                },
+                'rollback' => static function (): void {
+                },
+                'meta' => ['changed' => false, 'reason' => 'no_routes_aggregator'],
             ];
         }
 
-        $aggregator = (string)$routesWrite['aggregator'];
-        if ($aggregator === '' || !$fs->exists($aggregator)) {
-            throw new RuntimeException("activation: aggregator file not found: $aggregator");
+        $aggregatorRel = (string)$routesWrite['aggregator'];
+
+        // Build installed paths by joining $installedPluginRoot + routes_write.aggregator
+        $installedAggregator = rtrim($installedPluginRoot, "\\/") . DIRECTORY_SEPARATOR . ltrim(str_replace(['/', '\\'], DIRECTORY_SEPARATOR, $aggregatorRel), DIRECTORY_SEPARATOR);
+
+        if ($installedAggregator === '' || !$fs->exists($installedAggregator)) {
+            throw new RuntimeException("activation: installed aggregator file not found: $installedAggregator");
         }
 
+
         // 2) Host registry paths (configurable)
-        $registryPath   = (string) (config('fortiplugin.routes.registry_path')    ?? base_path('routes/fortiplugin.registry.json'));
-        $aggregatorPath = (string) (config('fortiplugin.routes.aggregator_path')  ?? base_path('routes/fortiplugin.plugins.php'));
+        $registryPath = (string)(config('fortiplugin.routes.registry_path') ?? base_path('routes/fortiplugin.registry.json'));
+        $aggregatorPath = (string)(config('fortiplugin.routes.aggregator_path') ?? base_path('routes/fortiplugin.plugins.php'));
 
         // 3) Read and update registry JSON (plugin_slug => aggregator)
-        $slug  = (string)($plugin->placeholder->slug ?? $plugin->slug ?? $plugin->id);
-        $json  = $fs->exists($registryPath) ? $fs->readJson($registryPath) : [];
+        $slug = (string)($plugin->placeholder->slug ?? $plugin->slug ?? $plugin->id);
+        $json = $fs->exists($registryPath) ? $fs->readJson($registryPath) : [];
         if (!is_array($json)) $json = [];
-        $json[$slug] = $aggregator;
+
+        $json[$slug] = $installedAggregator;
+
 
         // Staged contents
         $newRegistryJson = $json;
@@ -70,10 +79,11 @@ final readonly class RoutesRegistryWriter implements RegistryWriter
                 $this->afs->writeJsonAtomic($registryPath, $newRegistryJson, true);
                 $this->afs->fs()->writeAtomic($aggregatorPath, $newAggregatorPhp);
             },
-            'rollback' => static function (): void { /* best effort noop */ },
+            'rollback' => static function (): void { /* best effort noop */
+            },
             'meta' => [
-                'changed'         => true,
-                'registry_path'   => $registryPath,
+                'changed' => true,
+                'registry_path' => $registryPath,
                 'aggregator_path' => $aggregatorPath,
             ],
         ];

@@ -6,7 +6,6 @@ namespace Timeax\FortiPlugin\Installations;
 
 use Illuminate\Support\Facades\DB;
 use JsonException;
-use Log;
 use Random\RandomException;
 use RuntimeException;
 use Throwable;
@@ -17,6 +16,7 @@ use Timeax\FortiPlugin\Installations\Enums\Install;
 use Timeax\FortiPlugin\Installations\Sections\ComposerPlanSection;
 use Timeax\FortiPlugin\Installations\Sections\DbPersistSection;
 use Timeax\FortiPlugin\Installations\Sections\InstallFilesSection;
+use Timeax\FortiPlugin\Installations\Sections\InternalConfigWriteSection;
 use Timeax\FortiPlugin\Installations\Sections\ProviderValidationSection;
 use Timeax\FortiPlugin\Installations\Sections\RouteWriteSection;
 use Timeax\FortiPlugin\Installations\Sections\UiConfigValidationSection;
@@ -36,22 +36,25 @@ use Timeax\FortiPlugin\Services\ValidatorService;
 final readonly class Installer
 {
     public function __construct(
-        private InstallerPolicy           $policy,
-        private AtomicFilesystem          $afs,
-        private ValidatorBridge           $validatorBridge,   // orchestrates Verification + FileScan
-        private VerificationSection       $verification,      // kept for DI completeness (used by bridge)
-        private ProviderValidationSection $providerValidation,
-        private ComposerPlanSection       $composerPlan,
-        private VendorPolicySection       $vendorPolicy,
-        private DbPersistSection          $dbPersist,
-        private RouteUiBridge             $routeUiBridge,
-        private RouteWriteSection         $routeWriterSection, // writer targets STAGING
-        private InstallFilesSection       $installFiles,
-        private UiConfigValidationSection $uiConfigValidation,
+        private InstallerPolicy            $policy,
+        private AtomicFilesystem           $afs,
+        private ValidatorBridge            $validatorBridge,   // orchestrates Verification + FileScan
+        private VerificationSection        $verification,      // kept for DI completeness (used by bridge)
+        private ProviderValidationSection  $providerValidation,
+        private ComposerPlanSection        $composerPlan,
+        private VendorPolicySection        $vendorPolicy,
+        private DbPersistSection           $dbPersist,
+        private RouteUiBridge              $routeUiBridge,
+        private RouteWriteSection          $routeWriterSection, // writer targets STAGING
+        // ✅ ADD THIS (best placed before installFiles)
+        private InternalConfigWriteSection $internalConfig,
+
+        private InstallFilesSection        $installFiles,
+        private UiConfigValidationSection  $uiConfigValidation,
         // NEW: token + logs + zip-gate for resume flow
-        private InstallerTokenManager     $tokens,
-        private InstallationLogStore      $logStore,
-        private ZipValidationGate         $zipGate,
+        private InstallerTokenManager      $tokens,
+        private InstallationLogStore       $logStore,
+        private ZipValidationGate          $zipGate,
     )
     {
     }
@@ -351,6 +354,20 @@ final readonly class Installer
             }
 
             DB::commit();
+
+            // Write .internal/Config.php into STAGING so InstallFiles copies it to INSTALL.
+
+            $cfg = $this->internalConfig->run(
+                meta: $meta,
+                stagingPluginRoot: $pluginDir,
+                pluginId: (int)$pluginId,
+                emit: $emitInstaller
+            );
+            if (($cfg['status'] ?? 'fail') !== 'ok') {
+                throw new RuntimeException('Internal config write failed');
+            }
+
+
         } catch (Throwable $e) {
             DB::rollBack();
             $emitInstaller([

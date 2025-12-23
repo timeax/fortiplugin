@@ -13,27 +13,39 @@ final readonly class RouteMaterializer
      * @param string $pluginRoot
      * @param string $pluginSlug used in health route name & path
      * @param list<array{route:string|array, id:string, content:string, file:string}> $entries
-     * @return array{dir:string, files:string[], aggregator:string}
+     * @return array{
+     *     dir: string,
+     *     files: string[],
+     *     aggregator: string
+     * }
      */
     public function materialize(string $pluginRoot, string $pluginSlug, array $entries): array
     {
-        $routesDir = rtrim($pluginRoot, "\\/") . DIRECTORY_SEPARATOR . 'routes';
+        $routesDirRel = 'routes';
+        $routesDir = rtrim($pluginRoot, "\\/") . DIRECTORY_SEPARATOR . $routesDirRel;
         if (!$this->afs->fs()->isDirectory($routesDir)) {
             $this->afs->fs()->ensureDirectory($routesDir, 0775);
         }
 
         $written = [];
+        $writtenRel = [];
         foreach ($entries as $e) {
-            $rel  = ltrim((string)$e['file'], '/\\');
+            $rel = ltrim((string)$e['file'], '/\\');
             $path = $routesDir . DIRECTORY_SEPARATOR . $rel;
             $this->afs->ensureParentDirectory($path);
             $this->afs->fs()->writeAtomic($path, (string)$e['content']);
             $written[] = $rel;
+            $writtenRel[] = $routesDirRel . '/' . $rel;
         }
 
-        $aggregator = $this->writeAggregator($routesDir, $pluginSlug, $written);
+        $this->writeAggregator($routesDir, $pluginSlug, $written);
+        $aggregatorRel = $routesDirRel . '/fortiplugin.route.php';
 
-        return ['dir' => $routesDir, 'files' => $written, 'aggregator' => $aggregator];
+        return [
+            'dir' => $routesDirRel,
+            'files' => $writtenRel,
+            'aggregator' => $aggregatorRel,
+        ];
     }
 
     private function writeAggregator(string $routesDir, string $slug, array $files): string

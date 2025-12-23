@@ -93,13 +93,16 @@ final class VerificationSection
         $validator->setIgnoredValidators(['file_scanner', 'content', 'token', 'ast']);
 
         // Stream validator emits VERBATIM → log store (+ optional passthrough)
-        $forward = function (array $payload) use ($emitValidation): void {
+        $forward = function (array $payload) use ($emitValidation, $pluginDir): void {
+            $payload = $this->stripAbsolutePaths($payload, $pluginDir);
             try { $this->log->appendValidationEmit($payload); } catch (JsonException $_) {}
             if ($emitValidation) $emitValidation($payload);
         };
 
         $this->emitOk(Events::VALIDATION_START, 'Running headline validators');
         $summary = $validator->run($pluginDir, $forward);
+        $summary = $this->relativizeSummary($summary, $pluginDir);
+
         $this->emitOk(Events::VALIDATION_END, 'Headline validators completed', [
             'total_issues' => $summary['total_issues'] ?? null,
             'files_scanned'=> $summary['files_scanned'] ?? null,
@@ -127,5 +130,59 @@ final class VerificationSection
         }
 
         return ['status' => 'ok', 'summary' => $summary];
+    }
+
+    private function stripAbsolutePaths(array $payload, string $pluginDir): array
+    {
+        $dir = rtrim($pluginDir, DIRECTORY_SEPARATOR) . DIRECTORY_SEPARATOR;
+
+        if (isset($payload['stats']['filePath']) && is_string($payload['stats']['filePath'])) {
+            $payload['stats']['filePath'] = $this->toRel($payload['stats']['filePath'], $dir);
+        }
+        if (isset($payload['meta']['path']) && is_string($payload['meta']['path'])) {
+            $payload['meta']['path'] = $this->toRel($payload['meta']['path'], $dir);
+        }
+        if (isset($payload['meta']['file']) && is_string($payload['meta']['file'])) {
+            $payload['meta']['file'] = $this->toRel($payload['meta']['file'], $dir);
+        }
+
+        return $payload;
+    }
+
+    private function relativizeSummary(array $summary, string $pluginDir): array
+    {
+        $dir = rtrim($pluginDir, DIRECTORY_SEPARATOR) . DIRECTORY_SEPARATOR;
+
+        if (isset($summary['log']) && is_array($summary['log'])) {
+            foreach ($summary['log'] as &$entry) {
+                if (isset($entry[2]) && is_string($entry[2])) {
+                    $entry[2] = $this->toRel($entry[2], $dir);
+                }
+            }
+        }
+        if (isset($summary['extended']) && is_array($summary['extended'])) {
+            foreach ($summary['extended'] as &$entry) {
+                if (isset($entry['file']) && is_string($entry['file'])) {
+                    $entry['file'] = $this->toRel($entry['file'], $dir);
+                }
+            }
+        }
+        if (isset($summary['formatted']) && is_array($summary['formatted'])) {
+            foreach ($summary['formatted'] as &$entry) {
+                if (isset($entry['file']) && is_string($entry['file'])) {
+                    $entry['file'] = $this->toRel($entry['file'], $dir);
+                }
+            }
+        }
+
+        return $summary;
+    }
+
+    private function toRel(string $path, string $dir): string
+    {
+        if (str_starts_with($path, $dir)) {
+            return ltrim(substr($path, strlen($dir)), DIRECTORY_SEPARATOR);
+        }
+        return $path;
     }
 }

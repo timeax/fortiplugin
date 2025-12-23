@@ -36,6 +36,7 @@ use Timeax\FortiPlugin\Installations\Sections\ComposerPlanSection;
 use Timeax\FortiPlugin\Installations\Sections\DbPersistSection;
 use Timeax\FortiPlugin\Installations\Sections\FileScanSection;
 use Timeax\FortiPlugin\Installations\Sections\InstallFilesSection;
+use Timeax\FortiPlugin\Installations\Sections\InternalConfigWriteSection;
 use Timeax\FortiPlugin\Installations\Sections\ProviderValidationSection;
 use Timeax\FortiPlugin\Installations\Sections\RouteWriteSection;
 use Timeax\FortiPlugin\Installations\Sections\UiConfigValidationSection;
@@ -206,6 +207,14 @@ class FortiPluginServiceProvider extends ServiceProvider
             $app->make(Psr4Checker::class),
         ));
 
+
+        $this->app->scoped(InternalConfigWriteSection::class, fn($app) => new InternalConfigWriteSection(
+            $app->make(InstallationLogStore::class),
+            $app->make(AtomicFilesystem::class),
+            $app->make(Psr4Checker::class),
+        ));
+
+
         // FIX #1: don’t pass BackgroundScanDispatcher as an emitter (it isn’t callable)
         $this->app->scoped(FileScanSection::class, fn($app) => new FileScanSection(
             $app->make(InstallerPolicy::class),
@@ -271,16 +280,18 @@ class FortiPluginServiceProvider extends ServiceProvider
             $app->make(RouteRegistryStore::class),
         ));
 
-        $this->app->singleton(ValidatorBridge::class, fn($app) => new ValidatorBridge(
+        $this->app->scoped(ValidatorBridge::class, fn($app) => new ValidatorBridge(
             $app->make(VerificationSection::class),
             $app->make(FileScanSection::class),
             $app->make(InstallerPolicy::class),
+            $app->make(InstallationLogStore::class),
         ));
 
         // ── ZIP gate (scoped: uses run logs/tokens) ────────────────────────────
         // FIX #2: match ZipValidationGate::__construct(policy, tokens, zips, afs, emit?)
         $this->app->scoped(ZipValidationGate::class, fn($app) => new ZipValidationGate(
             $app->make(InstallerPolicy::class),
+            $app->make(InstallationLogStore::class),
             $app->make(InstallerTokenManager::class),
             $app->make(ZipRepository::class),
             $app->make(AtomicFilesystem::class),
@@ -298,6 +309,9 @@ class FortiPluginServiceProvider extends ServiceProvider
             dbPersist: $app->make(DbPersistSection::class),
             routeUiBridge: $app->make(RouteUiBridge::class),
             routeWriterSection: $app->make(RouteWriteSection::class),
+
+            internalConfig: $app->make(InternalConfigWriteSection::class),
+
             installFiles: $app->make(InstallFilesSection::class),
             uiConfigValidation: $app->make(UiConfigValidationSection::class),
             tokens: $app->make(InstallerTokenManager::class),

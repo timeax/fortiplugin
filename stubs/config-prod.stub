@@ -20,6 +20,38 @@ use Timeax\FortiPlugin\Permissions\Evaluation\Dto\Result;
 
 final class Config implements ConfigInterface
 {
+
+/**
+     * Get the Vite build manifest content.
+     *
+     * @return array<string,mixed>
+     */
+    public static function getViteBuildManifest(): array
+    {
+        if (self::$manifest !== []) {
+            return self::$manifest;
+        }
+
+        // Target the manifest in public/build/.vite/
+        $path = dirname(__DIR__) . '/public/build/.vite/manifest.json';
+
+        if (!is_file($path)) {
+            return self::$manifest = [];
+        }
+
+        $json = @file_get_contents($path);
+
+        if ($json === false) {
+            return self::$manifest = [];
+        }
+
+        $decoded = json_decode($json, true);
+
+        return self::$manifest = (is_array($decoded) ? $decoded : []);
+    }
+
+
+
     /**
      * Cached plugin config values – loaded from plugin.config.json (or fallback).
      * @var array<string,mixed>

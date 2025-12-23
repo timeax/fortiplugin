@@ -69,7 +69,6 @@ final class ComposerPlanSection
             ]);
 
             $ok = ['title' => 'COMPOSER_PLAN_COMPUTED', 'description' => 'Composer plan persisted', 'meta' => [
-                'path' => $this->log->path(),
                 'packages' => count($packages),
                 'core_conflicts' => $plan->core_conflicts,
             ]];

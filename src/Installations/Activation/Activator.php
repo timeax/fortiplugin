@@ -104,16 +104,16 @@ final readonly class Activator
                 return ActivationResult::fail(['reason' => 'version_not_found', 'version_id' => $versionId]);
             }
 
-            // Already active? no-op
-            if ((int)($plugin->active_version_id ?? 0) === $version->id) {
-                $emit(['title' => 'ACTIVATION_NOOP', 'description' => 'Version already active']);
-                return ActivationResult::ok([
-                    'plugin_id' => $plugin->id,
-                    'version_id' => $version->id,
-                    'changed' => false,
-                    'reason' => 'already_active',
-                ]);
-            }
+//            // Already active? no-op
+//            if ((int)($plugin->active_version_id ?? 0) === $version->id) {
+//                $emit(['title' => 'ACTIVATION_NOOP', 'description' => 'Version already active']);
+//                return ActivationResult::ok([
+//                    'plugin_id' => $plugin->id,
+//                    'version_id' => $version->id,
+//                    'changed' => false,
+//                    'reason' => 'already_active',
+//                ]);
+//            }
 
             // 1) Read install log and verify prior validators for this run
             $logPath = rtrim($installedPluginRoot, "\\/") . DIRECTORY_SEPARATOR
@@ -154,15 +154,13 @@ final readonly class Activator
                 $declared = (int)($ui['declared'] ?? 0);
                 $accepted = (int)($ui['accepted'] ?? 0);
 
-                if ($declared <= 0) {
-                    $emit(['title' => 'VALIDATION_PRECHECK_FAIL', 'description' => 'No UI config declared']);
-                    return ActivationResult::fail(['reason' => 'ui_not_declared']);
-                } else if ($accepted <= 0) {
+                // FIX: Only fail if items are declared BUT NOT accepted.
+                // If declared is 0 (backend-only plugin), we skip this check and pass.
+                if ($declared > 0 && $accepted <= 0) {
                     $emit(['title' => 'VALIDATION_PRECHECK_FAIL', 'description' => 'UI config not accepted (no placements)']);
                     return ActivationResult::fail(['reason' => 'ui_not_accepted']);
                 }
             }
-
 
             // 3) Stage registry writes
             $emit(['title' => 'STAGE_REGISTRIES_START', 'description' => 'Staging registry writes']);

@@ -76,15 +76,17 @@ final readonly class RouteWriteSection
         ];
         $emit($start);
 
+        $registryRel = '.internal' . DIRECTORY_SEPARATOR . 'routes.registry.json';
+
         try {
             $entries = $this->registry->read($stagingRoot);
             if ($entries === []) {
                 // Nothing to write (okay)
                 $doc = [
-                    'dir' => rtrim($stagingRoot, DIRECTORY_SEPARATOR) . DIRECTORY_SEPARATOR . 'routes',
+                    'dir' => 'routes',
                     'files' => [],
                     'aggregator' => null,
-                    'registry' => $this->registry->path($stagingRoot),
+                    'registry' => $registryRel,
                 ];
                 $this->log->writeSection('routes_write', $doc);
 
@@ -105,7 +107,7 @@ final readonly class RouteWriteSection
                 'dir' => $mat['dir'],
                 'files' => $mat['files'],
                 'aggregator' => $mat['aggregator'],
-                'registry' => $this->registry->path($stagingRoot),
+                'registry' => $registryRel,
             ];
 
             $this->log->writeSection('routes_write', $out);
@@ -129,7 +131,7 @@ final readonly class RouteWriteSection
             $this->log->writeSection('routes_write', [
                 'error' => 'exception',
                 'exception' => $e->getMessage(),
-                'registry' => $this->registry->path($stagingRoot),
+                'registry' => $registryRel,
             ]);
 
             return ['status' => 'fail', 'reason' => 'exception'];

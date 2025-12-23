@@ -95,8 +95,6 @@ final readonly class InstallFilesSection
 
             // Persist a concise install_files block
             $this->log->writeSection('install_files', [
-                'source' => $stagingPluginRoot,
-                'dest' => $dest,
                 'vendor_mode' => $vendorMode->value,
                 'vendor_stripped' => $stripVendor,
             ]);
@@ -118,8 +116,6 @@ final readonly class InstallFilesSection
             try {
                 $this->log->writeSection('install_files', [
                     'error' => $e->getMessage(),
-                    'source' => $stagingPluginRoot,
-                    'dest' => $dest,
                     'vendor_mode' => $vendorMode->value,
                 ]);
             } catch (Throwable $_) {

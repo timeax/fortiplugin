@@ -65,7 +65,7 @@ final readonly class VendorPolicySection
                 : 'composer.lock not found — treating all plugin requirements as foreign',
             'error' => null,
             'stats' => [
-                'filePath' => $hostLockPresent ? $hostComposerLock : $pluginComposer,
+                'filePath' => $hostLockPresent ? basename($hostComposerLock) : basename($pluginComposer),
                 'size' => $hostLockPresent ? $this->afs->fs()->fileSize($hostComposerLock) : $this->afs->fs()->fileSize($pluginComposer),
             ],
             'meta' => ['phase' => 'vendor_policy', 'op' => 'collect_packages']
@@ -114,8 +114,12 @@ final readonly class VendorPolicySection
                     'title' => 'VendorPolicy: Stripped vendor',
                     'description' => 'Plugin vendor/ moved out per policy',
                     'error' => null,
-                    'stats' => ['filePath' => $pluginVendor, 'size' => null],
-                    'meta' => ['phase' => 'vendor_policy', 'op' => 'strip_vendor', 'parked_to' => $parkTo]
+                    'stats' => ['filePath' => 'vendor', 'size' => null],
+                    'meta' => [
+                        'phase' => 'vendor_policy',
+                        'op' => 'strip_vendor',
+                        'parked_to' => ltrim(substr($parkTo, strlen($pluginDir)), DIRECTORY_SEPARATOR)
+                    ]
                 ]);
             } catch (RuntimeException $e) {
                 $notes[] = 'Failed to move vendor/: ' . $e->getMessage();
@@ -124,7 +128,7 @@ final readonly class VendorPolicySection
                     'title' => 'VendorPolicy: Strip failed',
                     'description' => $e->getMessage(),
                     'error' => ['detail' => 'rename_failed', 'count' => 1],
-                    'stats' => ['filePath' => $pluginVendor, 'size' => null],
+                    'stats' => ['filePath' => 'vendor', 'size' => null],
                     'meta' => ['phase' => 'vendor_policy', 'op' => 'strip_vendor_failed']
                 ]);
             }
@@ -133,7 +137,7 @@ final readonly class VendorPolicySection
                 'title' => 'VendorPolicy: Keep vendor',
                 'description' => $hasVendorDir ? 'Bundled vendor retained per policy' : 'No bundled vendor found',
                 'error' => null,
-                'stats' => ['filePath' => $pluginVendor, 'size' => null],
+                'stats' => ['filePath' => 'vendor', 'size' => null],
                 'meta' => ['phase' => 'vendor_policy', 'op' => 'keep_vendor']
             ]);
         }
