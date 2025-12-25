@@ -146,8 +146,7 @@ final class InstallationLogStore
 
         $doc['decisions'][] = $decision->toArray();
 
-        // Stop writing/using the decision (singular) key
-        unset($doc['decision']);
+
 
         $this->doc = $doc;
         $this->persist();
@@ -159,7 +158,7 @@ final class InstallationLogStore
         return $this->installationJsonPath;
     }
 
-    /** @return array{meta?:array,logs?:array,summary?:array,decisions?:array} */
+    /** @return array{meta?:array,logs?:array,summary?:array,decision?:array} */
     public function read(): array
     {
         $this->assertReady();
@@ -170,12 +169,9 @@ final class InstallationLogStore
         if (!$this->fs->exists($this->installationJsonPath)) {
             throw new RuntimeException("installation.json not initialized at $this->installationJsonPath");
         }
-        $doc = $this->fs->readJson($this->installationJsonPath);
+        $this->doc = $this->fs->readJson($this->installationJsonPath);
         // Guards for missing keys if the file was created by older versions
-        $doc['logs'] = $doc['logs'] ?? ['validation_emits' => [], 'installer_emits' => []];
-
-        $this->doc = $this->derelativizeMeta($doc);
-
+        $this->doc['logs'] = $this->doc['logs'] ?? ['validation_emits' => [], 'installer_emits' => []];
         return $this->doc;
     }
 
@@ -210,64 +206,7 @@ final class InstallationLogStore
      */
     private function persist(): void
     {
-        $doc = $this->doc;
-        if (isset($doc['meta'])) {
-            $doc['meta'] = $this->relativizeMeta($doc['meta']);
-        }
-        $this->atomFs->writeJsonAtomic($this->installationJsonPath, $doc, true);
-    }
-
-    private function relativizeMeta(array $meta): array
-    {
-        if (isset($meta['paths']) && is_array($meta['paths'])) {
-            $base = function_exists('base_path') ? base_path() : getcwd();
-            foreach ($meta['paths'] as $k => $v) {
-                if (is_string($v)) {
-                    $meta['paths'][$k] = $this->toRelative($v, $base);
-                }
-            }
-        }
-        return $meta;
-    }
-
-    private function derelativizeMeta(array $meta): array
-    {
-        if (isset($meta['paths']) && is_array($meta['paths'])) {
-            $base = function_exists('base_path') ? base_path() : getcwd();
-            foreach ($meta['paths'] as $k => $v) {
-                if (is_string($v)) {
-                    $meta['paths'][$k] = $this->toAbsolute($v, $base);
-                }
-            }
-        }
-        return $meta;
-    }
-
-    private function toRelative(string $path, string $base): string
-    {
-        $path = str_replace(['/', '\\'], DIRECTORY_SEPARATOR, $path);
-        $base = str_replace(['/', '\\'], DIRECTORY_SEPARATOR, $base);
-
-        if ($path !== '' && str_starts_with($path, $base)) {
-            return ltrim(substr($path, strlen($base)), DIRECTORY_SEPARATOR);
-        }
-        return $path;
-    }
-
-    private function toAbsolute(string $path, string $base): string
-    {
-        if ($path === '') return '';
-
-        // If it's already absolute, return as is
-        // Windows: C:\... or \\...  ; Linux: /...
-        if (str_starts_with($path, DIRECTORY_SEPARATOR)
-            || str_starts_with($path, '/')
-            || preg_match('/^[a-zA-Z]:\\\\/', $path)
-        ) {
-            return $path;
-        }
-
-        return rtrim($base, DIRECTORY_SEPARATOR) . DIRECTORY_SEPARATOR . $path;
+        $this->atomFs->writeJsonAtomic($this->installationJsonPath, $this->doc, true);
     }
 
     // InstallationLogStore.php

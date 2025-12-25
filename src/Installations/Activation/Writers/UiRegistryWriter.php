@@ -49,8 +49,11 @@ final readonly class UiRegistryWriter implements RegistryWriter
         }
 
         $registryPath = (string)(config('fortiplugin.ui.registry_path') ?? base_path('bootstrap/fortiplugin.ui.json'));
-        $json = $fs->exists($registryPath) ? $fs->readJson($registryPath) : [];
-        if (!is_array($json)) $json = [];
+        try {
+            $json = $fs->exists($registryPath) ? $fs->readJson($registryPath) : [];
+        } catch (\Throwable) {
+            $json = [];
+        }
 
         $slug = (string)($plugin->placeholder->slug ?? $plugin->slug ?? $plugin->id);
         $json[$slug] = ['accepted' => $accepted, 'version_id' => $versionId];

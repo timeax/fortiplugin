@@ -64,12 +64,7 @@
     },
     "act": {
       "files": [
-        "src/Installations/Activation/Activator.php"
-      ],
-      "include": [
-        "src/Installations/Activation/Writers/ProvidersRegistryWriter.php",
-        "src/Installations/Activation/Writers/RoutesRegistryWriter.php",
-        "src/Installations/Activation/Writers/UiRegistryWriter.php"
+        "src/Installations/Activation/**"
       ],
       "prefix": "activation"
     },
@@ -125,6 +120,17 @@
     "service": {
       "prefix": "service-provider",
       "files": [
+        "src/FortiPluginServiceProvider.php"
+      ]
+    },
+    "load": {
+      "prefix": "load",
+      "files": [
+        "src/Autoload/**",
+        "src/Installations/Activation/**"
+      ],
+      "include": [
+        "config/fortiplugin.php",
         "src/FortiPluginServiceProvider.php"
       ]
     }

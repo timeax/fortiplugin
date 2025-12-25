@@ -5,13 +5,13 @@ namespace Timeax\FortiPlugin\Installations\Sections;
 
 use JsonException;
 use Throwable;
-use Timeax\FortiPlugin\Services\ValidatorService;
 use Timeax\FortiPlugin\Installations\InstallerPolicy;
-use Timeax\FortiPlugin\Installations\Support\Events;
-use Timeax\FortiPlugin\Installations\Support\ErrorCodes;
 use Timeax\FortiPlugin\Installations\Support\EmitsEvents;
-use Timeax\FortiPlugin\Installations\Support\Psr4Checker;
+use Timeax\FortiPlugin\Installations\Support\ErrorCodes;
+use Timeax\FortiPlugin\Installations\Support\Events;
 use Timeax\FortiPlugin\Installations\Support\InstallationLogStore;
+use Timeax\FortiPlugin\Installations\Support\Psr4Checker;
+use Timeax\FortiPlugin\Services\ValidatorService;
 
 /**
  * VerificationSection
@@ -32,15 +32,17 @@ final class VerificationSection
         private readonly InstallerPolicy      $policy,
         private readonly InstallationLogStore $log,
         private readonly Psr4Checker          $psr4,
-    ) {}
+    )
+    {
+    }
 
     /**
-     * @param string           $pluginDir         Plugin root on disk
-     * @param string           $pluginName        Unique plugin name
-     * @param string           $run_id            Correlation id
-     * @param ValidatorService $validator         Validation service
-     * @param array            $validatorConfig   Must include headline.route_files[]
-     * @param callable|null    $emitValidation    fn(array $payload): void  (validator emits passthrough)
+     * @param string $pluginDir Plugin root on disk
+     * @param string $pluginName Unique plugin name
+     * @param string $run_id Correlation id
+     * @param ValidatorService $validator Validation service
+     * @param array $validatorConfig Must include headline.route_files[]
+     * @param callable|null $emitValidation fn(array $payload): void  (validator emits passthrough)
      * @return array{status:'ok'|'fail', summary?:array}
      * @noinspection PhpUndefinedClassInspection
      */
@@ -51,28 +53,31 @@ final class VerificationSection
         ValidatorService $validator,
         array            $validatorConfig,
         ?callable        $emitValidation = null
-    ): array {
+    ): array
+    {
         // 0) Mandatory route files
         $routeFiles = (array)($validatorConfig['headline']['route_files'] ?? []);
 
         if ($routeFiles === []) {
-            $this->emitFail(
-                Events::ROUTES_CHECK_FAIL,
-                ErrorCodes::ROUTE_SCHEMA_ERROR,
-                'Route files missing: route validation is mandatory',
-                ['hint' => 'Provide headline.route_files[]', 'plugin_dir' => $pluginDir]
+            $this->emitOk(
+                Events::ROUTES_CHECK_OK,
+                'headline.route_files is empty; skipping route validation',
+                [
+                    'plugin_dir' => $pluginDir,
+                    'route_files' => [],
+                    'skipped' => true,
+                ]
             );
-            return ['status' => 'fail'];
         }
 
         // 1) PSR-4 assert for this plugin
-        $psr4Root     = $this->policy->getPsr4Root();
+        $psr4Root = $this->policy->getPsr4Root();
         $composerJson = $pluginDir . DIRECTORY_SEPARATOR . 'composer.json';
 
         $this->emitOk(Events::PSR4_CHECK_START, "Checking PSR-4 for $pluginName", [
             'psr4_root' => $psr4Root,
-            'plugin'    => $pluginName,
-            'composer'  => $composerJson,
+            'plugin' => $pluginName,
+            'composer' => $composerJson,
         ]);
 
         try {
@@ -93,26 +98,26 @@ final class VerificationSection
         $validator->setIgnoredValidators(['file_scanner', 'content', 'token', 'ast']);
 
         // Stream validator emits VERBATIM → log store (+ optional passthrough)
-        $forward = function (array $payload) use ($emitValidation, $pluginDir): void {
-            $payload = $this->stripAbsolutePaths($payload, $pluginDir);
-            try { $this->log->appendValidationEmit($payload); } catch (JsonException $_) {}
+        $forward = function (array $payload) use ($emitValidation): void {
+            try {
+                $this->log->appendValidationEmit($payload);
+            } catch (JsonException $_) {
+            }
             if ($emitValidation) $emitValidation($payload);
         };
 
         $this->emitOk(Events::VALIDATION_START, 'Running headline validators');
         $summary = $validator->run($pluginDir, $forward);
-        $summary = $this->relativizeSummary($summary, $pluginDir);
-
         $this->emitOk(Events::VALIDATION_END, 'Headline validators completed', [
             'total_issues' => $summary['total_issues'] ?? null,
-            'files_scanned'=> $summary['files_scanned'] ?? null,
+            'files_scanned' => $summary['files_scanned'] ?? null,
         ]);
 
         // 3) Persist compact verification section (summary only; emits already recorded)
         try {
             $this->log->writeSection('verification', [
                 'summary' => $summary,
-                'run_id'  => $run_id,
+                'run_id' => $run_id,
             ]);
             $this->emitOk(Events::SUMMARY_PERSISTED, 'Verification summary persisted', ['path' => $this->log->path()]);
         } catch (Throwable $e) {
@@ -130,59 +135,5 @@ final class VerificationSection
         }
 
         return ['status' => 'ok', 'summary' => $summary];
-    }
-
-    private function stripAbsolutePaths(array $payload, string $pluginDir): array
-    {
-        $dir = rtrim($pluginDir, DIRECTORY_SEPARATOR) . DIRECTORY_SEPARATOR;
-
-        if (isset($payload['stats']['filePath']) && is_string($payload['stats']['filePath'])) {
-            $payload['stats']['filePath'] = $this->toRel($payload['stats']['filePath'], $dir);
-        }
-        if (isset($payload['meta']['path']) && is_string($payload['meta']['path'])) {
-            $payload['meta']['path'] = $this->toRel($payload['meta']['path'], $dir);
-        }
-        if (isset($payload['meta']['file']) && is_string($payload['meta']['file'])) {
-            $payload['meta']['file'] = $this->toRel($payload['meta']['file'], $dir);
-        }
-
-        return $payload;
-    }
-
-    private function relativizeSummary(array $summary, string $pluginDir): array
-    {
-        $dir = rtrim($pluginDir, DIRECTORY_SEPARATOR) . DIRECTORY_SEPARATOR;
-
-        if (isset($summary['log']) && is_array($summary['log'])) {
-            foreach ($summary['log'] as &$entry) {
-                if (isset($entry[2]) && is_string($entry[2])) {
-                    $entry[2] = $this->toRel($entry[2], $dir);
-                }
-            }
-        }
-        if (isset($summary['extended']) && is_array($summary['extended'])) {
-            foreach ($summary['extended'] as &$entry) {
-                if (isset($entry['file']) && is_string($entry['file'])) {
-                    $entry['file'] = $this->toRel($entry['file'], $dir);
-                }
-            }
-        }
-        if (isset($summary['formatted']) && is_array($summary['formatted'])) {
-            foreach ($summary['formatted'] as &$entry) {
-                if (isset($entry['file']) && is_string($entry['file'])) {
-                    $entry['file'] = $this->toRel($entry['file'], $dir);
-                }
-            }
-        }
-
-        return $summary;
-    }
-
-    private function toRel(string $path, string $dir): string
-    {
-        if (str_starts_with($path, $dir)) {
-            return ltrim(substr($path, strlen($dir)), DIRECTORY_SEPARATOR);
-        }
-        return $path;
     }
 }

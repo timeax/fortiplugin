@@ -68,8 +68,7 @@ final readonly class FileScanSection
         $events = [];
 
         // Forward validator emits verbatim
-        $forward = function (array $payload) use (&$events, $emitValidation, $pluginDir): void {
-            $payload = $this->stripAbsolutePaths($payload, $pluginDir);
+        $forward = function (array $payload) use (&$events, $emitValidation): void {
             $events[] = $payload;
             if ($emitValidation) {
                 $emitValidation($payload);
@@ -212,30 +211,5 @@ final readonly class FileScanSection
             'description' => $status,
             'meta' => $meta,
         ]);
-    }
-
-    private function stripAbsolutePaths(array $payload, string $pluginDir): array
-    {
-        $dir = rtrim($pluginDir, DIRECTORY_SEPARATOR) . DIRECTORY_SEPARATOR;
-
-        if (isset($payload['stats']['filePath']) && is_string($payload['stats']['filePath'])) {
-            $payload['stats']['filePath'] = $this->toRel($payload['stats']['filePath'], $dir);
-        }
-        if (isset($payload['meta']['path']) && is_string($payload['meta']['path'])) {
-            $payload['meta']['path'] = $this->toRel($payload['meta']['path'], $dir);
-        }
-        if (isset($payload['meta']['file']) && is_string($payload['meta']['file'])) {
-            $payload['meta']['file'] = $this->toRel($payload['meta']['file'], $dir);
-        }
-
-        return $payload;
-    }
-
-    private function toRel(string $path, string $dir): string
-    {
-        if (str_starts_with($path, $dir)) {
-            return ltrim(substr($path, strlen($dir)), DIRECTORY_SEPARATOR);
-        }
-        return $path;
     }
 }

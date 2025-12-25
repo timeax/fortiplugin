@@ -8,6 +8,7 @@ use Illuminate\Support\Facades\DB;
 use JsonException;
 use Random\RandomException;
 use Throwable;
+use Timeax\FortiPlugin\Autoload\Psr4RegistryWriter;
 use Timeax\FortiPlugin\Enums\PluginStatus;
 use Timeax\FortiPlugin\Installations\Activation\Writers\ProvidersRegistryWriter;
 use Timeax\FortiPlugin\Installations\Activation\Writers\RoutesRegistryWriter;
@@ -18,6 +19,8 @@ use Timeax\FortiPlugin\Installations\Support\AtomicFilesystem;
 use Timeax\FortiPlugin\Models\Plugin;
 use Timeax\FortiPlugin\Models\PluginVersion;
 
+
+
 final readonly class Activator
 {
     public function __construct(
@@ -27,6 +30,8 @@ final readonly class Activator
         private RoutesRegistryWriter    $routesWriter,
         private ProvidersRegistryWriter $providersWriter,
         private UiRegistryWriter        $uiWriter,
+        private Psr4RegistryWriter $psr4Writer,
+
     )
     {
     }
@@ -104,6 +109,8 @@ final readonly class Activator
                 return ActivationResult::fail(['reason' => 'version_not_found', 'version_id' => $versionId]);
             }
 
+            //TODO; MUST UNCOMMENT
+
 //            // Already active? no-op
 //            if ((int)($plugin->active_version_id ?? 0) === $version->id) {
 //                $emit(['title' => 'ACTIVATION_NOOP', 'description' => 'Version already active']);
@@ -164,13 +171,17 @@ final readonly class Activator
 
             // 3) Stage registry writes
             $emit(['title' => 'STAGE_REGISTRIES_START', 'description' => 'Staging registry writes']);
-            $routes = $this->routesWriter->stage($plugin, $version->id, $installedPluginRoot);
+
+            $routes    = $this->routesWriter->stage($plugin, $version->id, $installedPluginRoot);
             $providers = $this->providersWriter->stage($plugin, $version->id, $installedPluginRoot);
-            $uiReg = $this->uiWriter->stage($plugin, $version->id, $installedPluginRoot);
+            $uiReg     = $this->uiWriter->stage($plugin, $version->id, $installedPluginRoot);
+            $psr4      = $this->psr4Writer->stage($plugin, $version->id, $installedPluginRoot);
+
             $emit(['title' => 'STAGE_REGISTRIES_OK', 'description' => 'Registries staged', 'meta' => [
-                'routes' => $routes['meta'] ?? [],
+                'routes'    => $routes['meta'] ?? [],
                 'providers' => $providers['meta'] ?? [],
-                'ui' => $uiReg['meta'] ?? [],
+                'ui'        => $uiReg['meta'] ?? [],
+                'psr4'      => $psr4['meta'] ?? [],
             ]]);
 
             // 4) Transaction: flip active version + publish registries
@@ -186,9 +197,12 @@ final readonly class Activator
 
                 // commit staged registries
                 $emit(['title' => 'REGISTRIES_COMMIT_START', 'description' => 'Committing staged registries']);
+
                 ($routes['commit'])();
                 ($providers['commit'])();
                 ($uiReg['commit'])();
+                ($psr4['commit'])();
+
                 $emit(['title' => 'REGISTRIES_COMMIT_OK', 'description' => 'Staged registries committed']);
 
                 DB::commit();
@@ -212,6 +226,12 @@ final readonly class Activator
                     ($uiReg['rollback'])();
                 } catch (Throwable $_) {
                 }
+                try {
+                    $emit(['title' => 'REGISTRY_ROLLBACK_ATTEMPT', 'description' => 'Rolling back PSR-4 staging']);
+                    ($psr4['rollback'])();
+                } catch (Throwable $_) {
+                }
+
 
                 return ActivationResult::fail([
                     'reason' => 'activation_tx_failed',
@@ -246,6 +266,8 @@ final readonly class Activator
                     'routes' => $routes['meta'] ?? [],
                     'providers' => $providers['meta'] ?? [],
                     'ui' => $uiReg['meta'] ?? [],
+                    'psr4' => $psr4['meta'] ?? [],
+
                 ],
             ]);
 
@@ -256,6 +278,8 @@ final readonly class Activator
                 'routes' => $routes['meta'] ?? [],
                 'providers' => $providers['meta'] ?? [],
                 'ui' => $uiReg['meta'] ?? [],
+                'psr4' => $psr4['meta'] ?? [],
+
             ]);
         } finally {
             @flock($lock, LOCK_UN);

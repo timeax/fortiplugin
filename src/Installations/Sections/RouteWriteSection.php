@@ -76,8 +76,6 @@ final readonly class RouteWriteSection
         ];
         $emit($start);
 
-        $registryRel = '.internal' . DIRECTORY_SEPARATOR . 'routes.registry.json';
-
         try {
             $entries = $this->registry->read($stagingRoot);
             if ($entries === []) {
@@ -86,7 +84,7 @@ final readonly class RouteWriteSection
                     'dir' => 'routes',
                     'files' => [],
                     'aggregator' => null,
-                    'registry' => $registryRel,
+                    'registry' => '.internal/routes.registry.json',
                 ];
                 $this->log->writeSection('routes_write', $doc);
 
@@ -104,10 +102,10 @@ final readonly class RouteWriteSection
             $mat = $this->materializer->materialize($stagingRoot, $slug, $entries);
 
             $out = [
-                'dir' => $mat['dir'],
+                'dir' => 'routes',
                 'files' => $mat['files'],
-                'aggregator' => $mat['aggregator'],
-                'registry' => $registryRel,
+                'aggregator' => 'routes/fortiplugin.route.php',
+                'registry' => '.internal/routes.registry.json',
             ];
 
             $this->log->writeSection('routes_write', $out);
@@ -115,7 +113,7 @@ final readonly class RouteWriteSection
             $ok = [
                 'title' => 'ROUTES_WRITE_OK',
                 'description' => 'Routes registry materialized',
-                'meta' => ['dir' => $mat['dir'], 'file_count' => count($mat['files']), 'aggregator' => $mat['aggregator']],
+                'meta' => ['dir' => $out['dir'], 'file_count' => count($out['files']), 'aggregator' => $out['aggregator']],
             ];
             $emit($ok);
 
@@ -131,7 +129,7 @@ final readonly class RouteWriteSection
             $this->log->writeSection('routes_write', [
                 'error' => 'exception',
                 'exception' => $e->getMessage(),
-                'registry' => $registryRel,
+                'registry' => '.internal/routes.registry.json',
             ]);
 
             return ['status' => 'fail', 'reason' => 'exception'];

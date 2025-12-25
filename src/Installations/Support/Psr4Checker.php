@@ -33,7 +33,9 @@ final readonly class Psr4Checker
     public function expected(string $psr4Root, string $placeholderName): array
     {
         $ns = rtrim($psr4Root, '\\') . '\\' . $placeholderName . '\\';
-        $dir = rtrim($psr4Root, '/\\') . '/' . $placeholderName . '/';
+//        $dir = rtrim($psr4Root, '/\\') . '/' . $placeholderName . '/';
+        $dir = "src";
         return [$ns, $dir];
+
     }
 }

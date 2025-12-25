@@ -8,7 +8,6 @@ use Throwable;
 use Timeax\FortiPlugin\Installations\Enums\Install;
 use Timeax\FortiPlugin\Installations\Enums\ZipValidationStatus;
 use Timeax\FortiPlugin\Installations\Support\AtomicFilesystem;
-use Timeax\FortiPlugin\Installations\Support\InstallationLogStore;
 use Timeax\FortiPlugin\Installations\Support\InstallerTokenManager;
 use Timeax\FortiPlugin\Installations\InstallerPolicy;
 use Timeax\FortiPlugin\Installations\Contracts\ZipRepository;
@@ -27,7 +26,6 @@ final readonly class ZipValidationGate
     use Decision;
     public function __construct(
         private InstallerPolicy       $policy,
-        private InstallationLogStore  $log,
         private InstallerTokenManager $tokens,
         private ZipRepository         $zips,
         private AtomicFilesystem      $afs,
@@ -87,8 +85,8 @@ final readonly class ZipValidationGate
      */
     private function allow(string $pluginDir, int|string $zipId, callable $emit): array
     {
-        $this->persistGate('verified');
-        $this->persistDecision(Install::INSTALL, 'zip_verified');
+        $this->persistGate($pluginDir, 'verified');
+        $this->persistDecision($pluginDir, Install::INSTALL, 'zip_verified');
         $emit(['title' => 'INSTALL_DECISION', 'description' => 'INSTALL: zip verified', 'meta' => ['zip_id' => (string)$zipId]]);
         return ['decision' => Install::INSTALL, 'meta' => []];
     }
@@ -113,8 +111,8 @@ final readonly class ZipValidationGate
         $token = $this->tokens->issueBackgroundScanToken($zipId, $validatorConfigHash, $actor, $runId, $ttl);
         $summary = $this->tokens->summarize('background_scan', time() + $ttl);
 
-        $this->persistGate('pending', $summary);
-        $this->persistDecision(Install::ASK, 'background_scans_pending', $summary);
+        $this->persistGate($pluginDir, 'pending', $summary);
+        $this->persistDecision($pluginDir, Install::ASK, 'background_scans_pending', $summary);
         $emit(['title' => 'INSTALL_DECISION', 'description' => 'ASK: waiting on background scans', 'meta' => ['zip_id' => (string)$zipId]]);
 
         return ['decision' => Install::ASK, 'meta' => ['token' => $token, 'token_summary' => $summary]];
@@ -125,8 +123,8 @@ final readonly class ZipValidationGate
      */
     private function deny(string $pluginDir, int|string $zipId, string $reason, callable $emit): array
     {
-        $this->persistGate($reason === 'zip_validation_failed' ? 'failed' : 'unknown');
-        $this->persistDecision(Install::BREAK, $reason);
+        $this->persistGate($pluginDir, $reason === 'zip_validation_failed' ? 'failed' : 'unknown');
+        $this->persistDecision($pluginDir, Install::BREAK, $reason);
         $emit(['title' => 'INSTALL_DECISION', 'description' => 'BREAK: zip not eligible', 'meta' => ['zip_id' => (string)$zipId, 'reason' => $reason]]);
         return ['decision' => Install::BREAK, 'meta' => []];
     }
@@ -136,11 +134,23 @@ final readonly class ZipValidationGate
     /**
      * @throws JsonException
      */
-    private function persistGate(string $status, ?array $tokenSummary = null): void
+    private function persistGate(string $pluginDir, string $status, ?array $tokenSummary = null): void
     {
-        $this->log->writeSection('zip_gate', array_filter([
+        $path = $this->installationLogPath($pluginDir);
+        $this->afs->ensureParentDirectory($path);
+
+        $doc = $this->afs->fs()->exists($path) ? $this->afs->fs()->readJson($path) : [];
+        $doc['zip_gate'] = array_filter([
             'status' => $status,
             'token'  => $tokenSummary, // { purpose, expires_at }
-        ]));
+        ]);
+        $this->afs->writeJsonAtomic($path, $doc, true);
+    }
+
+    private function installationLogPath(string $pluginDir): string
+    {
+        return rtrim($pluginDir, "\\/") . DIRECTORY_SEPARATOR
+            . trim($this->policy->getLogsDirName(), "\\/") . DIRECTORY_SEPARATOR
+            . $this->policy->getInstallationLogFilename();
     }
 }

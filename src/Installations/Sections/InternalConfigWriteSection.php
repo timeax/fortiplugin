@@ -31,8 +31,9 @@ final readonly class InternalConfigWriteSection
         callable    $emit,
     ): array
     {
-        $targetRel = '.internal' . DIRECTORY_SEPARATOR . 'Config.php';
-        $target = rtrim($stagingPluginRoot, "\\/") . DIRECTORY_SEPARATOR . $targetRel;
+        $target = rtrim($stagingPluginRoot, "\\/")
+            . DIRECTORY_SEPARATOR . '.internal'
+            . DIRECTORY_SEPARATOR . 'Config.php';
 
         $emit([
             'title' => 'INTERNAL_CONFIG_START',
@@ -65,7 +66,7 @@ final readonly class InternalConfigWriteSection
 
             $this->log->writeSection('internal_config', [
                 'status' => 'ok',
-                'path' => $targetRel,
+                'path' => $target,
                 'plugin_id' => $pluginId,
                 'namespace' => $pluginNamespace,
             ]);
@@ -82,7 +83,7 @@ final readonly class InternalConfigWriteSection
                 $this->log->writeSection('internal_config', [
                     'status' => 'fail',
                     'error' => $e->getMessage(),
-                    'path' => $targetRel,
+                    'path' => $target,
                     'plugin_id' => $pluginId,
                 ]);
             } catch (Throwable) {
