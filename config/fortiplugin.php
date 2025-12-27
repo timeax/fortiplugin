@@ -6,6 +6,9 @@ return [
      * Enable or disable autoloading of plugins.
      */
     'autoload_enabled' => env('FORTIPLUGIN_AUTOLOAD_ENABLED', true),
+    'ui_embed_public_base' => env('FORTIPLUGIN_UI_EMBED_PUBLIC_BASE', '/__plugins/{slug}/build'),
+    'ui_embed_asset_origin' => env('FORTIPLUGIN_UI_EMBED_ASSET_ORIGIN', env('APP_URL')),
+
 
     // Relative path only
     'autoload_registry' => env('FORTIPLUGIN_AUTOLOAD_REGISTRY', 'bootstrap/fortiplugin.autoload_psr4.php'),

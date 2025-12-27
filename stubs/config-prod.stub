@@ -8,7 +8,7 @@ namespace IGNORE;
 
 use Illuminate\Support\Arr;
 use Illuminate\Support\Str;
-use Timeax\FortiPlugin\Contracts\ConfigInterface;
+
 use Timeax\FortiPlugin\Enums\PermissionType;
 use Timeax\FortiPlugin\Enums\PluginSettingValueType;
 use Timeax\FortiPlugin\Facades\Permissions;
@@ -18,7 +18,7 @@ use Timeax\FortiPlugin\Permissions\Evaluation\Dto\PermissionListResult;
 use Timeax\FortiPlugin\Permissions\Evaluation\Dto\PermissionListSummary;
 use Timeax\FortiPlugin\Permissions\Evaluation\Dto\Result;
 
-final class Config implements ConfigInterface
+final class Config
 {
 
 /**
@@ -63,11 +63,12 @@ final class Config implements ConfigInterface
      * These placeholders are replaced during install.
      * @var array{id:int|null,alias:string|null,name?:string|null}
      */
-    private static array $info = [
-        'id' => (int)'#{PLUGIN_ID}',
-        'alias' => '#{PLUGIN_ALIAS}',
-        'name' => '#{PLUGIN_STUDLY}',
-    ];
+  private static array $info = [
+      'id' => #{PLUGIN_ID_LITERAL},
+      'alias' => '#{PLUGIN_ALIAS}',
+      'name' => '#{PLUGIN_STUDLY}',
+  ];
+
 
     /** Cached signature contents from `.internal/Signed`. */
     private static ?string $signature = null;
