@@ -16,7 +16,11 @@ class HttpClient extends PendingRequest
     protected function checkPermissionFor(string $url, string $verb): void
     {
         $host = parse_url($url, PHP_URL_HOST) ?? '*';
-        $this->checkModulePermission($verb, $host, 'http');
+        $this->checkModulePermission('network', 'request', [
+            'method' => strtoupper($verb),
+            'host' => $host,
+            'url' => $url
+        ]);
     }
 
     protected function logRequest(string $method, string $url, array $data = []): void

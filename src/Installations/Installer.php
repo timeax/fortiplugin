@@ -18,6 +18,7 @@ use Timeax\FortiPlugin\Installations\Sections\DbPersistSection;
 use Timeax\FortiPlugin\Installations\Sections\InstallFilesSection;
 use Timeax\FortiPlugin\Installations\Sections\InternalConfigWriteSection;
 use Timeax\FortiPlugin\Installations\Sections\ProviderValidationSection;
+use Timeax\FortiPlugin\Installations\Sections\PublishBuildAssetsSection;
 use Timeax\FortiPlugin\Installations\Sections\RouteWriteSection;
 use Timeax\FortiPlugin\Installations\Sections\UiConfigValidationSection;
 use Timeax\FortiPlugin\Installations\Sections\VendorPolicySection;
@@ -46,10 +47,10 @@ final readonly class Installer
         private DbPersistSection           $dbPersist,
         private RouteUiBridge              $routeUiBridge,
         private RouteWriteSection          $routeWriterSection, // writer targets STAGING
-        // ✅ ADD THIS (best placed before installFiles)
-        private InternalConfigWriteSection $internalConfig,
 
+        private InternalConfigWriteSection $internalConfig,
         private InstallFilesSection        $installFiles,
+        private PublishBuildAssetsSection  $publishBuildAssets,
         private UiConfigValidationSection  $uiConfigValidation,
         // NEW: token + logs + zip-gate for resume flow
         private InstallerTokenManager      $tokens,
@@ -400,7 +401,32 @@ final readonly class Installer
         }
 
         // ─────────────────────────────────────────────────────────────
-        // 6) FINISH
+        // 6) PUBLISH UI BUILD (copy installed public/build → host public/)
+        // ─────────────────────────────────────────────────────────────
+        $pub = $this->publishBuildAssets->run(
+            meta: $meta,
+            pluginId: (int)$pluginId,
+            emit: $emitInstaller
+        );
+
+        if (($pub['status'] ?? 'fail') === 'fail') {
+            $emitInstaller([
+                'title' => 'UI_BUILD_PUBLISH_FAIL',
+                'description' => 'Failed publishing embed UI build assets',
+                'meta' => ['plugin_id' => (int)$pluginId],
+            ]);
+
+            return InstallerResult::fromArray([
+                'status' => 'fail',
+                'summary' => $summary,
+                'plugin_id' => (int)$pluginId,
+                'plugin_version_id' => $pluginVersionId,
+            ]);
+        }
+
+
+        // ─────────────────────────────────────────────────────────────
+        // 7) FINISH
         // ─────────────────────────────────────────────────────────────
         $result = InstallerResult::fromArray([
             'status' => 'ok',

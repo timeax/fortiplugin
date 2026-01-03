@@ -54,7 +54,7 @@ final readonly class EmbedResolver
         // Cache key: slug + version_id + embed name
         $cacheKey = 'fortiplugin:embed_spec:' . $slug . ':' . ($versionId ?? 'unknown') . ':' . $name;
 
-        $ttlSeconds = (int)(config('fortiplugin.ui_embed_cache_ttl') ?? 3600);
+        $ttlSeconds = (int)(config('fortiplugin.ui.embed.cache_ttl') ?? 3600);
         if ($ttlSeconds <= 0) {
             return $this->computeSpec($slug, $studly, $name, $versionId);
         }
@@ -144,15 +144,16 @@ final readonly class EmbedResolver
             throw EmbedResolveException::notFound("Embed '{$name}' not found in manifest.");
         }
 
-        $baseTpl = (string)config('fortiplugin.ui_embed_public_base', '/__plugins/{slug}/build');
-        $baseTpl = trim($baseTpl) !== '' ? $baseTpl : '/__plugins/{slug}/build';
+        $baseTpl = (string)(config('fortiplugin.ui.embed.public_base') ?? '/vendor/fortiplugin/{slug}/build');
+        $baseTpl = trim($baseTpl) !== '' ? $baseTpl : '/vendor/fortiplugin/{slug}/build';
 
         $baseUrl = str_replace(['{slug}', '{plugin}'], $slug, $baseTpl);
         $baseUrl = '/' . ltrim($baseUrl, '/');
         $baseUrl = rtrim($baseUrl, '/');
 
-        $assetOrigin = (string)config('fortiplugin.ui_embed_asset_origin', config('app.url'));
+        $assetOrigin = (string)(config('fortiplugin.ui.embed.asset_origin') ?? config('app.url'));
         $assetOrigin = rtrim(trim($assetOrigin), '/');
+
 
         if ($assetOrigin !== '' && str_starts_with($baseUrl, '/')) {
             $baseUrl = $assetOrigin . $baseUrl;

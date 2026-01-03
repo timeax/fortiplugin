@@ -118,9 +118,10 @@ class PluginDbExecutor extends PluginQueryBuilder
                 foreach ($columns as $col) {
                     if (in_array($col, $this->hiddenFields, true)) {
                         $this->denyPermission(
-                            "Plugin is not allowed to select hidden/forbidden column '$col' on '{$this->modelAlias}'.",
-                            $this->target,
-                            'select'
+                            'db',
+                            'select',
+                            ['model' => $this->target, 'column' => $col],
+                            "Plugin is not allowed to select hidden/forbidden column '$col' on '{$this->modelAlias}'."
                         );
                     }
                 }
@@ -238,9 +239,10 @@ class PluginDbExecutor extends PluginQueryBuilder
         $column = $args[0] ?? null;
         if ($this->hiddenFields && $column && in_array($column, $this->hiddenFields, true)) {
             $this->denyPermission(
-                "Plugin is not allowed to access hidden/forbidden column '$column' on '{$this->modelAlias}'.",
-                $this->target,
-                'select'
+                'db',
+                'select',
+                ['model' => $this->target, 'column' => $column],
+                "Plugin is not allowed to access hidden/forbidden column '$column' on '{$this->modelAlias}'."
             );
         }
 
@@ -254,9 +256,10 @@ class PluginDbExecutor extends PluginQueryBuilder
         $column = $args[0] ?? null;
         if ($this->hiddenFields && $column && in_array($column, $this->hiddenFields, true)) {
             $this->denyPermission(
-                "Plugin is not allowed to pluck hidden/forbidden column '$column' on '{$this->modelAlias}'.",
-                $this->target,
-                'select'
+                'db',
+                'select',
+                ['model' => $this->target, 'column' => $column],
+                "Plugin is not allowed to pluck hidden/forbidden column '$column' on '{$this->modelAlias}'."
             );
         }
 
@@ -357,9 +360,10 @@ class PluginDbExecutor extends PluginQueryBuilder
         $column = $args[0] ?? null;
         if ($this->hiddenFields && $column && in_array($column, $this->hiddenFields, true)) {
             $this->denyPermission(
-                "Plugin is not allowed to get max of hidden/forbidden column '$column' on '{$this->modelAlias}'.",
-                $this->target,
-                'select'
+                'db',
+                'select',
+                ['model' => $this->target, 'column' => $column],
+                "Plugin is not allowed to get max of hidden/forbidden column '$column' on '{$this->modelAlias}'."
             );
         }
 
@@ -380,9 +384,10 @@ class PluginDbExecutor extends PluginQueryBuilder
         $column = $args[0] ?? null;
         if ($this->hiddenFields && $column && in_array($column, $this->hiddenFields, true)) {
             $this->denyPermission(
-                "Plugin is not allowed to get min of hidden/forbidden column '$column' on '{$this->modelAlias}'.",
-                $this->target,
-                'select'
+                'db',
+                'select',
+                ['model' => $this->target, 'column' => $column],
+                "Plugin is not allowed to get min of hidden/forbidden column '$column' on '{$this->modelAlias}'."
             );
         }
 
@@ -403,9 +408,10 @@ class PluginDbExecutor extends PluginQueryBuilder
         $column = $args[0] ?? null;
         if ($this->hiddenFields && $column && in_array($column, $this->hiddenFields, true)) {
             $this->denyPermission(
-                "Plugin is not allowed to get avg of hidden/forbidden column '$column' on '{$this->modelAlias}'.",
-                $this->target,
-                'select'
+                'db',
+                'select',
+                ['model' => $this->target, 'column' => $column],
+                "Plugin is not allowed to get avg of hidden/forbidden column '$column' on '{$this->modelAlias}'."
             );
         }
 
@@ -426,9 +432,10 @@ class PluginDbExecutor extends PluginQueryBuilder
         $column = $args[0] ?? null;
         if ($this->hiddenFields && $column && in_array($column, $this->hiddenFields, true)) {
             $this->denyPermission(
-                "Plugin is not allowed to get sum of hidden/forbidden column '$column' on '{$this->modelAlias}'.",
-                $this->target,
-                'select'
+                'db',
+                'select',
+                ['model' => $this->target, 'column' => $column],
+                "Plugin is not allowed to get sum of hidden/forbidden column '$column' on '{$this->modelAlias}'."
             );
         }
 
@@ -472,9 +479,10 @@ class PluginDbExecutor extends PluginQueryBuilder
             foreach (array_keys($data) as $field) {
                 if (in_array($field, $this->hiddenFields, true)) {
                     $this->denyPermission(
-                        "Plugin is not allowed to write hidden/forbidden column '$field' on '{$this->modelAlias}'.",
-                        $this->target,
-                        'insert'
+                        'db',
+                        'insert',
+                        ['model' => $this->target, 'column' => $field],
+                        "Plugin is not allowed to write hidden/forbidden column '$field' on '{$this->modelAlias}'."
                     );
                 }
             }
@@ -483,9 +491,10 @@ class PluginDbExecutor extends PluginQueryBuilder
             foreach (array_keys($data) as $field) {
                 if (!in_array($field, $this->writableFields, true)) {
                     $this->denyPermission(
-                        "Plugin is not allowed to write column '$field' on '{$this->modelAlias}'.",
-                        $this->target,
-                        'insert'
+                        'db',
+                        'insert',
+                        ['model' => $this->target, 'column' => $field],
+                        "Plugin is not allowed to write column '$field' on '{$this->modelAlias}'."
                     );
                 }
             }
@@ -622,16 +631,18 @@ class PluginDbExecutor extends PluginQueryBuilder
         $column = $args[0] ?? null;
         if ($this->hiddenFields && $column && in_array($column, $this->hiddenFields, true)) {
             $this->denyPermission(
-                "Plugin is not allowed to increment hidden/forbidden column '$column' on '{$this->modelAlias}'.",
-                $this->target,
-                'update'
+                'db',
+                'update',
+                ['model' => $this->target, 'column' => $column],
+                "Plugin is not allowed to increment hidden/forbidden column '$column' on '{$this->modelAlias}'."
             );
         }
         if ($this->writableFields && $column && !in_array($column, $this->writableFields, true)) {
             $this->denyPermission(
-                "Plugin is not allowed to increment column '$column' on '{$this->modelAlias}'.",
-                $this->target,
-                'update'
+                'db',
+                'update',
+                ['model' => $this->target, 'column' => $column],
+                "Plugin is not allowed to increment column '$column' on '{$this->modelAlias}'."
             );
         }
 
@@ -654,16 +665,18 @@ class PluginDbExecutor extends PluginQueryBuilder
         $column = $args[0] ?? null;
         if ($this->hiddenFields && $column && in_array($column, $this->hiddenFields, true)) {
             $this->denyPermission(
-                "Plugin is not allowed to decrement hidden/forbidden column '$column' on '{$this->modelAlias}'.",
-                $this->target,
-                'update'
+                'db',
+                'update',
+                ['model' => $this->target, 'column' => $column],
+                "Plugin is not allowed to decrement hidden/forbidden column '$column' on '{$this->modelAlias}'."
             );
         }
         if ($this->writableFields && $column && !in_array($column, $this->writableFields, true)) {
             $this->denyPermission(
-                "Plugin is not allowed to decrement column '$column' on '{$this->modelAlias}'.",
-                $this->target,
-                'update'
+                'db',
+                'update',
+                ['model' => $this->target, 'column' => $column],
+                "Plugin is not allowed to decrement column '$column' on '{$this->modelAlias}'."
             );
         }
 

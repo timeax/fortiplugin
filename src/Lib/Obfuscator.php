@@ -34,8 +34,7 @@ class Obfuscator
      */
     protected function ensurePermission(string $capability): void
     {
-        $permission = 'use-obfuscator:' . $capability;
-        $this->checkModulePermission($permission);
+        $this->checkModulePermission('codec', 'invoke', ['method' => $capability]);
     }
 
 

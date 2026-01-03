@@ -6,6 +6,10 @@ declare(strict_types=1);
 namespace IGNORE;
 #{PLUGIN_NAMESPACE}\Internal;
 use Timeax\FortiPlugin\Enums\PermissionType;
+use Timeax\FortiPlugin\Permissions\Evaluation\Dto\PermissionListOptions;
+use Timeax\FortiPlugin\Permissions\Evaluation\Dto\PermissionListResult;
+use Timeax\FortiPlugin\Permissions\Evaluation\Dto\PermissionListSummary;
+use Timeax\FortiPlugin\Permissions\Evaluation\Dto\Result;
 
 /**
  * Dev-mode stub: permissions & host config are read from local JSON
@@ -218,13 +222,19 @@ final class DevConfig implements ConfigInterface
      * Return every mocked host setting with decoded values.
      * @return array<string,mixed>
      */
-    public static function getHostAll(): array
+    public static function getAllHost(): array
     {
         $out = [];
         foreach (self::hostAll() as $k => $v) {
             $out[$k] = self::getHost($k);
         }
         return $out;
+    }
+
+    /** @inheritDoc */
+    public static function load(?string $export = null): ?string
+    {
+        return json_encode(self::all(), JSON_PRETTY_PRINT);
     }
 
     /* ─────────────────────────────────────────────────────────────────────
@@ -335,6 +345,34 @@ final class DevConfig implements ConfigInterface
         return null;
     }
 
+    /** @inheritDoc */
+    public static function checkPermission(
+        PermissionType|string $type,
+        string                $actionOrIntent,
+        string|array|null     $meta = null,
+        array                 $context = []
+    ): Result
+    {
+        $family = $type instanceof PermissionType ? $type->value : (string)$type;
+        $selector = self::normalizeSelector($family, $meta);
+        $allowed = self::hasPermission($type, $actionOrIntent, $meta, $context);
+        return $allowed
+            ? Result::allow(meta: $selector)
+            : Result::deny('dev_mode_denial', meta: $selector);
+    }
+
+    /** @inheritDoc */
+    public static function getPermissions(?PermissionListOptions $options = null): PermissionListResult
+    {
+        return new PermissionListResult([], new PermissionListSummary([], 0, 0, 0, 0, 0, 0));
+    }
+
+    /** @inheritDoc */
+    public static function hasRequiredPermissions(): bool
+    {
+        return true; // Simplified for dev mode
+    }
+
     /* ─────────────────────────────────────────────────────────────────────
      |  Matching helpers (simple, but “real-ish”)
      ───────────────────────────────────────────────────────────────────── */
@@ -363,7 +401,7 @@ final class DevConfig implements ConfigInterface
             ],
             'network' => [
                 'method' => strtoupper((string)($m['method'] ?? 'GET')),
-                'url' => (string)($m['url'] ?? ''),
+                'url' => (string)($m['url'] ?? ($m['value'] ?? '')),
             ],
             'codec' => [
                 'method' => (string)($m['method'] ?? ''),

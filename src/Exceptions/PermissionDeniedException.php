@@ -9,28 +9,36 @@ use Throwable;
 use Timeax\FortiPlugin\Models\User;
 use Timeax\FortiPlugin\Notifications\PermissionGrantNotification;
 
+use Timeax\FortiPlugin\Permissions\Evaluation\Dto\Result;
+
 class PermissionDeniedException extends RuntimeException
 {
     protected string $type;
-    protected string $target;
-    protected array|string|null $permissions;
+    protected string $action;
+    protected array|string|null $meta;
+    protected Result $result;
     protected ?Request $request;
 
     public function __construct(
         string $type,
-        string $target,
-        array|string|null $permissions = null,
+        string $action,
+        array|string|null $meta,
+        Result $result,
         ?Request $request = null,
-        string $message = "",
-        int $code = 0,
-        Throwable $previous = null
+        ?Throwable $previous = null
     ) {
         $this->type = $type;
-        $this->target = $target;
-        $this->permissions = $permissions;
+        $this->action = $action;
+        $this->result = $result;
+        $this->meta = $result->meta ?? $meta;
         $this->request = $request;
-        $message = $message ?: "Permission denied for {$type}:{$target}" . ($permissions ? " (" . implode(',', (array)$permissions) . ")" : '');
-        parent::__construct($message, $code, $previous);
+
+        $message = "Permission denied for {$type}:{$action}";
+        if ($result->reason) {
+            $message .= " (Reason: {$result->reason})";
+        }
+
+        parent::__construct($message, 0, $previous);
     }
 
     public function render($request = null): Response
@@ -52,8 +60,11 @@ class PermissionDeniedException extends RuntimeException
             return response()->json([
                 'error' => 'plugin_permission_denied',
                 'type' => $this->type,
-                'target' => $this->target,
-                'permissions' => $this->permissions,
+                'action' => $this->action,
+                'meta' => $this->meta,
+                'reason' => $this->result->reason,
+                'matched' => $this->result->matched?->toArray(),
+                'context' => $this->result->context,
                 'message' => $this->getMessage(),
                 'can_request_permission' => true,
                 'request_data' => $this->getClonedRequestData(),
@@ -63,8 +74,11 @@ class PermissionDeniedException extends RuntimeException
         // 2. All browser/inertia/other requests: redirect back with flash data only
         return redirect()->back()->with('plugin_permission_data', [
             'type' => $this->type,
-            'target' => $this->target,
-            'permissions' => $this->permissions,
+            'action' => $this->action,
+            'meta' => $this->meta,
+            'reason' => $this->result->reason,
+            'matched' => $this->result->matched?->toArray(),
+            'context' => $this->result->context,
             'message' => $this->getMessage(),
             'can_request_permission' => true,
             'request_data' => $this->getClonedRequestData(),
@@ -79,8 +93,11 @@ class PermissionDeniedException extends RuntimeException
         foreach ($admins as $admin) {
             $admin->notify(new PermissionGrantNotification([
                 'type' => $this->type,
-                'target' => $this->target,
-                'permissions' => $this->permissions,
+                'action' => $this->action,
+                'meta' => $this->meta,
+                'reason' => $this->result->reason,
+                'matched' => $this->result->matched?->toArray(),
+                'context' => $this->result->context,
                 'message' => $this->getMessage(),
                 'request_data' => $this->getClonedRequestData(),
                 // Add more details as needed
@@ -100,6 +117,7 @@ class PermissionDeniedException extends RuntimeException
     }
 
     public function getType(): string { return $this->type; }
-    public function getTarget(): string { return $this->target; }
-    public function getPermissions(): array|string|null { return $this->permissions; }
+    public function getAction(): string { return $this->action; }
+    public function getMeta(): array|string|null { return $this->meta; }
+    public function getResult(): Result { return $this->result; }
 }

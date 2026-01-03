@@ -57,9 +57,7 @@
           }
         }
       },
-      "required": [
-        "items"
-      ],
+      "required": ["items"],
       "additionalProperties": false
     },
     "routes": {
@@ -76,9 +74,7 @@
           "default": "**/*.routes.json"
         }
       },
-      "required": [
-        "dir"
-      ],
+      "required": ["dir"],
       "additionalProperties": false
     },
     "main": {
@@ -95,18 +91,11 @@
       "description": "Map of dashed-lowercase slugs to export definitions"
     }
   },
-  "required": [
-    "name",
-    "alias",
-    "description"
-  ],
+  "required": ["name", "alias", "description"],
   "additionalProperties": false,
   "definitions": {
     "TriState": {
-      "type": [
-        "boolean",
-        "null"
-      ],
+      "type": ["boolean", "null"],
       "description": "Boolean or null (tri-state)"
     },
     "SettingValue": {
@@ -152,9 +141,7 @@
           ]
         }
       },
-      "required": [
-        "id"
-      ],
+      "required": ["id"],
       "additionalProperties": {
         "$ref": "#/definitions/SettingValue"
       },
@@ -214,9 +201,7 @@
               "description": "Host target id inside the section."
             }
           },
-          "required": [
-            "targetId"
-          ],
+          "required": ["targetId"],
           "additionalProperties": false
         },
         "props": {
@@ -244,9 +229,7 @@
                   "additionalProperties": true
                 }
               },
-              "required": [
-                "name"
-              ],
+              "required": ["name"],
               "additionalProperties": false
             }
           ]
@@ -271,9 +254,7 @@
                   "additionalProperties": true
                 }
               },
-              "required": [
-                "name"
-              ],
+              "required": ["name"],
               "additionalProperties": false
             }
           ]
@@ -284,10 +265,7 @@
           "description": "Plugin suggests enabling this item; admin makes the final decision."
         }
       },
-      "required": [
-        "section",
-        "id"
-      ],
+      "required": ["section", "id"],
       "additionalProperties": false,
       "allOf": [
         {
@@ -297,9 +275,7 @@
                 "pattern": "^floating\\."
               }
             },
-            "required": [
-              "section"
-            ]
+            "required": ["section"]
           },
           "then": {
             "description": "Floating UI items (e.g., chat/support launchers). 'text' may be omitted for icon-only."
@@ -308,10 +284,7 @@
         {
           "description": "Disallow using both 'overridelayout' and 'overrideLayout' at the same time.",
           "not": {
-            "required": [
-              "overridelayout",
-              "overrideLayout"
-            ]
+            "required": ["overridelayout", "overrideLayout"]
           }
         }
       ]
@@ -332,11 +305,7 @@
           "type": "string"
         }
       },
-      "required": [
-        "href",
-        "text",
-        "id"
-      ],
+      "required": ["href", "text", "id"],
       "additionalProperties": false,
       "description": "Legacy shape (kept for backward compatibility in older configs). Prefer uiConfig.items[]."
     },
@@ -360,6 +329,9 @@
           "type": "string",
           "pattern": "^(?!.*\\.\\.)[A-Za-z0-9._/@-]+$"
         },
+        "desc": {
+          "type": "string"
+        },
         "setting_id": {
           "oneOf": [
             {
@@ -371,9 +343,7 @@
           ]
         }
       },
-      "required": [
-        "file"
-      ],
+      "required": ["file", "desc"],
       "additionalProperties": false,
       "description": "Explicit export definition with optional binding to a HostConfig setting id"
     },
@@ -428,19 +398,13 @@
               "type": "string"
             }
           },
-          "required": [
-            "version"
-          ],
+          "required": ["version"],
           "anyOf": [
             {
-              "required": [
-                "source"
-              ]
+              "required": ["source"]
             },
             {
-              "required": [
-                "url"
-              ]
+              "required": ["url"]
             }
           ],
           "additionalProperties": false,

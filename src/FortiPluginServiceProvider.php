@@ -39,6 +39,7 @@ use Timeax\FortiPlugin\Installations\Sections\FileScanSection;
 use Timeax\FortiPlugin\Installations\Sections\InstallFilesSection;
 use Timeax\FortiPlugin\Installations\Sections\InternalConfigWriteSection;
 use Timeax\FortiPlugin\Installations\Sections\ProviderValidationSection;
+use Timeax\FortiPlugin\Installations\Sections\PublishBuildAssetsSection;
 use Timeax\FortiPlugin\Installations\Sections\RouteWriteSection;
 use Timeax\FortiPlugin\Installations\Sections\UiConfigValidationSection;
 use Timeax\FortiPlugin\Installations\Sections\VendorPolicySection;
@@ -228,6 +229,11 @@ class FortiPluginServiceProvider extends ServiceProvider
             $app->make(Psr4Checker::class),
         ));
 
+        $this->app->scoped(PublishBuildAssetsSection::class, fn($app) => new PublishBuildAssetsSection(
+            $app->make(InstallationLogStore::class),
+            $app->make(AtomicFilesystem::class),
+        ));
+
 
         // FIX #1: don’t pass BackgroundScanDispatcher as an emitter (it isn’t callable)
         $this->app->scoped(FileScanSection::class, fn($app) => new FileScanSection(
@@ -324,6 +330,8 @@ class FortiPluginServiceProvider extends ServiceProvider
             routeWriterSection: $app->make(RouteWriteSection::class),
 
             internalConfig: $app->make(InternalConfigWriteSection::class),
+            publishBuildAssets: $app->make(PublishBuildAssetsSection::class),
+
 
             installFiles: $app->make(InstallFilesSection::class),
             uiConfigValidation: $app->make(UiConfigValidationSection::class),

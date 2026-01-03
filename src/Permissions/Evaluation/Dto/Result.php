@@ -12,19 +12,20 @@ final readonly class Result
         public bool      $allowed,
         public ?string   $reason = null,
         public ?MorphRef $matched = null,
-        public ?array    $context = null
+        public ?array    $context = null,
+        public ?array    $meta = null
     )
     {
     }
 
-    public static function allow(?MorphRef $matched = null, ?array $context = null): self
+    public static function allow(?MorphRef $matched = null, ?array $context = null, ?array $meta = null): self
     {
-        return new self(true, null, $matched, $context);
+        return new self(true, null, $matched, $context, $meta);
     }
 
-    public static function deny(string $reason, ?MorphRef $matched = null, ?array $context = null): self
+    public static function deny(string $reason, ?MorphRef $matched = null, ?array $context = null, ?array $meta = null): self
     {
-        return new self(false, $reason, $matched, $context);
+        return new self(false, $reason, $matched, $context, $meta);
     }
 
     public function toArray(): array
@@ -34,6 +35,7 @@ final readonly class Result
             'reason' => $this->reason,
             'matched' => $this->matched?->toArray(),
             'context' => $this->context,
+            'meta' => $this->meta,
         ];
     }
 
@@ -60,7 +62,8 @@ final readonly class Result
         }
 
         $context = isset($a['context']) && is_array($a['context']) ? $a['context'] : null;
+        $meta = isset($a['meta']) && is_array($a['meta']) ? $a['meta'] : null;
 
-        return new self($allowed, $reason, $matched, $context);
+        return new self($allowed, $reason, $matched, $context, $meta);
     }
 }

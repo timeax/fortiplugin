@@ -16,7 +16,7 @@ class FileIo extends FileIoUtility
      */
     public function get(string $path, ?string $disk = null): ?string
     {
-        $this->checkModulePermission('read', 'file', $path);
+        $this->checkModulePermission('file', 'read', ['path' => $path]);
 
         $disk = $disk ?: $this->forcedDisk ?: 'local';
 
@@ -32,7 +32,7 @@ class FileIo extends FileIoUtility
     }
 
     /**
-     * Write contents to a file in storage (plugin folder is always allowed; other storage paths require permission).
+     * Write contents to a file in storage (the plugin folder is always allowed; other storage paths require permission).
      */
     public function put(string $path, string $contents, ?string $disk = null): bool
     {
@@ -43,7 +43,7 @@ class FileIo extends FileIoUtility
         }
 
         $absPath = realpath(dirname(Storage::disk($disk)->path($path))) ?: Storage::disk($disk)->path($path);
-        $this->checkModulePermission('write', 'file', $absPath);
+        $this->checkModulePermission('file', 'write', ['path' => $absPath]);
 
         return Storage::disk($disk)->put($path, $contents);
     }
@@ -60,7 +60,7 @@ class FileIo extends FileIoUtility
         }
 
         $absPath = realpath(dirname(Storage::disk($disk)->path($path))) ?: Storage::disk($disk)->path($path);
-        $this->checkModulePermission('write', 'file', $absPath);
+        $this->checkModulePermission('file', 'write', ['path' => $absPath]);
 
         return Storage::disk($disk)->append($path, $data);
     }
@@ -77,7 +77,7 @@ class FileIo extends FileIoUtility
         }
 
         $absPath = realpath(dirname(Storage::disk($disk)->path($path))) ?: Storage::disk($disk)->path($path);
-        $this->checkModulePermission('write', 'file', $absPath);
+        $this->checkModulePermission('file', 'write', ['path' => $absPath]);
 
         return Storage::disk($disk)->prepend($path, $data);
     }
@@ -151,8 +151,8 @@ class FileIo extends FileIoUtility
         $absFrom = realpath(Storage::disk($disk)->path($from));
         $absTo = realpath(dirname(Storage::disk($disk)->path($to))) ?: Storage::disk($disk)->path($to);
 
-        $this->checkModulePermission('read', 'file', $absFrom);
-        $this->checkModulePermission('write', 'file', $absTo);
+        $this->checkModulePermission('file', 'read', ['path' => $absFrom]);
+        $this->checkModulePermission('file', 'write', ['path' => $absTo]);
     }
 
     /**
@@ -186,7 +186,7 @@ class FileIo extends FileIoUtility
                 return false;
             }
             $absPath = realpath(Storage::disk($disk)->path($path));
-            $this->checkModulePermission('write', 'file', $absPath);
+            $this->checkModulePermission('file', 'write', ['path' => $absPath]);
         }
 
         return Storage::disk($disk)->delete($paths);
@@ -204,7 +204,7 @@ class FileIo extends FileIoUtility
         }
 
         $absPath = realpath(Storage::disk($disk)->path($path));
-        $this->checkModulePermission('write', 'file', $absPath);
+        $this->checkModulePermission('file', 'write', ['path' => $absPath]);
 
         return $absPath && chmod($absPath, $mode);
     }
@@ -221,7 +221,7 @@ class FileIo extends FileIoUtility
         }
 
         $absDir = realpath(Storage::disk($disk)->path($directory));
-        $this->checkModulePermission('read', 'file', $absDir);
+        $this->checkModulePermission('file', 'read', ['path' => $absDir]);
 
         return Storage::disk($disk)->files($directory);
     }
@@ -238,7 +238,7 @@ class FileIo extends FileIoUtility
         }
 
         $absDir = realpath(Storage::disk($disk)->path($directory));
-        $this->checkModulePermission('read', 'file', $absDir);
+        $this->checkModulePermission('file', 'read', ['path' => $absDir]);
 
         return Storage::disk($disk)->allFiles($directory);
     }
@@ -255,7 +255,7 @@ class FileIo extends FileIoUtility
         }
 
         $absDir = realpath(Storage::disk($disk)->path($directory));
-        $this->checkModulePermission('read', 'file', $absDir);
+        $this->checkModulePermission('file', 'read', ['path' => $absDir]);
 
         return Storage::disk($disk)->directories($directory);
     }
@@ -272,7 +272,7 @@ class FileIo extends FileIoUtility
         }
 
         $absPath = realpath(dirname(Storage::disk($disk)->path($path))) ?: Storage::disk($disk)->path($path);
-        $this->checkModulePermission('write', 'file', $absPath);
+        $this->checkModulePermission('file', 'write', ['path' => $absPath]);
 
         return Storage::disk($disk)->makeDirectory($path);
     }
@@ -289,7 +289,7 @@ class FileIo extends FileIoUtility
         }
 
         $absDir = realpath(Storage::disk($disk)->path($directory));
-        $this->checkModulePermission('write', 'file', $absDir);
+        $this->checkModulePermission('file', 'write', ['path' => $absDir]);
 
         return Storage::disk($disk)->deleteDirectory($directory);
     }
@@ -306,7 +306,7 @@ class FileIo extends FileIoUtility
         }
 
         $absPath = realpath(Storage::disk($disk)->path($path));
-        $this->checkModulePermission('read', 'file', $absPath);
+        $this->checkModulePermission('file', 'read', ['path' => $absPath]);
 
         return Storage::disk($disk)->size($path);
     }
@@ -323,7 +323,7 @@ class FileIo extends FileIoUtility
         }
 
         $absPath = realpath(Storage::disk($disk)->path($path));
-        $this->checkModulePermission('read', 'file', $absPath);
+        $this->checkModulePermission('file', 'read', ['path' => $absPath]);
 
         return Storage::disk($disk)->lastModified($path);
     }
@@ -340,7 +340,7 @@ class FileIo extends FileIoUtility
         }
 
         $absPath = realpath(Storage::disk($disk)->path($path));
-        $this->checkModulePermission('read', 'file', $absPath);
+        $this->checkModulePermission('file', 'read', ['path' => $absPath]);
 
         return Storage::disk($disk)->mimeType($path);
     }
@@ -388,7 +388,7 @@ class FileIo extends FileIoUtility
         }
 
         $absPath = realpath(Storage::disk($disk)->path($path));
-        $this->checkModulePermission('read', 'file', $absPath);
+        $this->checkModulePermission('file', 'read', ['path' => $absPath]);
 
         return Storage::disk($disk)->url($path);
     }
@@ -405,7 +405,7 @@ class FileIo extends FileIoUtility
         }
 
         $absPath = realpath(Storage::disk($disk)->path($path));
-        $this->checkModulePermission('read', 'file', $absPath);
+        $this->checkModulePermission('file', 'read', ['path' => $absPath]);
 
         return Storage::disk($disk)->temporaryUrl($path, $expiration);
     }
@@ -439,7 +439,7 @@ class FileIo extends FileIoUtility
         }
 
         $absPath = realpath(Storage::disk($disk)->path($path));
-        $this->checkModulePermission('read', 'file', $absPath);
+        $this->checkModulePermission('file', 'read', ['path' => $absPath]);
 
         return Storage::disk($disk)->readStream($path);
     }
@@ -456,7 +456,7 @@ class FileIo extends FileIoUtility
         }
 
         $absPath = realpath(dirname(Storage::disk($disk)->path($path))) ?: Storage::disk($disk)->path($path);
-        $this->checkModulePermission('write', 'file', $absPath);
+        $this->checkModulePermission('file', 'write', ['path' => $absPath]);
 
         return Storage::disk($disk)->writeStream($path, $resource);
     }

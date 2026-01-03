@@ -211,6 +211,8 @@ final readonly class PermissionService implements PermissionServiceInterface
 
         $this->audit->record('check', $type, $pluginId, $request->toArray(), $result, $options);
 
+        $result['meta'] = $request->toArray();
+
         return $result;
     }
 

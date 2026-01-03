@@ -64,7 +64,7 @@ final class Config
      * @var array{id:int|null,alias:string|null,name?:string|null}
      */
   private static array $info = [
-      'id' => #{PLUGIN_ID_LITERAL},
+      'id' => '#{PLUGIN_ID}',
       'alias' => '#{PLUGIN_ALIAS}',
       'name' => '#{PLUGIN_STUDLY}',
   ];
@@ -341,6 +341,36 @@ final class Config
         return self::decodeHostSetting($row, $default);
     }
 
+    /**
+     * {@inheritdoc}
+     */
+    public static function getAllHost(): array
+    {
+        $pluginId = self::getPluginId();
+        if (!$pluginId) {
+            return [];
+        }
+
+        $rows = PluginSetting::query()
+            ->where('plugin_id', $pluginId)
+            ->get();
+
+        $out = [];
+        foreach ($rows as $row) {
+            $out[$row->key] = self::decodeHostSetting($row, null);
+        }
+
+        return $out;
+    }
+
+    /**
+     * {@inheritdoc}
+     */
+    public static function load(?string $export = null): ?string
+    {
+        return json_encode(self::all(), JSON_PRETTY_PRINT);
+    }
+
     /* ───────────────────────────────────────────────────────────────
      |  Permissions – list / has / get (via PermissionService)
      ─────────────────────────────────────────────────────────────── */
@@ -372,222 +402,164 @@ final class Config
     /**
      * {@inheritdoc}
      */
-    public static function hasPermission(PermissionType|string $type, string $actionOrIntent, array|string|null $meta = null, array $context = []): bool
-    {
-        $pluginId = self::getPluginId();
-        if (!$pluginId) {
-            return false;
-        }
-
-        $t = $type instanceof PermissionType ? $type->value : (string)$type;
-        $target = self::buildTarget($t, $actionOrIntent, $meta);
-        if ($target === null) {
-            return false;
-        }
-
-        $result = self::dispatchCan($t, $pluginId, $actionOrIntent, $target, $context);
-        return $result->allowed;
+    public static function hasPermission(
+        PermissionType|string $type,
+        string $actionOrIntent,
+        array|string|null $meta = null,
+        array $context = []
+    ): bool {
+        return self::checkPermission($type, $actionOrIntent, $meta, $context)->allowed;
     }
 
     /**
      * {@inheritdoc}
      */
-    public static function getPermission(PermissionType|string $type, string $actionOrIntent, array|string|null $meta = null, array $context = []): Result
-    {
+    public static function getPermission(
+        PermissionType|string $type,
+        array|string|null $meta = null
+    ): ?array {
         $pluginId = self::getPluginId();
         if (!$pluginId) {
-            return Result::deny('plugin_not_installed');
+            return null;
         }
 
         $t = $type instanceof PermissionType ? $type->value : (string)$type;
-        $target = self::buildTarget($t, $actionOrIntent, $meta);
-        if ($target === null) {
-            return Result::deny('bad_target');
+        $normalizedMeta = self::normalizeMeta($t, $meta);
+        if ($normalizedMeta === null) {
+            return null;
         }
 
-        // Typed dispatch: canDb/canFile/… → Result
-        $result = self::dispatchCan($t, $pluginId, $actionOrIntent, $target, $context);
-
-        // If nothing matched, return as-is.
-        if ($result->matched === null) {
-            return $result;
-        }
-
-        // Enrich with matched concrete row via listPermissions() using only allowed options.
-        $matchedType = $result->matched->type;
-        $matchedId = $result->matched->id;
-
-        $opts = new PermissionListOptions(
-            type: $matchedType,
-            requiredOnly: null,   // include both required & optional
-            activeOnly: null,     // include both active & inactive
-            source: 'both',       // include direct and tag
-            tagId: null,
-            search: null,
-            page: null,
-            perPage: null
-        );
-
-        $list = Permissions::listPermissions($pluginId, $opts);
-        $row = self::extractMatchedRow($list, $matchedType, $matchedId);
-
-        if ($row === null) {
-            return $result;
-        }
-
-        $ctx = $result->context ?? [];
-        $ctx['matched_row'] = $row;
-
-        return new Result(
-            allowed: $result->allowed,
-            reason: $result->reason,
-            matched: $result->matched,
-            context: $ctx
-        );
-    }
-
-    /**
-     * Locate the concrete row for (type,id) inside a PermissionListResult.
-     *
-     * The list structure is expected to be:
-     *   $list->entries = [
-     *     'db' => [ ['id'=>int, 'row'=>array, ...], ... ],
-     *     'file' => [ ... ],
-     *     ...
-     *   ]
-     *
-     * Returns the 'row' array if present, otherwise the whole entry.
-     */
-    private static function extractMatchedRow(PermissionListResult $list, string $type, int $id): ?array
-    {
-        $bucket = $list->entries[$type] ?? null;
-        if (is_array($bucket)) {
-            foreach ($bucket as $entry) {
-                if ((int)($entry['id'] ?? 0) === $id) {
-                    return $entry['row'] ?? $entry;
-                }
+        $list = self::getPermissions();
+        foreach ($list->items as $item) {
+            if ($item->type !== $t) {
+                continue;
             }
-        }
 
-        // Fallback scan (defensive)
-        foreach ($list->entries as $entries) {
-            if (!is_array($entries)) continue;
-            foreach ($entries as $entry) {
-                if ((int)($entry['id'] ?? 0) === $id) {
-                    return $entry['row'] ?? $entry;
-                }
+            if (self::metaMatches($normalizedMeta, $item->concrete['meta'] ?? [])) {
+                return $item->toArray();
             }
         }
 
         return null;
     }
 
-    /* ───────────────────────────────────────────────────────────────
-     |  Private routing for `can*` calls
-     ─────────────────────────────────────────────────────────────── */
+    /**
+     * {@inheritdoc}
+     */
+    public static function checkPermission(
+        PermissionType|string $type,
+        string $actionOrIntent,
+        array|string|null $meta = null,
+        array $context = []
+    ): Result {
+        $t = $type instanceof PermissionType ? $type->value : (string)$type;
+        $normalizedMeta = self::normalizeMeta($t, $meta);
+
+        $pluginId = self::getPluginId();
+        if (!$pluginId) {
+            return Result::deny('plugin_not_installed', meta: $normalizedMeta);
+        }
+
+        if ($normalizedMeta === null) {
+            return Result::deny('bad_target');
+        }
+
+        return self::dispatchCan($t, $pluginId, $actionOrIntent, $normalizedMeta, $context);
+    }
 
     /**
-     * Build the target array for a typed `can*` call from flexible meta.
-     * Returns null if the shape is insufficient for the requested type.
-     *
-     * @param string $type
-     * @param string $action
-     * @param array|string|null $meta
-     * @return array<string,mixed>|null
+     * {@inheritdoc}
      */
-    private static function buildTarget(string $type, string $action, array|string|null $meta): ?array
+    public static function hasRequiredPermissions(): bool
     {
-        switch ($type) {
-            case 'db':
-                // Accept: ['model'=>...,'columns'=>[]] OR ['table'=>...,'columns'=>[]]
-                if (is_array($meta)) {
-                    $out = [];
-                    if (isset($meta['model'])) $out['model'] = (string)$meta['model'];
-                    if (isset($meta['table'])) $out['table'] = (string)$meta['table'];
-                    if (isset($meta['columns']) && is_array($meta['columns'])) {
-                        $out['columns'] = array_values(array_unique(array_map('strval', $meta['columns'])));
-                    }
-                    return $out ?: null;
-                }
-                if (is_string($meta)) {
-                    return ['model' => $meta];
-                }
-                return null;
+        return self::getPermissions()->summary->requiredPending === 0;
+    }
 
-            case 'file':
-                // Must provide baseDir + path explicitly
-                if (is_array($meta) && isset($meta['baseDir'], $meta['path'])) {
-                    return ['baseDir' => (string)$meta['baseDir'], 'path' => (string)$meta['path']];
-                }
-                return null;
-
-            case 'notification':
-                if (is_array($meta)) {
-                    $out = ['channel' => (string)($meta['channel'] ?? '')];
-                    if ($out['channel'] === '') return null;
-                    if (isset($meta['template'])) $out['template'] = (string)$meta['template'];
-                    if (isset($meta['recipient'])) $out['recipient'] = (string)$meta['recipient'];
-                    return $out;
-                }
-                if (is_string($meta)) {
-                    return ['channel' => $meta];
-                }
-                return null;
-
-            case 'module':
-                if (is_array($meta) && isset($meta['module'], $meta['api'])) {
-                    return ['module' => (string)$meta['module'], 'api' => (string)$meta['api']];
-                }
-                return null;
-
-            case 'network':
-                if (is_array($meta)) {
-                    if (!isset($meta['method'], $meta['url'])) return null;
-                    return ['method' => strtoupper((string)$meta['method']), 'url' => (string)$meta['url'], 'headers' => $meta['headers'] ?? null];
-                }
-                if (is_string($meta)) {
-                    return ['method' => 'GET', 'url' => $meta];
-                }
-                return null;
-
-            case 'codec':
-                if (is_array($meta) && isset($meta['method'])) {
-                    $out = ['method' => (string)$meta['method']];
-                    if (isset($meta['options']) && is_array($meta['options'])) {
-                        $out['options'] = $meta['options'];
-                    }
-                    return $out;
-                }
-                if (is_string($meta)) {
-                    return ['method' => $meta];
-                }
-                return null;
-
-            case 'route':
-                if (is_array($meta) && isset($meta['routeId'])) {
-                    $out = ['routeId' => (string)$meta['routeId']];
-                    if (isset($meta['guard'])) $out['guard'] = (string)$meta['guard'];
-                    return $out;
-                }
-                if (is_string($meta)) {
-                    return ['routeId' => $meta];
-                }
-                return null;
-
-            default:
-                return null;
+    /**
+     * Check if normalized meta matches the permission definition meta.
+     */
+    private static function metaMatches(array $requested, array $defined): bool
+    {
+        foreach ($requested as $key => $val) {
+            if ($val === '' || $val === null || $val === []) {
+                continue;
+            }
+            if (!isset($defined[$key]) || $defined[$key] !== $val) {
+                return false;
+            }
         }
+        return true;
+    }
+
+    /**
+     * Internal meta normalization layer.
+     */
+    private static function normalizeMeta(string $type, string|array|null $meta): ?array
+    {
+        if ($meta === null) {
+            return null;
+        }
+
+        if (is_string($meta)) {
+            return match ($type) {
+                'db' => ['model' => $meta],
+                'file' => ['path' => $meta],
+                'module' => ['module' => $meta],
+                'codec' => ['method' => $meta],
+                'network' => [
+                    'method' => 'GET',
+                    'url'    => $meta,
+                    'host'   => parse_url($meta, PHP_URL_HOST) ?? $meta
+                ],
+                'notification' => ['channel' => $meta],
+                'route' => ['routeId' => $meta],
+                default => null,
+            };
+        }
+
+        if (is_array($meta)) {
+            return match ($type) {
+                'db' => [
+                    'model' => (string)($meta['model'] ?? ($meta['table'] ?? '')),
+                    'table' => (string)($meta['table'] ?? ''),
+                    'columns' => is_array($meta['columns'] ?? null) ? array_values(array_unique(array_map('strval', $meta['columns']))) : [],
+                ],
+                'file' => [
+                    'baseDir' => (string)($meta['baseDir'] ?? ''),
+                    'path' => (string)($meta['path'] ?? ''),
+                ],
+                'notification' => [
+                    'channel' => (string)($meta['channel'] ?? ''),
+                    'template' => (string)($meta['template'] ?? ''),
+                    'recipient' => (string)($meta['recipient'] ?? ''),
+                ],
+                'module' => [
+                    'module' => (string)($meta['module'] ?? ''),
+                    'api' => (string)($meta['api'] ?? ''),
+                ],
+                'network' => [
+                    'method' => strtoupper((string)($meta['method'] ?? 'GET')),
+                    'url' => (string)($meta['url'] ?? ''),
+                    'host' => (string)($meta['host'] ?? ''),
+                    'headers' => $meta['headers'] ?? null,
+                ],
+                'codec' => [
+                    'method' => (string)($meta['method'] ?? ''),
+                    'options' => $meta['options'] ?? [],
+                ],
+                'route' => [
+                    'routeId' => (string)($meta['routeId'] ?? ''),
+                    'guard' => (string)($meta['guard'] ?? ''),
+                ],
+                default => $meta,
+            };
+        }
+
+        return null;
     }
 
     /**
      * Dispatch to the correct typed `can*` method on the Permissions facade.
-     *
-     * @param string $type
-     * @param int $pluginId
-     * @param string $action
-     * @param array $target
-     * @param array $context
-     * @return Result
      */
     private static function dispatchCan(string $type, int $pluginId, string $action, array $target, array $context): Result
     {

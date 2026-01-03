@@ -1,104 +1,101 @@
 {
-    "version": 3.1,
-    "$schema": "https://raw.githubusercontent.com/emxhive/prodex/main/schema/prodex.schema.json",
-    "output": {
-        "dir": "prodex",
-        "versioned": true,
-        "prefix": "combined",
-        "format": "md"
-    },
-    "entry": {
-        "files": [],
-        "ui": {
-            "roots": ["app", "routes", "resources/js/**"],
-            "scanDepth": 2,
-            "priority": ["**/routes/web.php", "**/app.*"]
-        }
-    },
-    "resolve": {
-        "include": ["**/*.d.ts"],
-        "aliases": {
-            "@": "resources/js"
-        },
-        "exclude": ["node_modules/**", "@shadcn/**", "**/components/ui/**"],
-        "depth": 10,
-        "limit": 200
-    },
-    "shortcuts": {
-        "make": {
-            "files": ["src/Console/Commands/MakePlugin.php"],
-            "prefix": "make-plugin"
-        },
-        "login": {
-            "prefix": "login",
-            "files": ["src/Console/Commands/LoginCommand.php"]
-        },
-        "pack": {
-            "files": ["src/Console/Commands/PackPlugin.php"],
-            "prefix": "pack"
-        },
-        "install": {
-            "files": ["**/PluginInstallController.php"],
-            "prefix": "installer"
-        },
-        "act": {
-            "files": ["src/Installations/Activation/**"],
-            "prefix": "activation"
-        },
-        "valid": {
-            "prefix": "validate-plugin",
-            "files": ["src/Console/Commands/ValidatePlugin.php"]
-        },
-        "db": {
-            "prefix": "migrations",
-            "files": ["**/database/migrations/*.php"]
-        },
-        "commands": {
-            "prefix": "commands",
-            "files": ["src/Console/Commands/**"],
-            "include": []
-        },
-        "context": {
-            "prefix": "context",
-            "files": [],
-            "include": [
-                "composer.json",
-                "config/fortiplugin.php",
-                "config/fortipluginui.php",
-                "config/fortiplugin-maps.php",
-                "src/FortiPluginServiceProvider.php",
-                "src/Helpers/helpers.php",
-                "src/Console/Commands/**"
-            ]
-        },
-        "full": {
-            "prefix": "full",
-            "files": ["src/FortiPluginServiceProvider.php", "src/Console/Commands/**"],
-            "include": ["composer.json", "config/**"]
-        },
-        "http": {
-            "prefix": "http",
-            "include": ["**/routes/api.php"]
-        },
-        "prisma": {
-            "prefix": "prisma",
-            "include": ["prisma/**"]
-        },
-        "load": {
-            "prefix": "load",
-            "files": ["src/Autoload/**", "src/Installations/Activation/**"],
-            "include": ["config/fortiplugin.php", "src/FortiPluginServiceProvider.php"]
-        },
-        "embed": {
-            "prefix": "embed-ui",
-            "files": [
-                "src/Http/Middleware/FortiTokenGuard.php",
-                "src/Http/Controllers/Ui/EmbedResolveController.php"
-            ],
-            "include": [
-                "C:\\Users\\USER\\Herd\\fortiplug\\resources\\js\\components\\FortiEmbed.tsx",
-                "routes/api.php"
-            ]
-        }
+  "version": 3.1,
+  "$schema": "https://raw.githubusercontent.com/emxhive/prodex/main/schema/prodex.schema.json",
+  "output": {
+    "dir": ".prodex@forti"
+  },
+  "resolve": {
+    "aliases": {
+      "@": "resources/js"
     }
+  },
+  "shortcuts": {
+    "make": {
+      "files": ["src/Console/Commands/MakePlugin.php"],
+      "prefix": "make-plugin"
+    },
+    "login": {
+      "prefix": "login",
+      "files": ["src/Console/Commands/LoginCommand.php"]
+    },
+    "pack": {
+      "files": ["src/Console/Commands/PackPlugin.php"],
+      "prefix": "pack"
+    },
+    "install": {
+      "files": ["**/PluginInstallController.php"],
+      "prefix": "installer"
+    },
+    "act": {
+      "files": ["src/Installations/Activation/**"],
+      "prefix": "activation"
+    },
+    "valid": {
+      "prefix": "validate-plugin",
+      "files": ["src/Console/Commands/ValidatePlugin.php"]
+    },
+    "db": {
+      "prefix": "migrations",
+      "files": ["**/database/migrations/*.php"]
+    },
+    "commands": {
+      "prefix": "commands",
+      "files": ["src/Console/Commands/**"],
+      "include": []
+    },
+    "context": {
+      "prefix": "context",
+      "files": [],
+      "include": [
+        "composer.json",
+        "config/fortiplugin.php",
+        "config/fortipluginui.php",
+        "config/fortiplugin-maps.php",
+        "src/FortiPluginServiceProvider.php",
+        "src/Helpers/helpers.php",
+        "src/Console/Commands/**"
+      ]
+    },
+    "full": {
+      "prefix": "full",
+      "files": [
+        "src/FortiPluginServiceProvider.php",
+        "src/Console/Commands/**"
+      ],
+      "include": ["composer.json", "config/**", "stubs/**"]
+    },
+    "http": {
+      "prefix": "http",
+      "include": ["**/routes/api.php"]
+    },
+    "prisma": {
+      "prefix": "prisma",
+      "include": ["prisma/**"]
+    },
+    "load": {
+      "prefix": "load",
+      "files": ["src/Autoload/**", "src/Installations/Activation/**"],
+      "include": [
+        "config/fortiplugin.php",
+        "src/FortiPluginServiceProvider.php"
+      ]
+    },
+    "embed": {
+      "prefix": "embed-ui",
+      "files": [
+        "src/Http/Middleware/FortiTokenGuard.php",
+        "src/Http/Controllers/Ui/EmbedResolveController.php"
+      ],
+      "include": ["routes/api.php"]
+    },
+
+    "permissions": {
+      "files": [
+        "src/Lib/**",
+        "src/Contracts/ConfigInterface.php",
+        "src/Exceptions/PermissionDeniedException.php"
+      ],
+      "include": ["stubs/config-*.stub"]
+    }
+  }
 }
