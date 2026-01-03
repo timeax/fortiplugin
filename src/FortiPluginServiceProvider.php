@@ -330,11 +330,10 @@ class FortiPluginServiceProvider extends ServiceProvider
             routeWriterSection: $app->make(RouteWriteSection::class),
 
             internalConfig: $app->make(InternalConfigWriteSection::class),
-            publishBuildAssets: $app->make(PublishBuildAssetsSection::class),
-
-
             installFiles: $app->make(InstallFilesSection::class),
+            publishBuildAssets: $app->make(PublishBuildAssetsSection::class),
             uiConfigValidation: $app->make(UiConfigValidationSection::class),
+
             tokens: $app->make(InstallerTokenManager::class),
             logStore: $app->make(InstallationLogStore::class),
             zipGate: $app->make(ZipValidationGate::class),

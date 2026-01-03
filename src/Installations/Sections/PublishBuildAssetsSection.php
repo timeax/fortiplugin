@@ -11,6 +11,9 @@ use Timeax\FortiPlugin\Installations\Support\AtomicFilesystem;
 use Timeax\FortiPlugin\Installations\Support\InstallationLogStore;
 use Timeax\FortiPlugin\Models\Plugin;
 
+use function Illuminate\Filesystem\join_paths;
+
+
 final readonly class PublishBuildAssetsSection
 {
     public function __construct(
@@ -49,8 +52,8 @@ final readonly class PublishBuildAssetsSection
             return $this->fail('missing_plugin_slug', 'Plugin slug missing', ['plugin_id' => $pluginId], $emit);
         }
 
-        $sourceBuildDir = $installedRoot . DIRECTORY_SEPARATOR . 'public' . DIRECTORY_SEPARATOR . 'build';
-        $sourceManifest = $sourceBuildDir . DIRECTORY_SEPARATOR . 'manifest.json';
+        $sourceBuildDir = join_paths($installedRoot, 'public', 'build');
+        $sourceManifest = join_paths($sourceBuildDir, '.vite','manifest.json');
 
         // 3. Validate Manifest Existence
         if (!$this->afs->fs()->exists($sourceManifest)) {
@@ -158,7 +161,7 @@ final readonly class PublishBuildAssetsSection
             throw new RuntimeException("fortiplugin.ui.embed.public_base contains '..', refusing to publish.");
         }
 
-        return [$baseTpl, $baseUrlPath, rtrim(public_path(ltrim($baseUrlPath, '/')), "\\/")];
+        return [$baseTpl, $baseUrlPath, join_paths(public_path(), ltrim($baseUrlPath, '/'))];
     }
 
     private function manifestHasEmbedEntries(array $manifest): bool

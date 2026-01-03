@@ -3,7 +3,7 @@ declare(strict_types=1);
 
 namespace Timeax\FortiPlugin\Permissions\Evaluation;
 
-use DateTimeImmutable;
+use   DateTimeImmutable;
 use DateTimeInterface;
 use JsonException;
 use Throwable;

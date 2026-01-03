@@ -29,7 +29,7 @@ trait ChecksModulePermission
      *
      * @param string            $type           Permission type (db, file, network, etc.)
      * @param string            $actionOrIntent Action (read, write, POST, invoke, etc.)
-     * @param string|array|null $meta           Target metadata (model name, path, host, etc.)
+     * @param string|array| $meta           Target metadata (model name, path, host, etc.)
      * @param array             $context        Optional execution context
      * @return void
      * @throws PermissionDeniedException|PluginContextException
@@ -37,7 +37,7 @@ trait ChecksModulePermission
     protected function checkModulePermission(
         string            $type,
         string            $actionOrIntent,
-        string|array|null $meta = null,
+        string|array $meta ,
         array             $context = []
     ): void {
         $configClass = $this->getPluginConfigClass();
@@ -48,12 +48,12 @@ trait ChecksModulePermission
 
 
         // --- AUDIT LOGGING ---
-        $pluginId = $configClass::getAlias();
+        $pluginId = $configClass::getpluginId();
 
         PluginAuditLog::create([
             'plugin_id' => $pluginId,
 
-//TODO: INCLUDE
+            //TODO: INCLUDE ACTOR_ID and stuff
             'type'      => $type,
             'action'    => $actionOrIntent,
             'resource'  => is_array($meta) ? json_encode($meta) : (string)$meta,

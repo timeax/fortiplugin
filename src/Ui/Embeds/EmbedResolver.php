@@ -5,12 +5,14 @@ namespace Timeax\FortiPlugin\Ui\Embeds;
 
 use Illuminate\Contracts\Cache\Repository as CacheRepository;
 use Timeax\FortiPlugin\Autoload\Psr4RegistryStore;
+use Timeax\FortiPlugin\Ui\Support\UiAssetResolver;
 
 final readonly class EmbedResolver
 {
     public function __construct(
         private Psr4RegistryStore $psr4Store,
         private CacheRepository   $cache,
+        private UiAssetResolver   $assetResolver,
     )
     {
     }
@@ -102,7 +104,7 @@ final readonly class EmbedResolver
         // Manually load .internal/Config.php (not PSR-4)
         $appsDir = (string)config('fortiplugin.directory', 'apps');
         $appsDir = trim($appsDir, "/\\");
-        $pluginRoot = base_path($appsDir . DIRECTORY_SEPARATOR . $studly);
+        $pluginRoot = base_path($appsDir . DIRECTORY_SEPARATOR . $slug);
 
         $internalConfigPath = $pluginRoot
             . DIRECTORY_SEPARATOR . '.internal'
@@ -144,28 +146,11 @@ final readonly class EmbedResolver
             throw EmbedResolveException::notFound("Embed '{$name}' not found in manifest.");
         }
 
-        $baseTpl = (string)(config('fortiplugin.ui.embed.public_base') ?? '/vendor/fortiplugin/{slug}/build');
-        $baseTpl = trim($baseTpl) !== '' ? $baseTpl : '/vendor/fortiplugin/{slug}/build';
-
-        $baseUrl = str_replace(['{slug}', '{plugin}'], $slug, $baseTpl);
-        $baseUrl = '/' . ltrim($baseUrl, '/');
-        $baseUrl = rtrim($baseUrl, '/');
-
-        $assetOrigin = (string)(config('fortiplugin.ui.embed.asset_origin') ?? config('app.url'));
-        $assetOrigin = rtrim(trim($assetOrigin), '/');
-
-
-        if ($assetOrigin !== '' && str_starts_with($baseUrl, '/')) {
-            $baseUrl = $assetOrigin . $baseUrl;
-        }
-
-        $toUrl = static fn(string $p): string => $baseUrl . '/' . ltrim($p, '/');
-
         $css = [];
         if (isset($entry['css']) && is_array($entry['css'])) {
             foreach ($entry['css'] as $p) {
                 if (is_string($p) && trim($p) !== '') {
-                    $css[] = $toUrl($resolveManifestRef($p));
+                    $css[] = $this->assetResolver->resolveAssetUrl($slug, $resolveManifestRef($p));
                 }
             }
         }
@@ -174,7 +159,7 @@ final readonly class EmbedResolver
         if (isset($entry['imports']) && is_array($entry['imports'])) {
             foreach ($entry['imports'] as $p) {
                 if (is_string($p) && trim($p) !== '') {
-                    $imports[] = $toUrl($resolveManifestRef($p));
+                    $imports[] = $this->assetResolver->resolveAssetUrl($slug, $resolveManifestRef($p));
                 }
             }
         }
@@ -183,7 +168,7 @@ final readonly class EmbedResolver
         $versionKey = $slug . ':' . ($versionId ?? 'unknown') . ':' . $entryFile;
 
         return [
-            'entryUrl' => $toUrl($entryFile),
+            'entryUrl' => $this->assetResolver->resolveAssetUrl($slug, $entryFile),
             'css' => array_values(array_unique($css)),
             'imports' => array_values(array_unique($imports)),
             'versionKey' => $versionKey,

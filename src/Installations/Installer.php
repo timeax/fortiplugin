@@ -52,7 +52,7 @@ final readonly class Installer
         private InstallFilesSection        $installFiles,
         private PublishBuildAssetsSection  $publishBuildAssets,
         private UiConfigValidationSection  $uiConfigValidation,
-        // NEW: token + logs + zip-gate for resume flow
+
         private InstallerTokenManager      $tokens,
         private InstallationLogStore       $logStore,
         private ZipValidationGate          $zipGate,
@@ -102,7 +102,7 @@ final readonly class Installer
             ? function (array $p): void {
                 $title = $p['title'] ?? 'EVENT';
                 $desc = $p['description'] ?? '';
-                fwrite(STDOUT, "[{$title}] {$desc}\n");
+                fwrite(STDOUT, "[$title] $desc\n");
             }
             : null;
 
