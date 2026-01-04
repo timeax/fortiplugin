@@ -99,7 +99,7 @@ final readonly class Installer
     ): InstallerResult
     {
         $cliTee = app()->runningInConsole()
-            ? function (array $p): void {
+            ? static function (array $p): void {
                 $title = $p['title'] ?? 'EVENT';
                 $desc = $p['description'] ?? '';
                 fwrite(STDOUT, "[$title] $desc\n");
