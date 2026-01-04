@@ -9,6 +9,7 @@ namespace IGNORE;
 use Illuminate\Support\Arr;
 use Illuminate\Support\Str;
 
+use Timeax\FortiPlugin\Contracts\ConfigInterface;
 use Timeax\FortiPlugin\Enums\PermissionType;
 use Timeax\FortiPlugin\Enums\PluginSettingValueType;
 use Timeax\FortiPlugin\Facades\Permissions;
@@ -18,7 +19,7 @@ use Timeax\FortiPlugin\Permissions\Evaluation\Dto\PermissionListResult;
 use Timeax\FortiPlugin\Permissions\Evaluation\Dto\PermissionListSummary;
 use Timeax\FortiPlugin\Permissions\Evaluation\Dto\Result;
 
-final class Config
+final class Config implements ConfigInterface
 {
 
 /**
@@ -121,7 +122,7 @@ final class Config
         $candidates = [
             $root . '/plugin.config.json',
             $root . '/config.json',
-            $root . '/../fortiplugin.json',
+            $root . '/fortiplugin.json',
         ];
 
         foreach ($candidates as $file) {
@@ -259,7 +260,7 @@ final class Config
      */
     public static function getUiConfig(): ?array
     {
-        $c = self::get('ui');
+        $c = self::get('uiConfig');
         return is_array($c) ? $c : null;
     }
 
@@ -268,7 +269,7 @@ final class Config
      */
     public static function getHostConfig(): ?array
     {
-        $c = self::get('host');
+        $c = self::get('hostConfig');
         return is_array($c) ? $c : null;
     }
 
