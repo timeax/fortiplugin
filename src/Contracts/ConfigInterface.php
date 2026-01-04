@@ -5,6 +5,7 @@ namespace Timeax\FortiPlugin\Contracts;
 
 use Timeax\FortiPlugin\Enums\PermissionType;
 use Timeax\FortiPlugin\Permissions\Evaluation\Dto\PermissionListResult;
+use Timeax\FortiPlugin\Permissions\Evaluation\Dto\Result;
 
 /**
  * Contract each plugin’s internal Config class must implement.
@@ -201,6 +202,14 @@ interface ConfigInterface
         PermissionType|string $type,
         string|array|null     $meta = null
     ): ?array;
+
+
+    public static function checkPermission(
+        PermissionType|string $type,
+        string                $actionOrIntent,
+        string|array|null     $meta = null,
+        array                 $context = []
+    ): Result;
 
     /**
      * Read the raw content of .internal/Signed if present.

@@ -2,6 +2,7 @@
 
 namespace Timeax\FortiPlugin;
 
+use Illuminate\Contracts\Container\BindingResolutionException;
 use Illuminate\Filesystem\Filesystem as LaravelFs;
 use Illuminate\Support\ServiceProvider;
 use Timeax\FortiPlugin\Console\Commands\ChangeHostCommand;
@@ -36,7 +37,9 @@ use Timeax\FortiPlugin\Installations\Sections\ComposerPlanSection;
 use Timeax\FortiPlugin\Installations\Sections\DbPersistSection;
 use Timeax\FortiPlugin\Installations\Sections\FileScanSection;
 use Timeax\FortiPlugin\Installations\Sections\InstallFilesSection;
+use Timeax\FortiPlugin\Installations\Sections\InternalConfigWriteSection;
 use Timeax\FortiPlugin\Installations\Sections\ProviderValidationSection;
+use Timeax\FortiPlugin\Installations\Sections\PublishBuildAssetsSection;
 use Timeax\FortiPlugin\Installations\Sections\RouteWriteSection;
 use Timeax\FortiPlugin\Installations\Sections\UiConfigValidationSection;
 use Timeax\FortiPlugin\Installations\Sections\VendorPolicySection;
@@ -60,6 +63,12 @@ use Timeax\FortiPlugin\Services\HostKeyService;
 use Timeax\FortiPlugin\Services\PolicyService;
 use Timeax\FortiPlugin\Services\ValidatorService;
 use Timeax\FortiPlugin\Support\FortiGateRegistrar;
+use Timeax\FortiPlugin\Autoload\ComposerLoaderResolver;
+use Timeax\FortiPlugin\Autoload\Psr4RegistryStore;
+use Timeax\FortiPlugin\Autoload\PluginAutoloadMapBuilder;
+use Timeax\FortiPlugin\Autoload\Psr4RegistryWriter;
+use Timeax\FortiPlugin\Autoload\PluginAutoloader;
+
 
 // crypto service
 
@@ -69,11 +78,18 @@ class FortiPluginServiceProvider extends ServiceProvider
 {
     public function register(): void
     {
+
         $this->mergeConfigFrom(__DIR__ . '/../config/fortiplugin.php', 'fortiplugin');
+
+        // Autoload must be ready as early as possible (before anything might touch plugin classes)
+        $this->registerPluginAutoload();
+
         FortiPermissions::register($this->app);
         $this->registerSecurityServices();
         $this->registerInstallationModules();
     }
+
+
 
     public function boot(): void
     {
@@ -206,6 +222,19 @@ class FortiPluginServiceProvider extends ServiceProvider
             $app->make(Psr4Checker::class),
         ));
 
+
+        $this->app->scoped(InternalConfigWriteSection::class, fn($app) => new InternalConfigWriteSection(
+            $app->make(InstallationLogStore::class),
+            $app->make(AtomicFilesystem::class),
+            $app->make(Psr4Checker::class),
+        ));
+
+        $this->app->scoped(PublishBuildAssetsSection::class, fn($app) => new PublishBuildAssetsSection(
+            $app->make(InstallationLogStore::class),
+            $app->make(AtomicFilesystem::class),
+        ));
+
+
         // FIX #1: don’t pass BackgroundScanDispatcher as an emitter (it isn’t callable)
         $this->app->scoped(FileScanSection::class, fn($app) => new FileScanSection(
             $app->make(InstallerPolicy::class),
@@ -271,10 +300,11 @@ class FortiPluginServiceProvider extends ServiceProvider
             $app->make(RouteRegistryStore::class),
         ));
 
-        $this->app->singleton(ValidatorBridge::class, fn($app) => new ValidatorBridge(
+        $this->app->scoped(ValidatorBridge::class, fn($app) => new ValidatorBridge(
             $app->make(VerificationSection::class),
             $app->make(FileScanSection::class),
             $app->make(InstallerPolicy::class),
+            $app->make(InstallationLogStore::class),
         ));
 
         // ── ZIP gate (scoped: uses run logs/tokens) ────────────────────────────
@@ -298,8 +328,12 @@ class FortiPluginServiceProvider extends ServiceProvider
             dbPersist: $app->make(DbPersistSection::class),
             routeUiBridge: $app->make(RouteUiBridge::class),
             routeWriterSection: $app->make(RouteWriteSection::class),
+
+            internalConfig: $app->make(InternalConfigWriteSection::class),
             installFiles: $app->make(InstallFilesSection::class),
+            publishBuildAssets: $app->make(PublishBuildAssetsSection::class),
             uiConfigValidation: $app->make(UiConfigValidationSection::class),
+
             tokens: $app->make(InstallerTokenManager::class),
             logStore: $app->make(InstallationLogStore::class),
             zipGate: $app->make(ZipValidationGate::class),
@@ -312,6 +346,32 @@ class FortiPluginServiceProvider extends ServiceProvider
         $this->app->singleton(Activator::class);
     }
 
+
+
+    private function registerPluginAutoload(): void
+    {
+        $this->app->singleton(ComposerLoaderResolver::class, fn () => new ComposerLoaderResolver());
+        $this->app->singleton(Psr4RegistryStore::class, fn () => new Psr4RegistryStore());
+
+        $this->app->singleton(PluginAutoloadMapBuilder::class, fn () => new PluginAutoloadMapBuilder());
+
+        $this->app->singleton(Psr4RegistryWriter::class, function ($app) {
+            return new Psr4RegistryWriter(
+                $app->make(Psr4RegistryStore::class),
+                $app->make(PluginAutoloadMapBuilder::class),
+            );
+        });
+
+        $this->app->singleton(PluginAutoloader::class, function ($app) {
+            return new PluginAutoloader(
+                $app->make(ComposerLoaderResolver::class),
+                $app->make(Psr4RegistryStore::class),
+            );
+        });
+
+        // ✅ Apply active plugin PSR-4 prefixes for THIS request
+        $this->app->make(PluginAutoloader::class)->register();
+    }
 
 }
 

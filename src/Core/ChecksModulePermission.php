@@ -7,118 +7,95 @@ use Timeax\FortiPlugin\Models\PluginAuditLog;
 use Timeax\FortiPlugin\Support\PluginContext;
 use Timeax\FortiPlugin\Exceptions\PermissionDeniedException;
 use Timeax\FortiPlugin\Exceptions\PluginContextException;
-use Illuminate\Http\Request;
+
+
+use Timeax\FortiPlugin\Permissions\Evaluation\Dto\Result;
 
 /**
  * Trait ChecksModulePermission
  *
  * Provides unified permission checking for plugin modules.
- * Requires $type and $target to be defined in using class.
  */
 trait ChecksModulePermission
 {
     /**
      * Cached config class FQCN for this module instance.
-     * @var class-string|null
+     * @var class-string<ConfigInterface>|null
      */
     protected ?string $cachedConfigClass = null;
 
     /**
      * Checks if the plugin has permission for the current operation.
      *
-     * @param string|string[]|null $permissions
-     * @param string|null $type Override the module type (optional)
-     * @param string|null $target Override the target (optional)
-     * @param Request|null $request The original request (for exception context, optional)
+     * @param string            $type           Permission type (db, file, network, etc.)
+     * @param string            $actionOrIntent Action (read, write, POST, invoke, etc.)
+     * @param string|array| $meta           Target metadata (model name, path, host, etc.)
+     * @param array             $context        Optional execution context
      * @return void
      * @throws PermissionDeniedException|PluginContextException
-     * @noinspection LaravelEloquentGuardedAttributeAssignmentInspection
      */
     protected function checkModulePermission(
-        string|array|null $permissions = null,
-        ?string           $type = null,
-        ?string           $target = null,
-        ?Request          $request = null
-    ): void
-    {
-        $type = $type ?? ($this->type ?? null);
-        $target = $target ?? ($this->target ?? null);
-
-        if (!$type || !$target) {
-            throw new PluginContextException("Module permission properties \$type and \$target must be set in the module class.");
-        }
-
-        // --- CACHE THE CONFIG CLASS PER INSTANCE ---
+        string            $type,
+        string            $actionOrIntent,
+        string|array $meta ,
+        array             $context = []
+    ): void {
         $configClass = $this->getPluginConfigClass();
 
-        $info = method_exists($configClass, 'getInfo') ? $configClass::getInfo() : [];
-        $pluginName = $info['name'] ?? (method_exists($configClass, 'getName') ? $configClass::getName() : 'unknown_plugin');
-        $pluginId = method_exists($configClass, 'getPluginId') ? $configClass::getPluginId() : null;
-        $userId = auth()->id();
+        // Single source of truth: one evaluation, one result
+        $result = $configClass::checkPermission($type, $actionOrIntent, $meta, $context);
+        $allowed = $result->allowed;
 
-        // --- CHECK PERMISSION ---
-        $allowed = $configClass::getPermission($type, $target, $permissions);
 
         // --- AUDIT LOGGING ---
-        $context = [
-            'permissions' => $permissions,
-            'class' => static::class,
-            'method' => debug_backtrace(DEBUG_BACKTRACE_IGNORE_ARGS, 2)[1]['function'] ?? null,
-            'request' => $request ? [
-                'method' => $request->method(),
-                'uri' => $request->getRequestUri(),
-                'user_agent' => $request->userAgent(),
-                'ip' => $request->ip(),
-                'params' => $request->all(),
-            ] : null,
-        ];
+        $pluginId = $configClass::getpluginId();
 
         PluginAuditLog::create([
             'plugin_id' => $pluginId,
-            'user_id' => $userId,
-            'type' => $type,
-            'action' => is_array($permissions) ? implode(',', $permissions) : ($permissions ?? 'access'),
-            'resource' => $target,
-            'context' => array_merge($context, [
+
+            //TODO: INCLUDE ACTOR_ID and stuff
+            'type'      => $type,
+            'action'    => $actionOrIntent,
+            'resource'  => is_array($meta) ? json_encode($meta) : (string)$meta,
+            'context'   => array_merge($context, [
                 'granted' => $allowed,
-                'plugin' => $pluginName,
+                'class'   => static::class,
+
+                // extra useful signal (cheap + high value)
+                'reason'  => $result->reason,
+                'matched' => $result->matched?->toArray(),
             ]),
         ]);
 
         if (!$allowed) {
             throw new PermissionDeniedException(
                 $type,
-                $target,
-                $permissions,
-                $request
+                $actionOrIntent,
+                $meta,
+                $result,
+                request()
             );
         }
     }
 
+
     /**
      * Immediately deny permission for the given parameters.
-     *
-     * @param string $message
-     * @param string|null $target
-     * @param string|array|null $permissions
-     * @param string|null $type
-     * @return void
-     * @throws PermissionDeniedException
      */
     protected function denyPermission(
-        string            $message,
-        string|null       $target,
-        string|array|null $permissions,
-        ?string           $type = null
-    ): void
-    {
-        $type = $type ?? ($this->type ?? 'module');
+        string            $type,
+        string            $actionOrIntent,
+        string|array|null $meta = null,
+        ?string           $reason = null
+    ): void {
+        $result = Result::deny($reason ?? 'explicit_denial');
+
         throw new PermissionDeniedException(
             $type,
-            $target ?? $this->target,
-            $permissions,
-            request(),
-            $message
+            $actionOrIntent,
+            $meta,
+            $result,
+            request()
         );
     }
 
@@ -129,8 +106,8 @@ trait ChecksModulePermission
     {
         if ($this->cachedConfigClass === null) {
             $configClass = PluginContext::getCurrentConfigClass();
-            if (!$configClass || !method_exists($configClass, 'getPermission')) {
-                throw new PluginContextException("Unable to resolve plugin config for permission checks.");
+            if (!$configClass || !is_subclass_of($configClass, ConfigInterface::class)) {
+                throw new PluginContextException("Resolved config class must implement ConfigInterface.");
             }
             $this->cachedConfigClass = $configClass;
         }

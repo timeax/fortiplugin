@@ -17,9 +17,9 @@ class Curl
         $host = parse_url($url, PHP_URL_HOST) ?? '*';
 
         $this->checkModulePermission(
-            permissions: 'execute',
-            type: 'curl',
-            target: $host
+            type: 'network',
+            actionOrIntent: 'request',
+            meta: ['host' => $host, 'url' => $url, 'method' => 'GET']
         );
 
         $ch = curl_init($url);

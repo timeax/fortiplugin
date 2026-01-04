@@ -2,6 +2,7 @@
 
 namespace Timeax\FortiPlugin\Models;
 
+use Carbon\Carbon;
 use Illuminate\Database\Eloquent\Casts\AsArrayObject;
 use Illuminate\Database\Eloquent\Model;
 
@@ -13,8 +14,8 @@ use Illuminate\Database\Eloquent\Model;
  * @property array $permissions
  * @property array|null $readable_columns
  * @property array|null $writable_columns
- * @property \Carbon\Carbon $created_at
- * @property \Carbon\Carbon $updated_at
+ * @property Carbon $created_at
+ * @property Carbon $updated_at
  */
 class DbPermission extends Model
 {

@@ -80,7 +80,11 @@ trait CurlExecTrait
         $host = parse_url($this->url, PHP_URL_HOST) ?? '*';
 
         if (method_exists($this, 'checkModulePermission')) {
-            $this->checkModulePermission('execute', $host, 'curl');
+            $this->checkModulePermission('network', 'request', [
+                'host' => $host,
+                'url' => $this->url,
+                'method' => 'GET'
+            ]);
         }
     }
 }

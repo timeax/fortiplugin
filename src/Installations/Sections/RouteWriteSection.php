@@ -81,10 +81,10 @@ final readonly class RouteWriteSection
             if ($entries === []) {
                 // Nothing to write (okay)
                 $doc = [
-                    'dir' => rtrim($stagingRoot, DIRECTORY_SEPARATOR) . DIRECTORY_SEPARATOR . 'routes',
+                    'dir' => 'routes',
                     'files' => [],
                     'aggregator' => null,
-                    'registry' => $this->registry->path($stagingRoot),
+                    'registry' => '.internal/routes.registry.json',
                 ];
                 $this->log->writeSection('routes_write', $doc);
 
@@ -102,10 +102,10 @@ final readonly class RouteWriteSection
             $mat = $this->materializer->materialize($stagingRoot, $slug, $entries);
 
             $out = [
-                'dir' => $mat['dir'],
+                'dir' => 'routes',
                 'files' => $mat['files'],
-                'aggregator' => $mat['aggregator'],
-                'registry' => $this->registry->path($stagingRoot),
+                'aggregator' => 'routes/fortiplugin.route.php',
+                'registry' => '.internal/routes.registry.json',
             ];
 
             $this->log->writeSection('routes_write', $out);
@@ -113,7 +113,7 @@ final readonly class RouteWriteSection
             $ok = [
                 'title' => 'ROUTES_WRITE_OK',
                 'description' => 'Routes registry materialized',
-                'meta' => ['dir' => $mat['dir'], 'file_count' => count($mat['files']), 'aggregator' => $mat['aggregator']],
+                'meta' => ['dir' => $out['dir'], 'file_count' => count($out['files']), 'aggregator' => $out['aggregator']],
             ];
             $emit($ok);
 
@@ -129,7 +129,7 @@ final readonly class RouteWriteSection
             $this->log->writeSection('routes_write', [
                 'error' => 'exception',
                 'exception' => $e->getMessage(),
-                'registry' => $this->registry->path($stagingRoot),
+                'registry' => '.internal/routes.registry.json',
             ]);
 
             return ['status' => 'fail', 'reason' => 'exception'];

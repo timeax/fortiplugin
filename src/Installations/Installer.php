@@ -6,7 +6,6 @@ namespace Timeax\FortiPlugin\Installations;
 
 use Illuminate\Support\Facades\DB;
 use JsonException;
-use Log;
 use Random\RandomException;
 use RuntimeException;
 use Throwable;
@@ -17,7 +16,9 @@ use Timeax\FortiPlugin\Installations\Enums\Install;
 use Timeax\FortiPlugin\Installations\Sections\ComposerPlanSection;
 use Timeax\FortiPlugin\Installations\Sections\DbPersistSection;
 use Timeax\FortiPlugin\Installations\Sections\InstallFilesSection;
+use Timeax\FortiPlugin\Installations\Sections\InternalConfigWriteSection;
 use Timeax\FortiPlugin\Installations\Sections\ProviderValidationSection;
+use Timeax\FortiPlugin\Installations\Sections\PublishBuildAssetsSection;
 use Timeax\FortiPlugin\Installations\Sections\RouteWriteSection;
 use Timeax\FortiPlugin\Installations\Sections\UiConfigValidationSection;
 use Timeax\FortiPlugin\Installations\Sections\VendorPolicySection;
@@ -36,22 +37,25 @@ use Timeax\FortiPlugin\Services\ValidatorService;
 final readonly class Installer
 {
     public function __construct(
-        private InstallerPolicy           $policy,
-        private AtomicFilesystem          $afs,
-        private ValidatorBridge           $validatorBridge,   // orchestrates Verification + FileScan
-        private VerificationSection       $verification,      // kept for DI completeness (used by bridge)
-        private ProviderValidationSection $providerValidation,
-        private ComposerPlanSection       $composerPlan,
-        private VendorPolicySection       $vendorPolicy,
-        private DbPersistSection          $dbPersist,
-        private RouteUiBridge             $routeUiBridge,
-        private RouteWriteSection         $routeWriterSection, // writer targets STAGING
-        private InstallFilesSection       $installFiles,
-        private UiConfigValidationSection $uiConfigValidation,
-        // NEW: token + logs + zip-gate for resume flow
-        private InstallerTokenManager     $tokens,
-        private InstallationLogStore      $logStore,
-        private ZipValidationGate         $zipGate,
+        private InstallerPolicy            $policy,
+        private AtomicFilesystem           $afs,
+        private ValidatorBridge            $validatorBridge,   // orchestrates Verification + FileScan
+        private VerificationSection        $verification,      // kept for DI completeness (used by bridge)
+        private ProviderValidationSection  $providerValidation,
+        private ComposerPlanSection        $composerPlan,
+        private VendorPolicySection        $vendorPolicy,
+        private DbPersistSection           $dbPersist,
+        private RouteUiBridge              $routeUiBridge,
+        private RouteWriteSection          $routeWriterSection, // writer targets STAGING
+
+        private InternalConfigWriteSection $internalConfig,
+        private InstallFilesSection        $installFiles,
+        private PublishBuildAssetsSection  $publishBuildAssets,
+        private UiConfigValidationSection  $uiConfigValidation,
+
+        private InstallerTokenManager      $tokens,
+        private InstallationLogStore       $logStore,
+        private ZipValidationGate          $zipGate,
     )
     {
     }
@@ -98,7 +102,7 @@ final readonly class Installer
             ? function (array $p): void {
                 $title = $p['title'] ?? 'EVENT';
                 $desc = $p['description'] ?? '';
-                fwrite(STDOUT, "[{$title}] {$desc}\n");
+                fwrite(STDOUT, "[$title] $desc\n");
             }
             : null;
 
@@ -321,7 +325,6 @@ final readonly class Installer
 
             // Routes: discover + compile JSON, then write PHP into STAGING
             $bundle = $this->routeUiBridge->discoverAndCompile($pluginDir, $emitInstaller);
-            Log::info('Route write bundle: ' . json_encode($bundle));
             $compiled = $bundle['compiled'] ?? [];
 
             if (!empty($compiled)) {
@@ -352,6 +355,20 @@ final readonly class Installer
             }
 
             DB::commit();
+
+            // Write .internal/Config.php into STAGING so InstallFiles copies it to INSTALL.
+
+            $cfg = $this->internalConfig->run(
+                meta: $meta,
+                stagingPluginRoot: $pluginDir,
+                pluginId: (int)$pluginId,
+                emit: $emitInstaller
+            );
+            if (($cfg['status'] ?? 'fail') !== 'ok') {
+                throw new RuntimeException('Internal config write failed');
+            }
+
+
         } catch (Throwable $e) {
             DB::rollBack();
             $emitInstaller([
@@ -384,7 +401,32 @@ final readonly class Installer
         }
 
         // ─────────────────────────────────────────────────────────────
-        // 6) FINISH
+        // 6) PUBLISH UI BUILD (copy installed public/build → host public/)
+        // ─────────────────────────────────────────────────────────────
+        $pub = $this->publishBuildAssets->run(
+            meta: $meta,
+            pluginId: (int)$pluginId,
+            emit: $emitInstaller
+        );
+
+        if (($pub['status'] ?? 'fail') === 'fail') {
+            $emitInstaller([
+                'title' => 'UI_BUILD_PUBLISH_FAIL',
+                'description' => 'Failed publishing embed UI build assets',
+                'meta' => ['plugin_id' => (int)$pluginId],
+            ]);
+
+            return InstallerResult::fromArray([
+                'status' => 'fail',
+                'summary' => $summary,
+                'plugin_id' => (int)$pluginId,
+                'plugin_version_id' => $pluginVersionId,
+            ]);
+        }
+
+
+        // ─────────────────────────────────────────────────────────────
+        // 7) FINISH
         // ─────────────────────────────────────────────────────────────
         $result = InstallerResult::fromArray([
             'status' => 'ok',

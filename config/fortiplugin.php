@@ -2,11 +2,31 @@
 
 return [
 
+
+
+    'ui' => [
+        'embed' => [
+            'public_base' => env('FORTIPLUGIN_UI_EMBED_PUBLIC_BASE', '/vendor/fortiplugin/{slug}/build'),
+            'asset_origin' => env('FORTIPLUGIN_UI_EMBED_ASSET_ORIGIN', null),
+            'cache_ttl' => env('FORTIPLUGIN_UI_EMBED_CACHE_TTL', 3600),
+        ],
+    ],
+
+
+    /*
+  * Enable or disable autoloading of plugins.
+  */
+    'autoload_enabled' => env('FORTIPLUGIN_AUTOLOAD_ENABLED', true),
+    // Relative path only
+    'autoload_registry' => env('FORTIPLUGIN_AUTOLOAD_REGISTRY', 'bootstrap/fortiplugin.autoload_psr4.php'),
+
+
     /*
      * PSR-4 root namespace and folder for plugins.
      */
     'psr4_root' => env('FORTIPLUGIN_PSR4_ROOT', 'Plugins'),
-    'directory' => env('FORTIPLUGIN_PSR4_ROOT', 'apps'),
+    'directory' => env('FORTIPLUGIN_DIRECTORY', 'apps'),
+
     /*
     |--------------------------------------------------------------------------
     | Authorization / Gates

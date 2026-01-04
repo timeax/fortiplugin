@@ -6,22 +6,11 @@
   <component name="ChangeListManager">
     <list default="true" id="eaf4cbc6-d298-4694-b042-183ced7c77f7" name="Changes" comment="">
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/database/migrations/2025_11_07_085730_16_create_scpl_plugins_table.php" beforeDir="false" afterPath="$PROJECT_DIR$/database/migrations/2025_11_07_085730_16_create_scpl_plugins_table.php" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/prisma/schema/permissions.prisma" beforeDir="false" afterPath="$PROJECT_DIR$/prisma/schema/permissions.prisma" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/prodex.json" beforeDir="false" afterPath="$PROJECT_DIR$/prodex.json" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/Installations/Installer.php" beforeDir="false" afterPath="$PROJECT_DIR$/src/Installations/Installer.php" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/Installations/Sections/ComposerPlanSection.php" beforeDir="false" afterPath="$PROJECT_DIR$/src/Installations/Sections/ComposerPlanSection.php" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/Installations/Sections/DbPersistSection.php" beforeDir="false" afterPath="$PROJECT_DIR$/src/Installations/Sections/DbPersistSection.php" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/Installations/Sections/InstallFilesSection.php" beforeDir="false" afterPath="$PROJECT_DIR$/src/Installations/Sections/InstallFilesSection.php" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/Installations/Sections/ProviderValidationSection.php" beforeDir="false" afterPath="$PROJECT_DIR$/src/Installations/Sections/ProviderValidationSection.php" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/Installations/Sections/RouteWriteSection.php" beforeDir="false" afterPath="$PROJECT_DIR$/src/Installations/Sections/RouteWriteSection.php" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/Installations/Sections/UiConfigValidationSection.php" beforeDir="false" afterPath="$PROJECT_DIR$/src/Installations/Sections/UiConfigValidationSection.php" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/Installations/Sections/VendorPolicySection.php" beforeDir="false" afterPath="$PROJECT_DIR$/src/Installations/Sections/VendorPolicySection.php" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/Installations/Sections/ZipValidationGate.php" beforeDir="false" afterPath="$PROJECT_DIR$/src/Installations/Sections/ZipValidationGate.php" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/Installations/Support/InstallationLogStore.php" beforeDir="false" afterPath="$PROJECT_DIR$/src/Installations/Support/InstallationLogStore.php" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/Installations/Support/RouteUiBridge.php" beforeDir="false" afterPath="$PROJECT_DIR$/src/Installations/Support/RouteUiBridge.php" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/Models/PluginPlaceholder.php" beforeDir="false" afterPath="$PROJECT_DIR$/src/Models/PluginPlaceholder.php" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/stubs/viteConfig.stub" beforeDir="false" afterPath="$PROJECT_DIR$/stubs/viteConfig.stub" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/Console/Commands/MakePlugin.php" beforeDir="false" afterPath="$PROJECT_DIR$/src/Console/Commands/MakePlugin.php" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/Http/Controllers/PluginInstallController.php" beforeDir="false" afterPath="$PROJECT_DIR$/src/Http/Controllers/PluginInstallController.php" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/Jobs/InstallPluginZipJob.php" beforeDir="false" afterPath="$PROJECT_DIR$/src/Jobs/InstallPluginZipJob.php" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/stubs/config-dev.stub" beforeDir="false" afterPath="$PROJECT_DIR$/stubs/config-dev.stub" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/stubs/config-prod.stub" beforeDir="false" afterPath="$PROJECT_DIR$/stubs/config-prod.stub" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -35,7 +24,7 @@
     </execution>
   </component>
   <component name="EmbeddingIndexingInfo">
-    <option name="cachedIndexableFilesCount" value="9383" />
+    <option name="cachedIndexableFilesCount" value="9329" />
     <option name="fileBasedEmbeddingIndicesEnabled" value="true" />
   </component>
   <component name="FileTemplateManagerImpl">
@@ -63,7 +52,17 @@
   <component name="HighlightingSettingsPerFile">
     <setting file="file://$PROJECT_DIR$/config/fortiplugin.php" root0="FORCE_HIGHLIGHTING" root1="FORCE_HIGHLIGHTING" />
     <setting file="file://$PROJECT_DIR$/src/FortiPluginServiceProvider.php" root0="FORCE_HIGHLIGHTING" root1="FORCE_HIGHLIGHTING" />
+    <setting file="file://$PROJECT_DIR$/src/Installations/Activation/Activator.php" root0="FORCE_HIGHLIGHTING" root1="FORCE_HIGHLIGHTING" />
+    <setting file="file://$PROJECT_DIR$/src/Installations/Activation/Writers/ProvidersRegistryWriter.php" root0="FORCE_HIGHLIGHTING" root1="FORCE_HIGHLIGHTING" />
+    <setting file="file://$PROJECT_DIR$/src/Installations/Installer.php" root0="FORCE_HIGHLIGHTING" root1="FORCE_HIGHLIGHTING" />
     <setting file="file://$PROJECT_DIR$/src/Installations/InstallerPolicy.php" root0="FORCE_HIGHLIGHTING" root1="SKIP_INSPECTION" />
+    <setting file="file://$PROJECT_DIR$/src/Installations/Sections/Decision.php" root0="FORCE_HIGHLIGHTING" root1="FORCE_HIGHLIGHTING" />
+    <setting file="file://$PROJECT_DIR$/src/Installations/Sections/FileScanSection.php" root0="FORCE_HIGHLIGHTING" root1="FORCE_HIGHLIGHTING" />
+    <setting file="file://$PROJECT_DIR$/src/Installations/Support/InstallationLogStore.php" root0="FORCE_HIGHLIGHTING" root1="FORCE_HIGHLIGHTING" />
+  </component>
+  <component name="McpProjectServerCommands">
+    <commands />
+    <urls />
   </component>
   <component name="NamedScopeManager">
     <scope name="Work" pattern="file[fortiplugin]:src//*||file[fortiplugin]:prisma//*||file[fortiplugin]:stubs//*||file[fortiplugin]:config//*||file[fortiplugin]:schema//*||file[fortiplugin]:routes//*||file[fortiplugin]:test//*||file[fortiplugin]:workbench//*" />
@@ -201,7 +200,7 @@
     </include_path>
   </component>
   <component name="ProblemsViewState">
-    <option name="selectedTabId" value="ProjectErrors" />
+    <option name="selectedTabId" value="CurrentFile" />
   </component>
   <component name="ProjectColorInfo">{
   &quot;associatedIndex&quot;: 6
@@ -224,16 +223,20 @@
     &quot;PHPUnit.JsonRouteCompilerTest.executor&quot;: &quot;Run&quot;,
     &quot;PHPUnit.JsonRouteCompilerTest.test_compileData_with_http_and_group_emits_expected_snippets_and_collects_ids.executor&quot;: &quot;Run&quot;,
     &quot;PHPUnit.JsonRouteCompilerTest.test_http_variants_any_and_match_and_action_expr_variants.executor&quot;: &quot;Run&quot;,
+    &quot;PHPUnit.LegacyJsonRouteCompilerTest.test_http_variants_any_and_match_and_action_expr_variants.executor&quot;: &quot;Run&quot;,
     &quot;PHPUnit.PermissionManifestValidatorTest.executor&quot;: &quot;Run&quot;,
     &quot;PHPUnit.PermissionManifestValidatorTest.testRejectsUnknownTopLevelKeys.executor&quot;: &quot;Debug&quot;,
     &quot;PHPUnit.PermissionsListingAndTagsTest.executor&quot;: &quot;Run&quot;,
     &quot;PHPUnit.PluginInstallFlowTest.executor&quot;: &quot;Run&quot;,
     &quot;PHPUnit.PluginSecurityScannerTest.executor&quot;: &quot;Run&quot;,
     &quot;PHPUnit.PluginSecurityScannerTest.testBlocklistClassMethodAllowlist.executor&quot;: &quot;Debug&quot;,
+    &quot;RunOnceActivity.MCP Project settings loaded&quot;: &quot;true&quot;,
     &quot;RunOnceActivity.ShowReadmeOnStart&quot;: &quot;true&quot;,
     &quot;RunOnceActivity.TerminalTabsStorage.copyFrom.TerminalArrangementManager.252&quot;: &quot;true&quot;,
     &quot;RunOnceActivity.git.unshallow&quot;: &quot;true&quot;,
     &quot;RunOnceActivity.typescript.service.memoryLimit.init&quot;: &quot;true&quot;,
+    &quot;SHELLCHECK.PATH&quot;: &quot;I do mind&quot;,
+    &quot;Shell Script.s.sh.executor&quot;: &quot;Run&quot;,
     &quot;com.intellij.ml.llm.matterhorn.ej.ui.settings.DefaultAutoModeForALLUsers.v1&quot;: &quot;true&quot;,
     &quot;com.intellij.ml.llm.matterhorn.ej.ui.settings.DefaultModelSelectionForGA.v1&quot;: &quot;true&quot;,
     &quot;git-widget-placeholder&quot;: &quot;zeki&quot;,
@@ -242,13 +245,16 @@
     &quot;laravel_idea.dialogs.code_generation:createConsoleCommand.width&quot;: &quot;416&quot;,
     &quot;laravel_idea.dialogs.code_generation:createConsoleCommand.x&quot;: &quot;2672&quot;,
     &quot;laravel_idea.dialogs.code_generation:createConsoleCommand.y&quot;: &quot;182&quot;,
+    &quot;laravel_idea.dialogs.route_server_address_settings.width&quot;: &quot;575&quot;,
+    &quot;laravel_idea.dialogs.route_server_address_settings.x&quot;: &quot;937&quot;,
+    &quot;laravel_idea.dialogs.route_server_address_settings.y&quot;: &quot;451&quot;,
     &quot;laravel_idea.dialogs.run_console_command.width&quot;: &quot;452&quot;,
     &quot;laravel_idea.dialogs.run_console_command.x&quot;: &quot;2654&quot;,
     &quot;laravel_idea.dialogs.run_console_command.y&quot;: &quot;146&quot;,
     &quot;laravel_idea.dialogs.run_console_settings.width&quot;: &quot;279&quot;,
     &quot;laravel_idea.dialogs.run_console_settings.x&quot;: &quot;2740&quot;,
     &quot;laravel_idea.dialogs.run_console_settings.y&quot;: &quot;195&quot;,
-    &quot;last_opened_file_path&quot;: &quot;D:/Projects/GitHub/fortiplugin&quot;,
+    &quot;last_opened_file_path&quot;: &quot;C:/Users/USER/GitHub/timex/fortiplugin/.prodex@forti&quot;,
     &quot;node.js.detected.package.eslint&quot;: &quot;true&quot;,
     &quot;node.js.detected.package.tslint&quot;: &quot;true&quot;,
     &quot;node.js.selected.package.eslint&quot;: &quot;(autodetect)&quot;,
@@ -258,32 +264,35 @@
     &quot;php.override.implement.member.chooser.php.doc&quot;: &quot;NONE&quot;,
     &quot;prettierjs.PrettierConfiguration.Package&quot;: &quot;C:\\Users\\USER\\GitHub\\timex\\fortiplugin\\node_modules\\prettier&quot;,
     &quot;run.code.analysis.last.selected.profile&quot;: &quot;pProject Default&quot;,
-    &quot;settings.editor.selected.configurable&quot;: &quot;preferences.updates&quot;,
+    &quot;settings.editor.selected.configurable&quot;: &quot;preferences.keymap&quot;,
     &quot;to.speed.mode.migration.done&quot;: &quot;true&quot;,
     &quot;vue.rearranger.settings.migration&quot;: &quot;true&quot;
   }
 }</component>
+  <component name="RecapSpentCounter">
+    <option name="endsOfQuotaMs" value="1768672711677" />
+    <option name="spentUsd" value="0.1539741" />
+  </component>
+  <component name="RecapUselessUpdatesCounter">
+    <option name="suspendCountdown" value="0" />
+  </component>
   <component name="RecentsManager">
     <key name="CopyFile.RECENT_KEYS">
+      <recent name="C:\Users\USER\GitHub\timex\fortiplugin\.prodex@forti" />
+      <recent name="C:\Users\USER\GitHub\timex\fortiplugin\prodex" />
       <recent name="D:\Projects\GitHub\fortiplugin" />
       <recent name="C:\Users\David\OneDrive\Documents\GitHub\fortiplugin\src\Lib" />
       <recent name="C:\Users\David\OneDrive\Documents\GitHub\fortiplugin\src" />
-      <recent name="C:\Users\David\OneDrive\Documents\GitHub\fortiplugin" />
-      <recent name="C:\Users\David\OneDrive\Documents\GitHub\fortiplugin\prisma" />
     </key>
     <key name="MoveFile.RECENT_KEYS">
+      <recent name="C:\Users\USER\GitHub\timex\fortiplugin\.prodex@forti" />
       <recent name="C:\Users\USER\GitHub\timex\fortiplugin\src\Http\Controllers" />
       <recent name="D:\Projects\GitHub\fortiplugin\database" />
       <recent name="D:\Projects\GitHub\fortiplugin\workbench\resources\views" />
       <recent name="D:\Projects\GitHub\fortiplugin\src\Installations\Sections" />
-      <recent name="D:\Projects\GitHub\fortiplugin\prisma\schema" />
     </key>
   </component>
-  <component name="RunManager" selected="PHPUnit.PluginInstallFlowTest">
-    <configuration name="LegacyJsonRouteCompilerTest.test_compileData_with_http_and_group_emits_expected_snippets_and_collects_ids" type="PHPUnitRunConfigurationType" factoryName="PHPUnit" temporary="true">
-      <TestRunner class="Tests\Core\Install\LegacyJsonRouteCompilerTest" file="$PROJECT_DIR$/test/Core/Install/LegacyJsonRouteCompilerTest.php" method="test_compileData_with_http_and_group_emits_expected_snippets_and_collects_ids" scope="Method" />
-      <method v="2" />
-    </configuration>
+  <component name="RunManager" selected="PHPUnit.LegacyJsonRouteCompilerTest.test_http_variants_any_and_match_and_action_expr_variants">
     <configuration name="LegacyJsonRouteCompilerTest.test_http_variants_any_and_match_and_action_expr_variants" type="PHPUnitRunConfigurationType" factoryName="PHPUnit" temporary="true">
       <TestRunner class="Tests\Core\Install\LegacyJsonRouteCompilerTest" file="$PROJECT_DIR$/test/Core/Install/LegacyJsonRouteCompilerTest.php" method="test_http_variants_any_and_match_and_action_expr_variants" scope="Method" />
       <method v="2" />
@@ -300,21 +309,26 @@
       <TestRunner class="PluginSecurityScannerTest" file="$PROJECT_DIR$/test/PluginSecurityScannerTest.php" method="testBlocklistClassMethodAllowlist" scope="Method" />
       <method v="2" />
     </configuration>
+    <list>
+      <item itemvalue="PHPUnit.LegacyJsonRouteCompilerTest.test_http_variants_any_and_match_and_action_expr_variants" />
+      <item itemvalue="PHPUnit.PluginInstallFlowTest" />
+      <item itemvalue="PHPUnit.PluginSecurityScannerTest" />
+      <item itemvalue="PHPUnit.PluginSecurityScannerTest.testBlocklistClassMethodAllowlist" />
+    </list>
     <recent_temporary>
       <list>
+        <item itemvalue="PHPUnit.LegacyJsonRouteCompilerTest.test_http_variants_any_and_match_and_action_expr_variants" />
         <item itemvalue="PHPUnit.PluginSecurityScannerTest.testBlocklistClassMethodAllowlist" />
         <item itemvalue="PHPUnit.PluginSecurityScannerTest" />
         <item itemvalue="PHPUnit.PluginInstallFlowTest" />
-        <item itemvalue="PHPUnit.LegacyJsonRouteCompilerTest.test_http_variants_any_and_match_and_action_expr_variants" />
-        <item itemvalue="PHPUnit.LegacyJsonRouteCompilerTest.test_compileData_with_http_and_group_emits_expected_snippets_and_collects_ids" />
       </list>
     </recent_temporary>
   </component>
   <component name="SharedIndexes">
     <attachedChunks>
       <set>
-        <option value="bundled-js-predefined-d6986cc7102b-c7e53b3be11b-JavaScript-PS-253.28294.345" />
-        <option value="bundled-php-predefined-a98d8de5180a-09080813851e-com.jetbrains.php.sharedIndexes-PS-253.28294.345" />
+        <option value="bundled-js-predefined-d6986cc7102b-9b0f141eb926-JavaScript-PS-253.29346.151" />
+        <option value="bundled-php-predefined-a98d8de5180a-0e0d91225499-com.jetbrains.php.sharedIndexes-PS-253.29346.151" />
       </set>
     </attachedChunks>
   </component>
@@ -348,11 +362,39 @@
       <workItem from="1765428768358" duration="313000" />
       <workItem from="1765429104918" duration="63174000" />
       <workItem from="1765882070094" duration="2620000" />
+      <workItem from="1766403260673" duration="28431000" />
+      <workItem from="1766474473038" duration="15711000" />
+      <workItem from="1766594347205" duration="34993000" />
+      <workItem from="1766746537913" duration="26545000" />
+      <workItem from="1766858553717" duration="2894000" />
+      <workItem from="1766875420326" duration="4188000" />
+      <workItem from="1767042560818" duration="724000" />
+      <workItem from="1767077299706" duration="5189000" />
+      <workItem from="1767132090270" duration="149000" />
+      <workItem from="1767132251803" duration="48673000" />
+      <workItem from="1767418161431" duration="19691000" />
+      <workItem from="1767480758199" duration="4395000" />
     </task>
     <servers />
   </component>
   <component name="TypeScriptGeneratedFilesManager">
     <option name="version" value="3" />
+  </component>
+  <component name="XDebuggerManager">
+    <breakpoint-manager>
+      <breakpoints>
+        <line-breakpoint enabled="true" type="php">
+          <url>file://$PROJECT_DIR$/src/Installations/Support/ValidatorBridge.php</url>
+          <line>77</line>
+          <option name="timeStamp" value="5" />
+        </line-breakpoint>
+        <line-breakpoint enabled="true" type="php">
+          <url>file://$PROJECT_DIR$/src/Installations/Sections/VerificationSection.php</url>
+          <line>58</line>
+          <option name="timeStamp" value="6" />
+        </line-breakpoint>
+      </breakpoints>
+    </breakpoint-manager>
   </component>
   <component name="XSLT-Support.FileAssociations.UIState">
     <expand />

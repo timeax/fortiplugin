@@ -5,7 +5,9 @@ use Illuminate\Support\Facades\Route;
 use Timeax\FortiPlugin\Http\Controllers\AuthController;
 use Timeax\FortiPlugin\Http\Controllers\PackagerController;
 use Timeax\FortiPlugin\Http\Controllers\PluginInstallController;
+use Timeax\FortiPlugin\Http\Controllers\Ui\EmbedResolveController;
 use Timeax\FortiPlugin\Http\Middleware\FortiTokenGuard;
+
 
 // --- Main 'forti' Route Group ---
 // All routes under 'forti' prefix, with 'forti.' name prefix, 'web' middleware,
@@ -51,3 +53,5 @@ Route::prefix('forti')
         // 🔍 Utility/Diagnostic Routes
         Route::get('/structure', [PackagerController::class, 'getStructure'])->name('get-structure');
     });
+
+Route::middleware(['web'])->get('/__forti/ui/embed/resolve', EmbedResolveController::class);

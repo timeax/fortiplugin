@@ -3,11 +3,11 @@
   <component name="JsonSchemaMappingsProjectConfiguration">
     <state>
       <map>
-        <entry key="Prettier">
+        <entry key="Prodex">
           <value>
             <SchemaInfo>
-              <option name="name" value="Prettier" />
-              <option name="relativePathToSchema" value="http://json.schemastore.org/prettierrc" />
+              <option name="name" value="Prodex" />
+              <option name="relativePathToSchema" value="../../npm/prodex/schema/prodex.schema.json" />
               <option name="applicationDefined" value="true" />
               <option name="patterns">
                 <list>

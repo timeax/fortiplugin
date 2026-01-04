@@ -15,7 +15,7 @@ trait Decision
         $this->afs->ensureParentDirectory($path);
 
         $doc = $this->afs->fs()->exists($path) ? $this->afs->fs()->readJson($path) : [];
-        $doc['decision'] = array_filter([
+        $doc['decisions'] = array_filter([
             'status' => $decision->value,
             'reason' => $reason,
             'token'  => $tokenSummary,

@@ -232,7 +232,7 @@ class MakePlugin extends Command
             // { dir: string; glob?: string }
             'routes' => [
                 'dir' => 'routes',
-                'glob' => '**/*.routes.json',
+                'glob' => '*.routes.json',
             ],
 
             // Record<Slug, ExportDefinition> → must be an object
