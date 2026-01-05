@@ -51,8 +51,8 @@ final readonly class DbPersistSection
         InstallMeta $meta,
         string      $versionTag,
         int|string  $zipId,
-        ?array      $packages = null,
-        callable    $emit
+        callable    $emit,
+        ?array      $packages = null
     ): array
     {
 

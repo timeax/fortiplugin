@@ -60,7 +60,7 @@ final class InstallPluginZipJob implements ShouldQueue
 
         $safeName = $this->sanitizePlaceholderName($this->placeholderName);
 
-        $stagingBase = storage_path("app/fortiplugin/staging/{$this->zipId}-{$this->runId}");
+        $stagingBase = storage_path("app/fortiplugin/staging/$this->zipId-$this->runId");
         $this->ensureDir($stagingBase);
 
         $this->safeExtractZip($this->zipPath, $stagingBase);
@@ -110,7 +110,7 @@ final class InstallPluginZipJob implements ShouldQueue
         );
 
         cache()->put(
-            "fortiplugin:install:{$this->runId}",
+            "fortiplugin:install:$this->runId",
             $this->normalizeResult($result),
             now()->addDay()
         );
@@ -154,7 +154,7 @@ final class InstallPluginZipJob implements ShouldQueue
     private function ensureDir(string $dir): void
     {
         if (!is_dir($dir) && !mkdir($dir, 0755, true) && !is_dir($dir)) {
-            throw new RuntimeException("FAILED_TO_CREATE_DIR: {$dir}");
+            throw new RuntimeException("FAILED_TO_CREATE_DIR: $dir");
         }
     }
 

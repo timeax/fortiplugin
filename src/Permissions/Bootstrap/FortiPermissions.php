@@ -54,7 +54,14 @@ final class FortiPermissions
         $app->bind(CapabilityCacheInterface::class,      CapabilityCache::class);
         $app->bind(AuditEmitterInterface::class,         AuditEmitter::class);
         $app->bind(CatalogProviderInterface::class,      HostCatalogProvider::class);
-        $app->bind(ConditionsEvaluatorInterface::class,  ConditionsEvaluator::class);
+        $app->bind(ConditionsEvaluatorInterface::class, function (Container $app) {
+            $catalog = $app->make(CatalogProviderInterface::class);
+
+            return new ConditionsEvaluator(
+                [$catalog, 'env'],
+                [$catalog, 'settingsForPlugin']
+            );
+        });
         $app->bind(PermissionRepositoryInterface::class, EloquentPermissionRepository::class);
     }
 }

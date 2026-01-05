@@ -311,8 +311,8 @@ final readonly class Installer
                 meta: $meta,
                 versionTag: $versionTag,
                 zipId: $zipId,
-                packages: $packagesForDb,
-                emit: $emitInstaller
+                emit: $emitInstaller,
+                packages: $packagesForDb
             );
             if (($persist['status'] ?? 'fail') !== 'ok') {
                 throw new RuntimeException('DB persist failed');
