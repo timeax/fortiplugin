@@ -4,48 +4,17 @@
   "output": {
     "dir": ".prodex@forti"
   },
-  "resolve": {
-    "aliases": {
-      "@": "resources/js"
-    }
-  },
   "shortcuts": {
-    "make": {
-      "files": ["src/Console/Commands/MakePlugin.php"],
-      "prefix": "make-plugin"
-    },
-    "login": {
-      "prefix": "login",
-      "files": ["src/Console/Commands/LoginCommand.php"]
-    },
-    "pack": {
-      "files": ["src/Console/Commands/PackPlugin.php"],
-      "prefix": "pack"
-    },
     "install": {
-      "files": ["**/PluginInstallController.php"],
-      "prefix": "installer"
+      "files": ["src/Facades/Plugin.php", "src/Facades/PluginZip.php"]
     },
     "act": {
       "files": ["src/Installations/Activation/**"],
       "prefix": "activation"
     },
-    "valid": {
-      "prefix": "validate-plugin",
-      "files": ["src/Console/Commands/ValidatePlugin.php"]
-    },
-    "db": {
-      "prefix": "migrations",
-      "files": ["**/database/migrations/*.php"]
-    },
-    "commands": {
-      "prefix": "commands",
-      "files": ["src/Console/Commands/**"],
-      "include": []
-    },
+
     "context": {
       "prefix": "context",
-      "files": [],
       "include": [
         "composer.json",
         "config/fortiplugin.php",
@@ -62,11 +31,7 @@
         "src/FortiPluginServiceProvider.php",
         "src/Console/Commands/**"
       ],
-      "include": ["composer.json", "config/**", "stubs/**"]
-    },
-    "http": {
-      "prefix": "http",
-      "include": ["**/routes/api.php"]
+      "include": ["composer.json", "config/**", "stubs/**", "src/Facades/**", "schema/**"]
     },
     "prisma": {
       "prefix": "prisma",
@@ -81,7 +46,6 @@
       ]
     },
     "embed": {
-      "prefix": "embed-ui",
       "files": [
         "src/Http/Middleware/FortiTokenGuard.php",
         "src/Http/Controllers/Ui/EmbedResolveController.php"
@@ -96,6 +60,11 @@
         "src/Exceptions/PermissionDeniedException.php"
       ],
       "include": ["stubs/config-*.stub"]
+    },
+
+    "facade": {
+      "files": ["src/Facades/Plugin.php", "src/Facades/PluginZip.php"],
+      "prefix": "plugin-facade"
     }
   }
 }

@@ -2,7 +2,9 @@
 
 namespace Timeax\FortiPlugin\Models;
 
+use Carbon\Carbon;
 use Illuminate\Database\Eloquent\Casts\AsArrayObject;
+use Illuminate\Support\Collection;
 use Timeax\FortiPlugin\Enums\PluginStatus;
 use Illuminate\Database\Eloquent\Model;
 
@@ -17,19 +19,19 @@ use Illuminate\Database\Eloquent\Model;
  * @property int $plugin_placeholder_id
  * @property int|null $active_version_id
  * @property string|null $owner_ref
- * @property \Carbon\Carbon|null $activated_at
+ * @property Carbon|null $activated_at
  * @property int|null $activated_by
- * @property \Carbon\Carbon $created_at
- * @property \Carbon\Carbon $updated_at
+ * @property Carbon $created_at
+ * @property Carbon $updated_at
  * @property PluginPlaceholder::class $placeholder
- * @property \Illuminate\Support\Collection<int, PluginSetting::class> $plugin_settings
- * @property \Illuminate\Support\Collection<int, PluginVersion::class> $plugin_versions
- * @property \Illuminate\Support\Collection<int, PluginAuditLog::class> $logs
- * @property \Illuminate\Support\Collection<int, Author::class> $authors
- * @property \Illuminate\Support\Collection<int, PluginIssue::class> $issues
- * @property \Illuminate\Support\Collection<int, PluginPermission::class> $plugin_permissions
- * @property \Illuminate\Support\Collection<int, PluginPermissionTag::class> $permission_tags
- * @property \Illuminate\Support\Collection<int, PluginRoutePermission::class> $routes
+ * @property Collection<int, PluginSetting::class> $plugin_settings
+ * @property Collection<int, PluginVersion::class> $plugin_versions
+ * @property Collection<int, PluginAuditLog::class> $logs
+ * @property Collection<int, Author::class> $authors
+ * @property Collection<int, PluginIssue::class> $issues
+ * @property Collection<int, PluginPermission::class> $plugin_permissions
+ * @property Collection<int, PluginPermissionTag::class> $permission_tags
+ * @property Collection<int, PluginRoutePermission::class> $routes
  */
 class Plugin extends Model
 {
