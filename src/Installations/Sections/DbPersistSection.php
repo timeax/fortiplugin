@@ -29,7 +29,7 @@ final readonly class DbPersistSection
 {
     public function __construct(
         private InstallationLogStore $log,
-        private PluginRepository     $plugins,
+        public PluginRepository      $plugins,
     )
     {
     }
@@ -51,8 +51,8 @@ final readonly class DbPersistSection
         InstallMeta $meta,
         string      $versionTag,
         int|string  $zipId,
-        ?array      $packages = null,
-        callable    $emit
+        callable    $emit,
+        ?array      $packages = null
     ): array
     {
 

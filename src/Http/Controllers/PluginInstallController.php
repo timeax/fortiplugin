@@ -12,7 +12,6 @@ use RuntimeException;
 use Timeax\FortiPlugin\Jobs\ActivatePluginVersionJob;
 use Timeax\FortiPlugin\Jobs\InstallPluginZipJob;
 use Timeax\FortiPlugin\Models\PluginZip;
-use Timeax\FortiPlugin\Services\PluginInstallationService;
 use Timeax\FortiPlugin\Support\FortiGates;
 
 final class PluginInstallController
@@ -24,7 +23,7 @@ final class PluginInstallController
      *  - installer_token?: string
      *  - run_id?: uuid (IMPORTANT: pass this when resuming an ASK flow with installer_token)
      */
-    public function install(Request $request, PluginZip $zip, PluginInstallationService $service): JsonResponse
+    public function install(Request $request, PluginZip $zip): JsonResponse
     {
         Gate::authorize(FortiGates::PLUGIN_INSTALL);
 
@@ -43,7 +42,7 @@ final class PluginInstallController
 
         $placeholderId = (int) $zip->placeholder_id;
 
-        $placeholderName = $service->sanitizePlaceholderName(
+        $placeholderName = $this->sanitizePlaceholderName(
             (string) (
                 $pluginMan['slug']
                 ?? $manifest['slug']
@@ -121,4 +120,11 @@ final class PluginInstallController
         ], 202);
     }
 
+    private function sanitizePlaceholderName(string $name): string
+    {
+        if (!preg_match('/^[a-z0-9][a-z0-9._-]{0,100}$/i', $name)) {
+            throw new RuntimeException('INVALID_PLACEHOLDER_NAME');
+        }
+        return $name;
+    }
 }

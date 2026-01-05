@@ -119,7 +119,9 @@ final class PackagerController extends Controller
         $slug = $data['slug'] ?: Str::slug('pkg-' . Str::random(8));
         $name = $data['name'] ?: $slug;
         $uKey = (string)Str::uuid();
-
+        if (!preg_match('/^[a-z0-9][a-z0-9._-]{0,100}$/i', $name)) {
+            throw new RuntimeException('INVALID_PLACEHOLDER_NAME');
+        }
         $placeholder = PluginPlaceholder::create([
             'slug' => $slug,
             'name' => $name,

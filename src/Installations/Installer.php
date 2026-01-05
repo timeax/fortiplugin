@@ -311,8 +311,8 @@ final readonly class Installer
                 meta: $meta,
                 versionTag: $versionTag,
                 zipId: $zipId,
-                packages: $packagesForDb,
-                emit: $emitInstaller
+                emit: $emitInstaller,
+                packages: $packagesForDb
             );
             if (($persist['status'] ?? 'fail') !== 'ok') {
                 throw new RuntimeException('DB persist failed');
@@ -385,12 +385,12 @@ final readonly class Installer
         // ─────────────────────────────────────────────────────────────
         // 5) INSTALL FILES (move staged → installed; includes staged routes)
         // ─────────────────────────────────────────────────────────────
-        $files = $this->installFiles->run(
+        $file_result = $this->installFiles->run(
             meta: $meta,
             stagingPluginRoot: $pluginDir,
             emit: $emitInstaller
         );
-        if (($files['status'] ?? 'fail') !== 'ok') {
+        if (($file_result['status'] ?? 'fail') !== 'ok') {
             $emitInstaller(['title' => 'INSTALL_FILES_FAIL', 'description' => 'Failed moving staged files into place']);
             return InstallerResult::fromArray([
                 'status' => 'fail',
@@ -424,6 +424,7 @@ final readonly class Installer
             ]);
         }
 
+        $this->dbPersist->plugins->setPluginRoot($pluginId, $file_result['meta']['dest']);
 
         // ─────────────────────────────────────────────────────────────
         // 7) FINISH

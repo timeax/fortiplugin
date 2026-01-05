@@ -109,18 +109,18 @@ final readonly class Activator
                 return ActivationResult::fail(['reason' => 'version_not_found', 'version_id' => $versionId]);
             }
 
-            //TODO; MUST UNCOMMENT
+            //TODO: MUST UNCOMMENT
 
-//            // Already active? no-op
-//            if ((int)($plugin->active_version_id ?? 0) === $version->id) {
-//                $emit(['title' => 'ACTIVATION_NOOP', 'description' => 'Version already active']);
-//                return ActivationResult::ok([
-//                    'plugin_id' => $plugin->id,
-//                    'version_id' => $version->id,
-//                    'changed' => false,
-//                    'reason' => 'already_active',
-//                ]);
-//            }
+            // Already active? no-op
+            if ((int)($plugin->active_version_id ?? 0) === $version->id) {
+                $emit(['title' => 'ACTIVATION_NOOP', 'description' => 'Version already active']);
+                return ActivationResult::ok([
+                    'plugin_id' => $plugin->id,
+                    'version_id' => $version->id,
+                    'changed' => false,
+                    'reason' => 'already_active',
+                ]);
+            }
 
             // 1) Read install log and verify prior validators for this run
             $logPath = rtrim($installedPluginRoot, "\\/") . DIRECTORY_SEPARATOR

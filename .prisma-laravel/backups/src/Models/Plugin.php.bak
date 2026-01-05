@@ -10,11 +10,12 @@ use Illuminate\Database\Eloquent\Model;
  * @property int $id
  * @property string $name
  * @property string|null $image
+ * @property string|null $plugin_path
  * @property PluginStatus::class $status
  * @property array|null $config
  * @property array|null $meta
  * @property int $plugin_placeholder_id
- * @property int $active_version_id
+ * @property int|null $active_version_id
  * @property string|null $owner_ref
  * @property \Carbon\Carbon|null $activated_at
  * @property int|null $activated_by

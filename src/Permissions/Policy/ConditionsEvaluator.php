@@ -24,10 +24,10 @@ final class ConditionsEvaluator implements ConditionsEvaluatorInterface
     private $settingsProvider;
 
     /**
-     * @param callable():string    $envProvider
-     * @param callable(int):array  $settingsProvider
+     * @param callable():string $envProvider
+     * @param callable|null $settingsProvider
      */
-    public function __construct(callable $envProvider, callable $settingsProvider)
+    public function __construct(callable $envProvider, ?callable $settingsProvider = null)
     {
         $this->envProvider      = $envProvider;
         $this->settingsProvider = $settingsProvider;

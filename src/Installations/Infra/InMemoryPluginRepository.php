@@ -104,4 +104,12 @@ final class InMemoryPluginRepository implements PluginRepository
         }
         $this->plugins[$pluginId]['status'] = $status;
     }
+
+    public function setPluginRoot(int $pluginId, string $path): void
+    {
+        if (!isset($this->plugins[$pluginId])) {
+            throw new RuntimeException("Plugin #$pluginId not found");
+        }
+        $this->plugins[$pluginId]['meta']['config_class'] = $path;
+    }
 }
