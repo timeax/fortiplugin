@@ -59,4 +59,6 @@ interface PluginRepository
      * Update Plugin status (e.g., installed_inactive, active, failed_install).
      */
     public function setStatus(int $pluginId, string $status): void;
+
+    public function setPluginRoot(int $pluginId, string $path): void;
 }

@@ -29,7 +29,7 @@ final readonly class DbPersistSection
 {
     public function __construct(
         private InstallationLogStore $log,
-        private PluginRepository     $plugins,
+        public PluginRepository      $plugins,
     )
     {
     }

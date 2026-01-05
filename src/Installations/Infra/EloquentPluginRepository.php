@@ -179,4 +179,15 @@ final class EloquentPluginRepository implements PluginRepository
         $plugin->status = $status;
         $plugin->save();
     }
+
+    public function setPluginRoot(int $pluginId, string $path): void
+    {
+        /** @var Plugin|null $plugin */
+        $plugin = Plugin::query()->find($pluginId);
+        if (!$plugin) {
+            throw new RuntimeException("Plugin #$pluginId not found");
+        }
+        $plugin->plugin_path = $path;
+        $plugin->save();
+    }
 }

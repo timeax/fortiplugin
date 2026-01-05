@@ -16,6 +16,10 @@ return new class extends Migration {
 			$table->string("name")->unique();
 			$table->string("image")->nullable();
 			$table
+				->string("plugin_path")
+				->nullable()
+				->comment("direct path to the config class");
+			$table
 				->enum("status", ["active", "inactive", "archived"])
 				->default("active");
 			$table->json("config")->nullable();
@@ -25,7 +29,7 @@ return new class extends Migration {
 				->constrained("scpl_placeholders", "id")
 				->onDelete("no action")
 				->onUpdate("no action");
-			$table->bigInteger("active_version_id");
+			$table->bigInteger("active_version_id")->nullable();
 			$table->string("owner_ref")->nullable();
 			$table->timestamp("activated_at")->nullable();
 			$table->bigInteger("activated_by")->nullable();

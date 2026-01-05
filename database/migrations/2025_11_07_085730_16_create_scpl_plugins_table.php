@@ -16,6 +16,10 @@ return new class extends Migration {
 			$table->string("name")->unique();
 			$table->string("image")->nullable();
 			$table
+				->string("plugin_path")
+				->nullable()
+				->comment("direct path to the config class");
+			$table
 				->enum("status", ["active", "inactive", "archived"])
 				->default("active");
 			$table->json("config")->nullable();
