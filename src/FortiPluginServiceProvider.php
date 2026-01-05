@@ -60,6 +60,8 @@ use Timeax\FortiPlugin\Permissions\Bootstrap\FortiPermissions;
 use Timeax\FortiPlugin\Permissions\Contracts\PermissionServiceInterface;
 use Timeax\FortiPlugin\Permissions\Evaluation\PermissionService;
 use Timeax\FortiPlugin\Services\HostKeyService;
+use Timeax\FortiPlugin\Services\PluginService;
+use Timeax\FortiPlugin\Services\PluginZipService;
 use Timeax\FortiPlugin\Services\PolicyService;
 use Timeax\FortiPlugin\Services\ValidatorService;
 use Timeax\FortiPlugin\Support\FortiGateRegistrar;
@@ -344,6 +346,10 @@ class FortiPluginServiceProvider extends ServiceProvider
         $this->app->singleton(ProvidersRegistryWriter::class);
         $this->app->singleton(UiRegistryWriter::class);
         $this->app->singleton(Activator::class);
+
+        // ── Plugin services ────────────────────────────────────────────────────
+        $this->app->singleton(PluginService::class);
+        $this->app->singleton(PluginZipService::class);
     }
 
 
