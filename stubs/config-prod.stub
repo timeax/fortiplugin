@@ -476,6 +476,8 @@ final class Config implements ConfigInterface
         return self::getPermissions()->summary->requiredPending === 0;
     }
 
+
+
     /**
      * Check if normalized meta matches the permission definition meta.
      */

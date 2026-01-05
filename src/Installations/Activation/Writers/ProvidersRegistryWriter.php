@@ -3,6 +3,7 @@ declare(strict_types=1);
 
 namespace Timeax\FortiPlugin\Installations\Activation\Writers;
 
+use Throwable;
 use Timeax\FortiPlugin\Installations\Contracts\RegistryWriter;
 use Timeax\FortiPlugin\Installations\Support\AtomicFilesystem;
 use Timeax\FortiPlugin\Installations\InstallerPolicy;
@@ -48,7 +49,7 @@ final readonly class ProvidersRegistryWriter implements RegistryWriter
         $registryPath = (string)(config('fortiplugin.providers.registry_path') ?? base_path('bootstrap/fortiplugin.providers.json'));
         try {
             $json = $fs->exists($registryPath) ? $fs->readJson($registryPath) : [];
-        } catch (\Throwable) {
+        } catch (Throwable) {
             $json = [];
         }
 
