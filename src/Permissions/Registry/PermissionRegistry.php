@@ -62,7 +62,7 @@ final class PermissionRegistry
         $key = $type instanceof PermissionType ? $type->value : (string)$type;
         $fqcn = $this->checkers[$key] ?? null;
         if (!$fqcn) {
-            throw new InvalidArgumentException("No checker registered for type '{$key}'");
+            throw new InvalidArgumentException("No checker registered for type '$key'");
         }
         /** @var PermissionCheckerInterface $inst */
         $inst = $this->app->make($fqcn);
