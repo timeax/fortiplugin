@@ -1,4 +1,4 @@
-<?php /** @noinspection ALL */
+<?php ///** @noinspection ALL */
 #{SIGNATURE_BLOCK}
 
 declare(strict_types=1);
@@ -6,9 +6,9 @@ declare(strict_types=1);
 namespace IGNORE;
 #{PLUGIN_NAMESPACE};
 
-use Illuminate\Support\Arr;
 use Illuminate\Support\Str;
 
+use JsonException;
 use Timeax\FortiPlugin\Contracts\ConfigInterface;
 use Timeax\FortiPlugin\Enums\PermissionType;
 use Timeax\FortiPlugin\Enums\PluginSettingValueType;
@@ -18,30 +18,73 @@ use Timeax\FortiPlugin\Permissions\Evaluation\Dto\PermissionListOptions;
 use Timeax\FortiPlugin\Permissions\Evaluation\Dto\PermissionListResult;
 use Timeax\FortiPlugin\Permissions\Evaluation\Dto\PermissionListSummary;
 use Timeax\FortiPlugin\Permissions\Evaluation\Dto\Result;
+use function explode;
 
 final class Config implements ConfigInterface
 {
+    /** @var array<string, array<string,mixed>> */
+    protected static array $manifest = [];
+    /**
+     * Cached plugin config values – loaded from plugin.config.json (or fallback).
+     * @var array<string,mixed>
+     */
+    private static array $configData = [];
+
+    /**
+     * Runtime installation info (e.g., from DB / installer).
+     * These placeholders are replaced during installation.
+     * @var array{id:int|null,alias:string|null,name?:string|null}
+     */
+    private static array $info = [
+        'id' => '#{PLUGIN_ID}',
+        'alias' => '#{PLUGIN_ALIAS}',
+        'name' => '#{PLUGIN_STUDLY}',
+    ];
+
+
+    /** Cached signature contents from `.internal/Signed`. */
+    private static ?string $signature = null;
+
+    /**
+     * Resolve the configured public base template for this plugin.
+     *
+     * Returns a normalized path segment WITHOUT leading/trailing slashes.
+     * Example: "vendor/fortiplugin/my-plugin"
+     * @throws JsonException
+     */
+    protected static function resolvePublicBaseRelative(): string
+    {
+        $alias = self::getAlias();
+        $slug = (string)(static::$info['slug'] ?? $alias);
+
+        $baseTpl = (string)config('fortiplugin.ui.embed.public_base', '');
+        if (trim($baseTpl) === '') {
+            $baseTpl = '/vendor/fortiplugin/{alias}';
+        }
+
+        $base = strtr($baseTpl, [
+            '{alias}' => $alias,
+            '{slug}' => $slug,
+            '{plugin}' => $alias, // backward-compat
+        ]);
+
+        return trim(str_replace('\\', '/', $base), '/');
+    }
 
     /**
      * Get the Vite build manifest content.
      *
      * Supports separate builds:
-     * - public/build/.vite/manifest.spa.json
-     * - public/build/.vite/manifest.integrations.json
-     *
-     * Supports separate builds:
-     * - public/build/.vite/manifest.spa.json
-     * - public/build/.vite/manifest.integrations.json
+     * - public/<public_base>/build/.vite/manifest.spa.json
+     * - public/<public_base>/build/.vite/manifest.integrations.json
      *
      * @return array<string,mixed>
+     * @throws JsonException
      */
-    public static function getViteBuildManifest(string $lane = 'spa'string $lane = 'spa'): array
+    public static function getViteBuildManifest(string $lane = 'spa'): array
     {
-        // cache per lane
-        if (isset(self::$manifest[$lane]) && self::$manifest[$lane] !== []) {
-            return self::$manifest[$lane];
-        // cache per lane
-        if (isset(self::$manifest[$lane]) && self::$manifest[$lane] !== []) {
+        // Cache per lane (cache empty too)
+        if (array_key_exists($lane, self::$manifest)) {
             return self::$manifest[$lane];
         }
 
@@ -51,48 +94,43 @@ final class Config implements ConfigInterface
             default => 'manifest.json',
         };
 
-        $file = match ($lane) {
-            'spa', 'inertia' => 'manifest.spa.json',
-            'embed', 'integrations' => 'manifest.integrations.json',
-            default => 'manifest.json',
-        };
-
-        // 1. Resolve the alias and the configured public base template
-        $alias = self::getAlias();
-        $baseTpl = (string)config('fortiplugin.ui.embed.public_base');
-        if (trim($baseTpl) === '') {
-            $baseTpl = '/vendor/fortiplugin/{alias}';
-        }
-
-        // 2. Determine the relative URL path for this plugin
-        $relativeUrlPath = ltrim(str_replace(['{alias}', '{slug}', '{plugin}'], $alias, $baseTpl), '/');
-
-        // 3. Target the manifest in the host's public folder
-        $path = public_path(rtrim($relativeUrlPath, '/') . '/build/.vite/' . $file);
-
+        $relativeBase = static::resolvePublicBaseRelative();
+        $path = public_path($relativeBase . '/build/.vite/' . $file);
 
         if (!is_file($path)) {
-            return self::$manifest[$lane] = [];
             return self::$manifest[$lane] = [];
         }
 
         $json = @file_get_contents($path);
-
         if ($json === false) {
-            return self::$manifest[$lane] = [];
             return self::$manifest[$lane] = [];
         }
 
-        $decoded = json_decode($json, true);
+        $decoded = json_decode($json, true, 512, JSON_THROW_ON_ERROR);
 
-        return self::$manifest[$lane] = (is_array($decoded) ? $decoded : []);
         return self::$manifest[$lane] = (is_array($decoded) ? $decoded : []);
     }
 
     /**
-     * Resolve embed/integration entry by Rollup input key (dot-name).
+     * Returns a public URL for this plugin's published assets.
+     * Example: "/vendor/fortiplugin/<alias>/build/integrations/x.y.z.js"
+     * @throws JsonException
      */
-    public static function getViteEmbeddedAsset(string $name): string
+    public static function getPublicUrl(string $path): string
+    {
+        $relativeBase = static::resolvePublicBaseRelative();
+
+        $base = '/' . $relativeBase; // ensure leading slash
+        $path = ltrim(str_replace('\\', '/', $path), '/');
+
+        return rtrim($base, '/') . '/' . $path;
+    }
+
+    /**
+     * Resolve embed/integration entry by Rollup input key (dot-name).
+     * @throws JsonException
+     */
+    public static function getViteEmbededAsset(string $name): string
     {
         $manifest = self::getViteBuildManifest('integrations');
 
@@ -125,30 +163,7 @@ final class Config implements ConfigInterface
     }
 
     /**
-     * Returns a public URL for this plugin's published assets.
-     * Example: "/my-plugin/build/integrations/x.y.z.js"
-     */
-    public static function getPublicUrl(string $path): string
-    {
-        $alias = trim((string)(static::$info['alias'] ?? ''), '/');
-        $path = ltrim($path, '/');
-
-        return '/' . ($alias !== '' ? $alias . '/' : '') . $path;
-    }
-
-    /**
-     * Optional: filesystem path in /public (only if you truly need disk access).
-     */
-    public static function getPublicDiskPath(string $path): string
-    {
-        $alias = trim((string)(static::$info['alias'] ?? ''), '/');
-        $path = ltrim($path, '/');
-
-        return public_path(($alias !== '' ? $alias . '/' : '') . $path);
-    }
-
-    /**
-     * Resolve a SPA override page asset by a friendly name like:
+     * Resolve an SPA override page asset by a friendly name like:
      * - "app" or "app.tsx"
      * - "Admin/Dashboard" or "Admin/Dashboard.tsx"
      *
@@ -157,14 +172,15 @@ final class Config implements ConfigInterface
      * - "/Pages/<name>.(tsx|ts|jsx|js)"
      *
      * @return string Public path like "/build/spa/<hash>.js" or "" if not found
+     * @throws JsonException
      */
     public static function getVitePageAsset(string $name): string
     {
-        $manifest = self::getViteBuildManifest('spa');
+        $manifest = self::getViteBuildManifest();
 
         $name = str_replace('\\', '/', ltrim($name, '/\\'));
 
-        // If user supplied an extension, match only that;
+        // If the user supplied an extension, match only that;
         // otherwise try common script/tsx extensions.
         $exts = preg_match('/\.(tsx|ts|jsx|js)$/i', $name)
             ? [''] // keep as-is
@@ -224,54 +240,9 @@ final class Config implements ConfigInterface
         return $bestFile ? static::getPublicUrl('/build/' . ltrim($bestFile, '/')) : '';
     }
 
-    /**
-     * Cached plugin config values – loaded from plugin.config.json (or fallback).
-     * @var array<string,mixed>
-     */
-    private static array $configData = [];
-
-    /**
-     * Runtime installation info (e.g., from DB / installer).
-     * These placeholders are replaced during install.
-     * @var array{id:int|null,alias:string|null,name?:string|null}
-     */
-    private static array $info = [
-        'id' => '#{PLUGIN_ID}',
-        'alias' => '#{PLUGIN_ALIAS}',
-        'name' => '#{PLUGIN_STUDLY}',
-    ];
-
-
-    /** Cached signature contents from `.internal/Signed`. */
-    private static ?string $signature = null;
-
-    /** Manifest cache. */
-    private static array $manifest = [];
-
     /* ───────────────────────────────────────────────────────────────
      |  Internal helpers (IO + tiny utilities)
      ─────────────────────────────────────────────────────────────── */
-
-    /**
-     * Load and cache manifest.json.
-     *
-     * @return array<string,mixed>
-     */
-    private static function loadManifest(): array
-    {
-        if (self::$manifest !== []) {
-            return self::$manifest;
-        }
-
-        $path = dirname(__DIR__) . '/manifest.json';
-        if (!is_file($path)) {
-            return self::$manifest = [];
-        }
-
-        $json = @file_get_contents($path);
-        $data = json_decode($json ?: 'null', true);
-        return self::$manifest = is_array($data) ? $data : [];
-    }
 
     /**
      * Load and cache plugin.config.json (with safe fallbacks).
@@ -282,6 +253,7 @@ final class Config implements ConfigInterface
      *  - plugin.json
      *
      * @return array<string,mixed>
+     * @throws JsonException
      */
     private static function loadConfig(): array
     {
@@ -299,7 +271,7 @@ final class Config implements ConfigInterface
         foreach ($candidates as $file) {
             if (is_file($file)) {
                 $json = @file_get_contents($file);
-                $arr = json_decode($json ?: 'null', true);
+                $arr = json_decode($json ?: 'null', true, 512, JSON_THROW_ON_ERROR);
                 if (is_array($arr)) {
                     return self::$configData = $arr;
                 }
@@ -323,7 +295,7 @@ final class Config implements ConfigInterface
         if (array_key_exists($key, $source)) {
             return $source[$key];
         }
-        $segments = \explode('.', $key);
+        $segments = explode('.', $key);
         $cursor = $source;
         foreach ($segments as $seg) {
             if (is_array($cursor) && array_key_exists($seg, $cursor)) {
@@ -348,17 +320,15 @@ final class Config implements ConfigInterface
         $raw = $row->value;
 
         return match ($type) {
-            PluginSettingValueType::string => $raw,
+            PluginSettingValueType::string, PluginSettingValueType::file, PluginSettingValueType::blob => $raw,
             PluginSettingValueType::number => (Str::contains($raw, ['.', 'e', 'E']))
                 ? (float)$raw
                 : (int)$raw,
             PluginSettingValueType::boolean => filter_var($raw, FILTER_VALIDATE_BOOLEAN, FILTER_NULL_ON_FAILURE) ?? $default,
             PluginSettingValueType::json => (static function () use ($raw, $default) {
-                $decoded = json_decode($raw, true);
+                $decoded = json_decode($raw, true, 512, JSON_THROW_ON_ERROR);
                 return json_last_error() === JSON_ERROR_NONE ? $decoded : $default;
             })(),
-            PluginSettingValueType::file,
-            PluginSettingValueType::blob => $raw,
         };
     }
 
@@ -368,6 +338,7 @@ final class Config implements ConfigInterface
 
     /**
      * {@inheritdoc}
+     * @throws JsonException
      */
     public static function all(): array
     {
@@ -376,6 +347,7 @@ final class Config implements ConfigInterface
 
     /**
      * {@inheritdoc}
+     * @throws JsonException
      */
     public static function get(string $key, mixed $default = null): mixed
     {
@@ -384,6 +356,7 @@ final class Config implements ConfigInterface
 
     /**
      * {@inheritdoc}
+     * @throws JsonException
      */
     public static function getName(): string
     {
@@ -393,6 +366,7 @@ final class Config implements ConfigInterface
 
     /**
      * {@inheritdoc}
+     * @throws JsonException
      */
     public static function getAlias(): string
     {
@@ -402,6 +376,7 @@ final class Config implements ConfigInterface
 
     /**
      * {@inheritdoc}
+     * @throws JsonException
      */
     public static function getVersion(): string
     {
@@ -410,6 +385,7 @@ final class Config implements ConfigInterface
 
     /**
      * {@inheritdoc}
+     * @throws JsonException
      */
     public static function getDescription(): ?string
     {
@@ -419,6 +395,7 @@ final class Config implements ConfigInterface
 
     /**
      * {@inheritdoc}
+     * @throws JsonException
      */
     public static function getAuthor(): ?string
     {
@@ -428,6 +405,7 @@ final class Config implements ConfigInterface
 
     /**
      * {@inheritdoc}
+     * @throws JsonException
      */
     public static function getUiConfig(): ?array
     {
@@ -437,6 +415,7 @@ final class Config implements ConfigInterface
 
     /**
      * {@inheritdoc}
+     * @throws JsonException
      */
     public static function getHostConfig(): ?array
     {
@@ -446,6 +425,7 @@ final class Config implements ConfigInterface
 
     /**
      * {@inheritdoc}
+     * @throws JsonException
      */
     public static function getInfo(): array
     {
@@ -537,10 +517,11 @@ final class Config implements ConfigInterface
 
     /**
      * {@inheritdoc}
+     * @throws JsonException
      */
     public static function load(?string $export = null): ?string
     {
-        return json_encode(self::all(), JSON_PRETTY_PRINT);
+        return json_encode(self::all(), JSON_THROW_ON_ERROR | JSON_PRETTY_PRINT);
     }
 
     /* ───────────────────────────────────────────────────────────────

@@ -228,7 +228,20 @@ interface ConfigInterface
         string|array|null     $meta = null
     ): ?array;
 
-
+    /**
+     * Evaluate and return a detailed permission check result for a given selector.
+     *
+     * This returns a rich DTO with details about the evaluation process,
+     * including whether the action/intent is allowed, which grants matched,
+     * and any relevant messages or metadata.
+     *
+     * @param PermissionType|string $type Permission family: db|file|notification|module|network|codec
+     * @param string $actionOrIntent Action/intent to verify (see hasPermission for details).
+     * @param string|array|null $meta Type-specific selector (see hasPermission for details).
+     * @param array $context Optional runtime hints (e.g., ['guard'=>'api','env'=>'staging']).
+     * @return Result Detailed permission evaluation result.
+     * @see Result::class for exact shape & accessors.
+     */
     public static function checkPermission(
         PermissionType|string $type,
         string                $actionOrIntent,
