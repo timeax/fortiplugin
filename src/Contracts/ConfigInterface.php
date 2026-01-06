@@ -33,6 +33,18 @@ interface ConfigInterface
     public static function all(): array;
 
     /**
+     * Return the entire parsed Vite build manifest.
+     *
+     * The array SHOULD include top-level keys you expose in your plugin’s
+     * vite.config.js (e.g. "publicPath", "assetsDir", "input", "output", ...).
+     *
+     * @return array<string, mixed>
+     */
+    public static function getViteBuildManifest(): array;
+
+    public static function getViteEmbededAsset(string $name): string;
+
+    /**
      * Get a config key or a default value when missing.
      *
      * Nested keys MAY be host-defined (e.g., "ui.theme"), but plain keys are recommended.
