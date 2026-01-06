@@ -401,7 +401,7 @@ final readonly class Installer
         }
 
         // ─────────────────────────────────────────────────────────────
-        // 6) PUBLISH UI BUILD (copy installed public/build → host public/)
+        // 6) PUBLISH UI ASSETS (copy installed public/ → host public/)
         // ─────────────────────────────────────────────────────────────
         $pub = $this->publishBuildAssets->run(
             meta: $meta,
@@ -412,7 +412,7 @@ final readonly class Installer
         if (($pub['status'] ?? 'fail') === 'fail') {
             $emitInstaller([
                 'title' => 'UI_BUILD_PUBLISH_FAIL',
-                'description' => 'Failed publishing embed UI build assets',
+                'description' => 'Failed publishing embed UI public assets',
                 'meta' => ['plugin_id' => (int)$pluginId],
             ]);
 
@@ -424,7 +424,7 @@ final readonly class Installer
             ]);
         }
 
-        $this->dbPersist->plugins->setPluginRoot($pluginId, $file_result['meta']['dest']);
+        $this->dbPersist->plugins->setPluginRoot($pluginId, $file_result['dest']);
 
         // ─────────────────────────────────────────────────────────────
         // 7) FINISH

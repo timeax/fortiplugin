@@ -4,7 +4,7 @@
 declare(strict_types=1);
 
 namespace IGNORE;
-#{PLUGIN_NAMESPACE}\Internal;
+#{PLUGIN_NAMESPACE};
 
 use Illuminate\Support\Arr;
 use Illuminate\Support\Str;
@@ -22,36 +22,56 @@ use Timeax\FortiPlugin\Permissions\Evaluation\Dto\Result;
 final class Config implements ConfigInterface
 {
 
-/**
+    /**
      * Get the Vite build manifest content.
+     *
+     * Supports separate builds:
+     * - public/build/.vite/manifest.spa.json
+     * - public/build/.vite/manifest.integrations.json
      *
      * @return array<string,mixed>
      */
-    public static function getViteBuildManifest(): array
+    public static function getViteBuildManifest(string $lane = 'spa'): array
     {
-        if (self::$manifest !== []) {
-            return self::$manifest;
+        // cache per lane
+        if (isset(self::$manifest[$lane]) && self::$manifest[$lane] !== []) {
+            return self::$manifest[$lane];
         }
 
-        // Target the manifest in public/build/.vite/
-        $path = dirname(__DIR__) . '/public/build/.vite/manifest.json';
+        $file = match ($lane) {
+            'spa', 'inertia' => 'manifest.spa.json',
+            'embed', 'integrations' => 'manifest.integrations.json',
+            default => 'manifest.json',
+        };
+
+        // 1. Resolve the alias and the configured public base template
+        $alias = self::getAlias();
+        $baseTpl = (string)config('fortiplugin.ui.embed.public_base');
+        if (trim($baseTpl) === '') {
+            $baseTpl = '/vendor/fortiplugin/{alias}';
+        }
+
+        // 2. Determine the relative URL path for this plugin
+        $relativeUrlPath = ltrim(str_replace(['{alias}', '{slug}', '{plugin}'], $alias, $baseTpl), '/');
+
+        // 3. Target the manifest in the host's public folder
+        $path = public_path(rtrim($relativeUrlPath, '/') . '/build/.vite/' . $file);
+
 
         if (!is_file($path)) {
-            return self::$manifest = [];
+            return self::$manifest[$lane] = [];
         }
 
         $json = @file_get_contents($path);
 
         if ($json === false) {
-            return self::$manifest = [];
+            return self::$manifest[$lane] = [];
         }
 
         $decoded = json_decode($json, true);
 
-        return self::$manifest = (is_array($decoded) ? $decoded : []);
+        return self::$manifest[$lane] = (is_array($decoded) ? $decoded : []);
     }
-
-
 
     /**
      * Cached plugin config values – loaded from plugin.config.json (or fallback).

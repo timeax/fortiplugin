@@ -23,13 +23,13 @@ final readonly class EmbedResolver
      * @return array{entryUrl:string, css:list<string>, imports:list<string>, versionKey:string}
      * @throws EmbedResolveException
      */
-    public function resolve(string $slug, string $name): array
+    public function resolve(string $alias, string $name): array
     {
-        $slug = trim($slug);
+        $alias = trim($alias);
         $name = trim($name);
 
-        if ($slug === '' || !preg_match('/^[a-z0-9][a-z0-9_-]*$/i', $slug)) {
-            throw EmbedResolveException::badRequest("Invalid plugin slug.");
+        if ($alias === '' || !preg_match('/^[a-z0-9][a-z0-9_-]*$/i', $alias)) {
+            throw EmbedResolveException::badRequest("Invalid plugin alias.");
         }
 
         if ($name === '' || !preg_match('/^[A-Za-z][A-Za-z0-9_]*$/', $name)) {
@@ -39,31 +39,31 @@ final readonly class EmbedResolver
         $registry = $this->psr4Store->read();
         $plugins = $registry['plugins'] ?? null;
 
-        if (!is_array($plugins) || !isset($plugins[$slug]) || !is_array($plugins[$slug])) {
+        if (!is_array($plugins) || !isset($plugins[$alias]) || !is_array($plugins[$alias])) {
             throw EmbedResolveException::notFound("Plugin not found.");
         }
 
-        $meta = $plugins[$slug];
+        $meta = $plugins[$alias];
         $studly = $meta['plugin_name'] ?? null;
 
         $versionId = $meta['version_id'] ?? null;
         $versionId = is_int($versionId) || is_string($versionId) ? (string)$versionId : null;
 
         if (!is_string($studly) || trim($studly) === '') {
-            throw EmbedResolveException::internal("Plugin registry missing plugin_name for '{$slug}'.");
+            throw EmbedResolveException::internal("Plugin registry missing plugin_name for '{$alias}'.");
         }
 
-        // Cache key: slug + version_id + embed name
-        $cacheKey = 'fortiplugin:embed_spec:' . $slug . ':' . ($versionId ?? 'unknown') . ':' . $name;
+        // Cache key: alias + version_id + embed name
+        $cacheKey = 'fortiplugin:embed_spec:' . $alias . ':' . ($versionId ?? 'unknown') . ':' . $name;
 
         $ttlSeconds = (int)(config('fortiplugin.ui.embed.cache_ttl') ?? 3600);
         if ($ttlSeconds <= 0) {
-            return $this->computeSpec($slug, $studly, $name, $versionId);
+            return $this->computeSpec($alias, $studly, $name, $versionId);
         }
 
         /** @var array{entryUrl:string, css:list<string>, imports:list<string>, versionKey:string} $spec */
-        $spec = $this->cache->remember($cacheKey, $ttlSeconds, function () use ($slug, $studly, $name, $versionId) {
-            return $this->computeSpec($slug, $studly, $name, $versionId);
+        $spec = $this->cache->remember($cacheKey, $ttlSeconds, function () use ($alias, $studly, $name, $versionId) {
+            return $this->computeSpec($alias, $studly, $name, $versionId);
         });
 
         return $spec;
@@ -76,12 +76,12 @@ final readonly class EmbedResolver
      * @return array<string, array{entryUrl:string, css:list<string>, imports:list<string>, versionKey:string}>
      * @throws EmbedResolveException
      */
-    public function resolveMany(string $slug, array $names): array
+    public function resolveMany(string $alias, array $names): array
     {
         $out = [];
         foreach ($names as $name) {
             if (!is_string($name)) continue;
-            $out[$name] = $this->resolve($slug, $name);
+            $out[$name] = $this->resolve($alias, $name);
         }
         return $out;
     }
@@ -90,7 +90,7 @@ final readonly class EmbedResolver
      * @return array{entryUrl:string, css:list<string>, imports:list<string>, versionKey:string}
      * @throws EmbedResolveException
      */
-    private function computeSpec(string $slug, string $studly, string $name, ?string $versionId): array
+    private function computeSpec(string $alias, string $studly, string $name, ?string $versionId): array
     {
         $psr4Root = (string)(
             config('fortiplugin.psr4_root')
@@ -102,9 +102,9 @@ final readonly class EmbedResolver
         $configFqcn = $psr4Root . "\\{$studly}\\Internal\\Config";
 
         // Manually load .internal/Config.php (not PSR-4)
-        $appsDir = (string)config('fortiplugin.directory', 'apps');
+        $appsDir = (string)config('fortiplugin.install_directory', 'apps');
         $appsDir = trim($appsDir, "/\\");
-        $pluginRoot = base_path($appsDir . DIRECTORY_SEPARATOR . $slug);
+        $pluginRoot = base_path($appsDir . DIRECTORY_SEPARATOR . $alias);
 
         $internalConfigPath = $pluginRoot
             . DIRECTORY_SEPARATOR . '.internal'
@@ -150,7 +150,7 @@ final readonly class EmbedResolver
         if (isset($entry['css']) && is_array($entry['css'])) {
             foreach ($entry['css'] as $p) {
                 if (is_string($p) && trim($p) !== '') {
-                    $css[] = $this->assetResolver->resolveAssetUrl($slug, $resolveManifestRef($p));
+                    $css[] = $this->assetResolver->resolveAssetUrl($alias, $resolveManifestRef($p));
                 }
             }
         }
@@ -159,16 +159,16 @@ final readonly class EmbedResolver
         if (isset($entry['imports']) && is_array($entry['imports'])) {
             foreach ($entry['imports'] as $p) {
                 if (is_string($p) && trim($p) !== '') {
-                    $imports[] = $this->assetResolver->resolveAssetUrl($slug, $resolveManifestRef($p));
+                    $imports[] = $this->assetResolver->resolveAssetUrl($alias, $resolveManifestRef($p));
                 }
             }
         }
 
         $entryFile = $entry['file'];
-        $versionKey = $slug . ':' . ($versionId ?? 'unknown') . ':' . $entryFile;
+        $versionKey = $alias . ':' . ($versionId ?? 'unknown') . ':' . $entryFile;
 
         return [
-            'entryUrl' => $this->assetResolver->resolveAssetUrl($slug, $entryFile),
+            'entryUrl' => $this->assetResolver->resolveAssetUrl($alias, $entryFile),
             'css' => array_values(array_unique($css)),
             'imports' => array_values(array_unique($imports)),
             'versionKey' => $versionKey,

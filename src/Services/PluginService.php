@@ -6,39 +6,46 @@ namespace Timeax\FortiPlugin\Services;
 use RuntimeException;
 use Timeax\FortiPlugin\Installations\Support\AtomicFilesystem;
 use Timeax\FortiPlugin\Models\Plugin;
+use Timeax\FortiPlugin\Permissions\Contracts\PermissionServiceInterface;
+use Timeax\FortiPlugin\Runtime\InstalledPlugin;
 use function Illuminate\Filesystem\join_paths;
 
-final readonly class PluginService
+// 1. Removed 'readonly' from class so we can mutate the cache property
+final class PluginService
 {
-    public function __construct(private AtomicFilesystem $afs) {}
+    // 2. Add a local cache array
+    private array $cache = [];
 
-    /**
-     * Fetch the Plugin row by id.
-     */
+    public function __construct(
+        // 3. Moved 'readonly' to specific properties
+        private readonly AtomicFilesystem $afs,
+        private readonly PluginSettingsWriter $settingsWriter,
+        private readonly PermissionServiceInterface $permissionService,
+    ) {}
+
     public function getPlugin(int $pluginId): Plugin
     {
+        // 4. Return immediately if we already have it
+        if (isset($this->cache[$pluginId])) {
+            return $this->cache[$pluginId];
+        }
+
         $plugin = Plugin::query()->find($pluginId);
 
         if (!$plugin) {
             throw new RuntimeException("Plugin #{$pluginId} not found");
         }
 
-        return $plugin;
+        // 5. Store result in cache before returning
+        return $this->cache[$pluginId] = $plugin;
     }
 
-    /**
-     * Get an installed root path for a plugin (DB truth only).
-     *
-     * Contract:
-     * - plugin.plugin_path is the installed plugin root directory.
-     *
-     * No filesystem validation here.
-     */
     public function installedRoot(int $pluginId): string
     {
+        // This now hits the cache instead of the DB
         $plugin = $this->getPlugin($pluginId);
 
-        $root = trim((string)($plugin->plugin_path ?? ''));
+        $root = trim((string) ($plugin->plugin_path ?? ''));
         if ($root === '') {
             throw new RuntimeException("Plugin #{$pluginId} has no plugin_path");
         }
@@ -47,56 +54,66 @@ final readonly class PluginService
     }
 
     /**
-     * Load the generated runtime config object from:
-     *   <installedRoot>/.internal/Config.php
-     *
-     * Note: The system generates this file during installation.
-     *
-     * This method DOES filesystem validation because it must.
+     * Load the plugin's runtime Config class file and return its FQCN.
+     * @return class-string
      */
-    public function loadConfig(int $pluginId): object
+    public function loadConfigClass(int $pluginId): string
     {
-        $fs = $this->afs->fs();
+        // Hits cache
+        $plugin = $this->getPlugin($pluginId);
 
+        $meta = $plugin->meta ?? [];
+        if (!is_array($meta)) {
+            $meta = (array) $meta;
+        }
+
+        $psr4Root = (string)($meta['psr4_root'] ?? config('fortiplugin.psr4_root', 'Plugins'));
+        $psr4Root = rtrim(trim($psr4Root), "\\ \t\n\r\0\x0B");
+
+        $nsSegment = (string)($meta['placeholder_name'] ?? $plugin->name);
+
+        if ($nsSegment === '') {
+            throw new RuntimeException(
+                "Plugin #{$pluginId} has no namespace segment (meta.placeholder_name / name)"
+            );
+        }
+
+        $fqcn = "{$psr4Root}\\{$nsSegment}\\Config";
+
+        if (class_exists($fqcn)) {
+            return $fqcn;
+        }
+
+        // This calls installedRoot -> getPlugin, which now also hits cache
         $root = $this->installedRoot($pluginId);
         $cfgPath = join_paths($root, '.internal', 'Config.php');
 
-        if (!$fs->exists($cfgPath) || !$fs->isFile($cfgPath)) {
-            throw new RuntimeException("Plugin #{$pluginId} Config.php not found: {$cfgPath}");
+        if (is_file($cfgPath)) {
+            require_once $cfgPath;
         }
 
-        $config = require $cfgPath;
-
-        if (!is_object($config)) {
-            throw new RuntimeException("Plugin #{$pluginId} Config.php must return an object");
+        if (!class_exists($fqcn)) {
+            throw new RuntimeException(
+                "Plugin #{$pluginId} Config class not found: {$fqcn} (autoload + fallback include attempted)"
+            );
         }
 
-        return $config;
+        return $fqcn;
     }
 
-    /**
-     * Get a list of plugins that have a plugin_path set (frontend-friendly).
-     *
-     * No filesystem validation here.
-     */
-    public function list(): array
+    public function load(int $pluginId): InstalledPlugin
     {
-        return Plugin::query()
-            ->whereNotNull('plugin_path')
-            ->orderByDesc('id')
-            ->get()
-            ->map(function (Plugin $plugin) {
-                return [
-                    'id' => $plugin->id,
-                    'name' => $plugin->name,
-                    'status' => $plugin->status,
-                    'plugin_path' => $plugin->plugin_path,
-                    'active_version_id' => $plugin->active_version_id,
-                    'activated_at' => $plugin->activated_at,
-                    'updated_at' => $plugin->updated_at,
-                ];
-            })
-            ->values()
-            ->all();
+        // All these calls now share the single DB result fetched by the first one
+        $plugin = $this->getPlugin($pluginId);
+        $root = $this->installedRoot($pluginId);
+        $configClass = $this->loadConfigClass($pluginId);
+
+        return new InstalledPlugin(
+            $plugin,
+            $root,
+            $configClass,
+            $this->settingsWriter,
+            $this->permissionService
+        );
     }
 }

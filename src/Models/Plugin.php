@@ -4,12 +4,14 @@ namespace Timeax\FortiPlugin\Models;
 
 use Carbon\Carbon;
 use Illuminate\Database\Eloquent\Casts\AsArrayObject;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Support\Collection;
 use Timeax\FortiPlugin\Enums\PluginStatus;
 use Illuminate\Database\Eloquent\Model;
 
 /**
  * @property int $id
+ * @property string $alias
  * @property string $name
  * @property string|null $image
  * @property string|null $plugin_path
@@ -48,8 +50,8 @@ class Plugin extends Model
 		"updated_at" => "datetime",
 	];
 
-	public function placeholder()
-	{
+	public function placeholder(): BelongsTo
+    {
 		return $this->belongsTo(
 			PluginPlaceholder::class,
 			"plugin_placeholder_id",

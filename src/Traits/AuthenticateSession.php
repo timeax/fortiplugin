@@ -114,10 +114,10 @@ trait AuthenticateSession
         return null;
     }
 
-    /** Resolve plugin path under configured directory. */
+    /** Resolve plugin path under configured development directory. */
     public function getPath(string $relative): string
     {
-        $pluginDir = rtrim(config('fortiplugin.directory', base_path('Plugins')), DIRECTORY_SEPARATOR);
-        return $pluginDir . DIRECTORY_SEPARATOR . ltrim($relative, DIRECTORY_SEPARATOR);
+        $pluginDir = rtrim(config('fortiplugin.dev_directory', 'Plugins'), DIRECTORY_SEPARATOR);
+        return base_path($pluginDir . DIRECTORY_SEPARATOR . ltrim($relative, DIRECTORY_SEPARATOR));
     }
 }

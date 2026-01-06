@@ -39,7 +39,7 @@ final class ActivatePluginVersionJob implements ShouldQueue
             throw new RuntimeException('ZIP_PLUGIN_MISMATCH');
         }
 
-        $installRoot = (string) config('fortiplugin.directory', 'apps');
+        $installRoot = (string) config('fortiplugin.install_directory', 'apps');
         $installDir  = base_path($installRoot . DIRECTORY_SEPARATOR . $plugin->slug);
 
         $result = $activator->run(

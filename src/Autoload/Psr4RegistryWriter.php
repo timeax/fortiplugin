@@ -12,7 +12,9 @@ final readonly class Psr4RegistryWriter implements RegistryWriter
     public function __construct(
         private Psr4RegistryStore        $store,
         private PluginAutoloadMapBuilder $builder,
-    ) {}
+    )
+    {
+    }
 
     /**
      * Activation-time PSR-4 registry update.
@@ -24,18 +26,20 @@ final readonly class Psr4RegistryWriter implements RegistryWriter
     {
         if (!config('fortiplugin.autoload_enabled', true)) {
             return [
-                'commit' => static function (): void {},
-                'rollback' => static function (): void {},
+                'commit' => static function (): void {
+                },
+                'rollback' => static function (): void {
+                },
                 'meta' => ['changed' => false, 'reason' => 'autoload_disabled'],
             ];
         }
 
         // Stable registry key (consistent with other activation registries)
-        $slug = (string)($plugin->placeholder->slug ?? $plugin->slug ?? $plugin->id);
+        $alias = $plugin->alias;
 
         // Namespace segment MUST match the plugin composer.json PSR-4 prefix.
         // We normalize to StudlyCase to avoid "My Plugin" vs "MyPlugin" footguns.
-        $pluginNameRaw = $plugin->placeholder->name ?? $plugin->name ?? $slug;
+        $pluginNameRaw = $plugin->placeholder->name ?? $plugin->name ?? $alias;
         $pluginName = Str::studly($pluginNameRaw);
 
         $psr4Root = (string)(config('fortiplugin.psr4_root') ?? 'Plugins');
@@ -49,7 +53,7 @@ final readonly class Psr4RegistryWriter implements RegistryWriter
         $registry['generated_at'] = function_exists('now') ? now()->toIso8601String() : gmdate('c');
         $registry['plugins'] ??= [];
 
-        $registry['plugins'][$slug] = [
+        $registry['plugins'][$alias] = [
             'version_id' => $versionId,
             'plugin_name' => $pluginName,
             'prefixes' => $prefixes,
@@ -72,7 +76,7 @@ final readonly class Psr4RegistryWriter implements RegistryWriter
             'meta' => [
                 'changed' => true,
                 'registry_path' => $finalPath,
-                'plugin_slug' => $slug,
+                'plugin_alias' => $alias,
                 'plugin_name' => $pluginName,
                 'prefixes' => array_keys($prefixes),
             ],

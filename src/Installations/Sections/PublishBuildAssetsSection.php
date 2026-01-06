@@ -24,7 +24,7 @@ final readonly class PublishBuildAssetsSection
     /**
      * Copy plugin Vite build output to host public folder.
      *
-     * @return array{status:string, reason?:string, from?:string, to?:string, slug?:string}
+     * @return array{status:string, reason?:string, from?:string, to?:string, alias?:string}
      * @throws JsonException
      */
     public function run(InstallMeta $meta, int $pluginId, callable $emit): array
@@ -33,7 +33,7 @@ final readonly class PublishBuildAssetsSection
 
         $emit([
             'title' => 'UI_BUILD_PUBLISH_START',
-            'description' => 'Publishing embed UI build assets to host public folder',
+            'description' => 'Publishing embed UI public assets to host public folder',
             'meta' => ['plugin_id' => $pluginId, 'installed_root' => $installedRoot],
         ]);
 
@@ -46,33 +46,33 @@ final readonly class PublishBuildAssetsSection
             return $this->fail('install_root_not_found', 'Install root not found', ['installed_root' => $installedRoot], $emit);
         }
 
-        // 2. Resolve Slug
-        $slug = $this->resolvePluginSlug($pluginId);
-        if ($slug === null) {
-            return $this->fail('missing_plugin_slug', 'Plugin slug missing', ['plugin_id' => $pluginId], $emit);
+        // 2. Resolve Alias
+        $alias = $this->resolvePluginAlias($pluginId);
+        if ($alias === null) {
+            return $this->fail('missing_plugin_alias', 'Plugin alias missing', ['plugin_id' => $pluginId], $emit);
         }
 
-        $sourceBuildDir = join_paths($installedRoot, 'public', 'build');
-        $sourceManifest = join_paths($sourceBuildDir, '.vite','manifest.json');
+        $sourcePublicDir = join_paths($installedRoot, 'public');
+        $sourceManifest = join_paths($sourcePublicDir, 'build', '.vite','manifest.json');
 
         // 3. Validate Manifest Existence
         if (!$this->afs->fs()->exists($sourceManifest)) {
-            return $this->skip('manifest_missing', 'No Vite manifest found', $slug, ['manifest' => $sourceManifest], $emit);
+            return $this->skip('manifest_missing', 'No Vite manifest found', $alias, ['manifest' => $sourceManifest], $emit);
         }
 
         // 4. Validate Manifest Content
         try {
             $manifest = $this->afs->fs()->readJson($sourceManifest);
         } catch (Throwable $e) {
-            return $this->fail('manifest_unreadable', 'Vite manifest unreadable', ['slug' => $slug, 'manifest' => $sourceManifest, 'exception' => $e->getMessage()], $emit);
+            return $this->fail('manifest_unreadable', 'Vite manifest unreadable', ['alias' => $alias, 'manifest' => $sourceManifest, 'exception' => $e->getMessage()], $emit);
         }
 
         if (!$this->manifestHasEmbedEntries($manifest)) {
-            return $this->skip('no_embed_entries', 'Manifest has no embed entries', $slug, [], $emit);
+            return $this->skip('no_embed_entries', 'Manifest has no embed entries', $alias, [], $emit);
         }
 
         // 5. Perform Copy
-        [$baseTpl, $baseUrlPath, $destDir] = $this->resolveDestinationFromConfig($slug);
+        [$baseTpl, $baseUrlPath, $destDir] = $this->resolveDestinationFromConfig($alias);
 
         try {
             if ($this->afs->fs()->exists($destDir)) {
@@ -80,28 +80,28 @@ final readonly class PublishBuildAssetsSection
             }
 
             $this->afs->fs()->ensureDirectory($destDir);
-            $this->afs->fs()->copyTree($sourceBuildDir, $destDir);
+            $this->afs->fs()->copyTree($sourcePublicDir, $destDir);
 
             $this->log->writeSection('ui_build_publish', [
                 'status' => 'ok',
-                'slug' => $slug,
+                'alias' => $alias,
                 'base_tpl' => $baseTpl,
                 'base_url_path' => $baseUrlPath,
-                'from' => $sourceBuildDir,
+                'from' => $sourcePublicDir,
                 'to' => $destDir,
                 'manifest' => $sourceManifest,
             ]);
 
             $emit([
                 'title' => 'UI_BUILD_PUBLISH_OK',
-                'description' => 'Embed UI build assets published to host public folder',
-                'meta' => ['slug' => $slug, 'from' => $sourceBuildDir, 'to' => $destDir, 'base_url_path' => $baseUrlPath],
+                'description' => 'Embed UI public assets published to host public folder',
+                'meta' => ['alias' => $alias, 'from' => $sourcePublicDir, 'to' => $destDir, 'base_url_path' => $baseUrlPath],
             ]);
 
-            return ['status' => 'ok', 'slug' => $slug, 'from' => $sourceBuildDir, 'to' => $destDir];
+            return ['status' => 'ok', 'alias' => $alias, 'from' => $sourcePublicDir, 'to' => $destDir];
 
         } catch (Throwable $e) {
-            return $this->fail('copy_failed', 'Failed to publish embed UI build assets', ['slug' => $slug, 'from' => $sourceBuildDir, 'to' => $destDir, 'error' => $e->getMessage()], $emit);
+            return $this->fail('copy_failed', 'Failed to publish embed UI public assets', ['alias' => $alias, 'from' => $sourcePublicDir, 'to' => $destDir, 'error' => $e->getMessage()], $emit);
         }
     }
 
@@ -120,37 +120,38 @@ final readonly class PublishBuildAssetsSection
      * Helper to consolidate skip logging, emitting, and return structure.
      * @throws JsonException
      */
-    private function skip(string $reason, string $desc, string $slug, array $meta, callable $emit): array
+    private function skip(string $reason, string $desc, string $alias, array $meta, callable $emit): array
     {
-        $meta = array_merge(['slug' => $slug], $meta);
+        $meta = array_merge(['alias' => $alias], $meta);
         $this->log->writeSection('ui_build_publish', array_merge(['status' => 'skipped', 'reason' => $reason], $meta));
         $emit(['title' => 'UI_BUILD_PUBLISH_SKIPPED', 'description' => $desc, 'meta' => $meta]);
-        return ['status' => 'skipped', 'reason' => $reason, 'slug' => $slug];
+        return ['status' => 'skipped', 'reason' => $reason, 'alias' => $alias];
     }
 
-    private function resolvePluginSlug(int $pluginId): ?string
+    private function resolvePluginAlias(int $pluginId): ?string
     {
-        $plugin = Plugin::query()->with('placeholder')->find($pluginId);
+        /** @var Plugin|null $plugin */
+        $plugin = Plugin::query()->find($pluginId);
         if (!$plugin) return null;
 
-        $slug = trim((string)($plugin->placeholder->slug ?? $plugin->slug ?? $plugin->id));
-        return $slug !== '' ? $slug : null;
+        $alias = trim((string)$plugin->alias);
+        return $alias !== '' ? $alias : null;
     }
 
-    private function resolveDestinationFromConfig(string $slug): array
+    private function resolveDestinationFromConfig(string $alias): array
     {
         $baseTpl = (string)config('fortiplugin.ui.embed.public_base');
-        $baseTpl = trim($baseTpl) === '' ? '/vendor/fortiplugin/{slug}/build' : trim($baseTpl);
+        $baseTpl = trim($baseTpl) === '' ? '/vendor/fortiplugin/{alias}' : trim($baseTpl);
 
         if (preg_match('~^[a-z][a-z0-9+.-]*://~i', $baseTpl)) {
             throw new RuntimeException("fortiplugin.ui.embed.public_base must be a URL path, not a full URL.");
         }
 
-        if (!str_contains($baseTpl, '{slug}') && !str_contains($baseTpl, '{plugin}')) {
-            throw new RuntimeException("fortiplugin.ui.embed.public_base must contain {slug} or {plugin}.");
+        if (!str_contains($baseTpl, '{alias}') && !str_contains($baseTpl, '{slug}') && !str_contains($baseTpl, '{plugin}')) {
+            throw new RuntimeException("fortiplugin.ui.embed.public_base must contain {alias}, {slug} or {plugin}.");
         }
 
-        $baseUrlPath = '/' . ltrim(str_replace(['{slug}', '{plugin}'], $slug, $baseTpl), '/');
+        $baseUrlPath = '/' . ltrim(str_replace(['{alias}', '{slug}', '{plugin}'], $alias, $baseTpl), '/');
         $baseUrlPath = rtrim($baseUrlPath, '/');
 
         if ($baseUrlPath === '' || $baseUrlPath === '/') {

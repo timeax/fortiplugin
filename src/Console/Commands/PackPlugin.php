@@ -50,8 +50,7 @@ class PackPlugin extends Command
         }
 
         $name = $this->argument('name');
-//        $root = ($client->get("forti/structure"))['directory'] ?? 'Plugins';
-        $root = config('fortiplugin.directory', 'Plugins');
+        $root = config('fortiplugin.dev_directory', 'Plugins');
 
         $plugin = base_path("$root/$name");
         if (!is_dir($plugin)) {

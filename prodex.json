@@ -31,7 +31,13 @@
         "src/FortiPluginServiceProvider.php",
         "src/Console/Commands/**"
       ],
-      "include": ["composer.json", "config/**", "stubs/**", "src/Facades/**", "schema/**"]
+      "include": [
+        "composer.json",
+        "config/**",
+        "stubs/**",
+        "src/Facades/**",
+        "schema/**"
+      ]
     },
     "prisma": {
       "prefix": "prisma",
@@ -42,7 +48,8 @@
       "files": ["src/Autoload/**", "src/Installations/Activation/**"],
       "include": [
         "config/fortiplugin.php",
-        "src/FortiPluginServiceProvider.php"
+        "src/FortiPluginServiceProvider.php",
+        "stubs/config-*.stub"
       ]
     },
     "embed": {
@@ -53,18 +60,31 @@
       "include": ["routes/api.php"]
     },
 
-    "permissions": {
+    "permissions-full": {
       "files": [
         "src/Lib/**",
         "src/Contracts/ConfigInterface.php",
-        "src/Exceptions/PermissionDeniedException.php"
+        "**/*[Pp]ermission*.php"
       ],
       "include": ["stubs/config-*.stub"]
+    },
+    "permissions": {
+      "files": ["src/Lib/**", "src/Contracts/ConfigInterface.php"],
+      "include": ["stubs/config-*.stub", "**/*[Pp]ermission*.php"]
     },
 
     "facade": {
       "files": ["src/Facades/Plugin.php", "src/Facades/PluginZip.php"],
       "prefix": "plugin-facade"
+    },
+
+    "latest": {
+      "include": [
+        "src/Runtime/**",
+        "src/Services/Plugin*.php",
+        "src/FortiPluginServiceProvider.php",
+        "src/Facades/Plugin*.php"
+      ]
     }
   }
 }

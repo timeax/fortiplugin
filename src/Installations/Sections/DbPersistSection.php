@@ -61,6 +61,7 @@ final readonly class DbPersistSection
             'description' => 'Persisting plugin + version',
             'meta' => [
                 'placeholder_name' => $meta->placeholder_name,
+                'placeholder_slug' => $meta->placeholder_slug,
                 'zip_id' => (string)$zipId,
                 'version_tag' => $versionTag,
             ],
@@ -118,6 +119,7 @@ final readonly class DbPersistSection
             $failMeta = [
                 'error' => $e->getMessage(),
                 'placeholder_name' => $meta->placeholder_name,
+                'placeholder_slug' => $meta->placeholder_slug,
                 'zip_id' => (string)$zipId,
                 'version_tag' => $versionTag,
             ];

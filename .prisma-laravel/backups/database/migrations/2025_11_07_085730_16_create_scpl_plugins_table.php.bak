@@ -13,12 +13,10 @@ return new class extends Migration {
 	{
 		Schema::create("scpl_plugins", static function (Blueprint $table) {
 			$table->id();
+			$table->string("alias")->unique();
 			$table->string("name")->unique();
 			$table->string("image")->nullable();
-			$table
-				->string("plugin_path")
-				->nullable()
-				->comment("direct path to the config class");
+			$table->string("plugin_path")->nullable();
 			$table
 				->enum("status", ["active", "inactive", "archived"])
 				->default("active");

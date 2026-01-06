@@ -13,40 +13,42 @@ final readonly class UiAssetResolver
     ) {}
 
     /**
-     * Resolves the public base path for a plugin (e.g. /vendor/fortiplugin/my-plugin/build).
+     * Resolves the public base path for a plugin (e.g., /vendor/fortiplugin/my-plugin/build).
      *
-     * @param string $slug
+     * @param string $alias
      * @return string
-     * @throws RuntimeException if plugin does not exist in registry
+     * @throws RuntimeException if plugin does not exist in the registry
      */
-    public function resolvePublicPath(string $slug): string
+    public function resolvePublicPath(string $alias): string
     {
         $registry = $this->psr4Store->read();
         $plugins = $registry['plugins'] ?? [];
 
-        if (!isset($plugins[$slug])) {
-            throw new RuntimeException("Plugin '{$slug}' not found in registry.");
+        if (!isset($plugins[$alias])) {
+            throw new RuntimeException("Plugin '{$alias}' not found in registry.");
         }
 
-        $baseTpl = (string)(config('fortiplugin.ui.embed.public_base') ?? '/vendor/fortiplugin/{slug}/build');
-        $baseTpl = trim($baseTpl) !== '' ? $baseTpl : '/vendor/fortiplugin/{slug}/build';
+        $baseTpl = (string)config('fortiplugin.ui.embed.public_base');
+        $baseTpl = trim($baseTpl) !== '' ? $baseTpl : '/vendor/fortiplugin/{alias}';
 
-        $path = str_replace(['{slug}', '{plugin}'], $slug, $baseTpl);
+        $path = str_replace(['{alias}', '{slug}', '{plugin}'], $alias, $baseTpl);
         $path = '/' . ltrim($path, '/');
-        
-        return rtrim($path, '/');
+        $path = rtrim($path, '/');
+
+        // Build assets are located in the 'build' subdirectory of the published public folder.
+        return $path . '/build';
     }
 
     /**
      * Resolves a full URL for a plugin asset.
      *
-     * @param string $slug
+     * @param string $alias
      * @param string $assetPath Relative path to the asset within the build folder (e.g. assets/main.js)
      * @return string
      */
-    public function resolveAssetUrl(string $slug, string $assetPath): string
+    public function resolveAssetUrl(string $alias, string $assetPath): string
     {
-        $publicPath = $this->resolvePublicPath($slug);
+        $publicPath = $this->resolvePublicPath($alias);
         $fullPath = $publicPath . '/' . ltrim($assetPath, '/');
 
         $explicitOrigin = config('fortiplugin.ui.embed.asset_origin');

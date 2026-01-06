@@ -93,7 +93,7 @@ final class PackagerController extends Controller
 
         return response()->json([
             'psr4_root' => config('fortiplugin.psr4_root', 'Plugins'),
-            'directory' => config('fortiplugin.directory', 'apps'),
+            'directory' => config('fortiplugin.install_directory', 'apps'),
         ]);
     }
 

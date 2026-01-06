@@ -38,13 +38,14 @@ final class EloquentPluginRepository implements PluginRepository
         /** @var Plugin|null $model */
         $model = Plugin::query()
             ->where('plugin_placeholder_id', $meta->plugin_placeholder_id)
-            ->orWhere('name', $meta->placeholder_name)
+            ->orWhere('alias', $meta->placeholder_slug)
             ->first();
 
         if (!$model) {
             $model = new Plugin();
         }
         $model->plugin_placeholder_id = (int)$meta->plugin_placeholder_id;
+        $model->alias = $meta->placeholder_slug;
         $model->name = $meta->placeholder_name;
 
         $existing = (array)($model->meta ?? []);

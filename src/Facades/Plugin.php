@@ -4,13 +4,15 @@ declare(strict_types=1);
 namespace Timeax\FortiPlugin\Facades;
 
 use Illuminate\Support\Facades\Facade;
+use Timeax\FortiPlugin\Runtime\InstalledPlugin;
 use Timeax\FortiPlugin\Services\PluginService;
 use Timeax\FortiPlugin\Models\Plugin as PluginModel;
 
 /**
  * @method static PluginModel getPlugin(int $pluginId)
  * @method static string installedRoot(int $pluginId)
- * @method static object loadConfig(int $pluginId)
+ * @method static object loadConfigClass(int $pluginId)
+ * @method static InstalledPlugin load(int $pluginId)
  * @method static array list()
  *
  * @see PluginService

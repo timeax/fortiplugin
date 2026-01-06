@@ -11,8 +11,7 @@
   ],
   "autoload": {
     "psr-4": {
-      "#{ rtrim($PLUGIN_ROOT_FOLDER, '\\\\') . '\\\\' . $PLUGIN_NAME . '\\\\' }": "src/",
-      "#{ rtrim($PLUGIN_ROOT_FOLDER, '\\\\') . '\\\\' . $PLUGIN_NAME . '\\\\Internal\\\\' }": ".internal/"
+      "#{ rtrim($PLUGIN_ROOT_FOLDER, '\\\\') . '\\\\' . $PLUGIN_NAME . '\\\\' }": ["src/", ".internal/"]
     }
   },
   "require-dev": {
