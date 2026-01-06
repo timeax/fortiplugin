@@ -4,7 +4,6 @@ use Illuminate\Foundation\Http\Middleware\VerifyCsrfToken;
 use Illuminate\Support\Facades\Route;
 use Timeax\FortiPlugin\Http\Controllers\AuthController;
 use Timeax\FortiPlugin\Http\Controllers\PackagerController;
-use Timeax\FortiPlugin\Http\Controllers\PluginInstallController;
 use Timeax\FortiPlugin\Http\Controllers\Ui\EmbedResolveController;
 use Timeax\FortiPlugin\Http\Middleware\FortiTokenGuard;
 
@@ -20,7 +19,7 @@ Route::prefix('forti')
 
         // 🛡️ Authentication Routes
         // These handle login/logout, and the 'login' route must bypass the token guard.
-        Route::group(['without' => [FortiTokenGuard::class]], function () {
+        Route::group(['without' => [FortiTokenGuard::class]], static function () {
             // Login must be outside the token guard to get a token!
             Route::post('/login', [AuthController::class, 'login'])->name('login');
         });
@@ -42,13 +41,13 @@ Route::prefix('forti')
             Route::post('/complete', [PackagerController::class, 'packComplete'])->name('complete');   // finalize
         });
 
-        Route::controller(PluginInstallController::class)
-            ->prefix('plugin')
-            ->name('plugin.')
-            ->group(function () {
-                Route::post('{zip}/install', 'queueInstall')->name('install');
-                Route::post('{zip}/activate', 'queueActivate')->name('activate');
-            });
+//        Route::controller(PluginInstallController::class)
+//            ->prefix('plugin')
+//            ->name('plugin.')
+//            ->group(function () {
+//                Route::post('{zip}/install', 'queueInstall')->name('install');
+//                Route::post('{zip}/activate', 'queueActivate')->name('activate');
+//            });
 
         // 🔍 Utility/Diagnostic Routes
         Route::get('/structure', [PackagerController::class, 'getStructure'])->name('get-structure');
