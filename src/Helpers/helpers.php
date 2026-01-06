@@ -47,4 +47,4 @@ if (!function_exists('ensureFileExistsAtomic')) {
     }
 }
 
-require_once __DIR__ . '/embed.php';
+require_once __DIR__ . '/ui-helpers.php';
