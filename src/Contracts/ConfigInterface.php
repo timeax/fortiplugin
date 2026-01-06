@@ -45,6 +45,19 @@ interface ConfigInterface
     public static function getViteEmbededAsset(string $name): string;
 
     /**
+     * Resolve a SPA override page asset by a friendly name like:
+     * - "app" or "app.tsx"
+     * - "Admin/Dashboard" or "Admin/Dashboard.tsx"
+     *
+     * It searches for manifest entry keys ending with:
+     * - "/pages/<name>.(tsx|ts|jsx|js)"
+     * - "/Pages/<name>.(tsx|ts|jsx|js)"
+     *
+     * @return string Public path like "/build/spa/<hash>.js" or "" if not found
+     */
+    public static function getVitePageAsset(string $name): string;
+
+    /**
      * Get a config key or a default value when missing.
      *
      * Nested keys MAY be host-defined (e.g., "ui.theme"), but plain keys are recommended.

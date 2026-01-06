@@ -4,7 +4,10 @@
     "target": "ES2022",
     "module": "ESNext",
     "moduleResolution": "Node",
-    "lib": ["DOM", "ES2022"],
+    "lib": [
+      "DOM",
+      "ES2022"
+    ],
     "jsx": "react-jsx",
     "jsxImportSource": "react",
     "strict": true,
@@ -13,11 +16,23 @@
     "forceConsistentCasingInFileNames": true,
     "baseUrl": ".",
     "paths": {
-      "@main/*": ["resources/inertia/ts/*"],
-      "@embed/*":   ["resources/embed/ts/*"],
-      "@shared/*": ["resources/shared/ts/*"]
+      "@/main/*": [
+        "resources/inertia/*"
+      ],
+      "@/embed/*": [
+        "resources/embed/*"
+      ],
+      "@/shared/*": [
+        "resources/shared/*"
+      ]
     }
   },
-  "include": ["resources/**/*.ts", "resources/**/*.tsx"],
-  "exclude": ["node_modules", "public"]
+  "include": [
+    "resources/**/*.ts",
+    "resources/**/*.tsx"
+  ],
+  "exclude": [
+    "node_modules",
+    "public"
+  ]
 }
