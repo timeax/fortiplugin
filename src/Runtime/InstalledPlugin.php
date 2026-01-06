@@ -1,26 +1,34 @@
 <?php
+/** @noinspection PhpUnused */
 declare(strict_types=1);
 
 namespace Timeax\FortiPlugin\Runtime;
 
+use InvalidArgumentException;
+use RuntimeException;
+use Timeax\FortiPlugin\Contracts\ConfigInterface;
 use Timeax\FortiPlugin\Enums\PluginSettingValueType;
 use Timeax\FortiPlugin\Models\Plugin;
 use Timeax\FortiPlugin\Permissions\Contracts\PermissionServiceInterface;
 use Timeax\FortiPlugin\Services\PluginSettingsWriter;
+use Timeax\FortiPlugin\Support\LoadedExportInfo;
 
 final readonly class InstalledPlugin
 {
-
     /**
      * @param class-string $configClass
      */
     public function __construct(
-        private Plugin $plugin,
-        private string $root,
-        private string $configClass,
-        private PluginSettingsWriter $settingsWriter,
+        private Plugin                     $plugin,
+        private string                     $root,
+        private string                     $configClass,
+        private PluginSettingsWriter       $settingsWriter,
         private PermissionServiceInterface $permissionService,
-    ) {}
+    ) {
+        if (!is_subclass_of($configClass, ConfigInterface::class)) {
+            throw new InvalidArgumentException("Config class must implement ConfigInterface");
+        }
+    }
 
     public function id(): int
     {
@@ -33,23 +41,101 @@ final readonly class InstalledPlugin
     }
 
     /**
-     * @return class-string
+     * @return class-string<ConfigInterface>
      */
-    public function configClass(): string
+    public function getConfigClass(): string
     {
         return $this->configClass;
     }
 
-    public function get(string $key, mixed $default = null): mixed
+    /**
+     * Resolve export info and persist the resolved metadata into Plugin->config
+     * if it hasn't been persisted yet.
+     *
+     * Rules:
+     * - If $key is null => MAIN
+     * - If $key is non-null => EXPORTS (exact key lookup; dots are literal)
+     */
+    public function get(?string $key = null): LoadedExportInfo
     {
-        $cls = $this->configClass;
+        // MAIN only when no parameter
+        if ($key === null) {
+            $persisted = $this->getPersistedMain();
+            if ($persisted !== null) {
+                return $persisted;
+            }
 
-        if (method_exists($cls, 'get')) {
+            /** @var LoadedExportInfo $info */
+            $info = $this->getConfigClass()::load();
 
-            return $cls::get($key, $default);
+            $this->persistMain($info);
+
+            return $info;
         }
 
-        return $default;
+        $key = trim($key);
+        if ($key === '') {
+            throw new RuntimeException('Export key cannot be empty.');
+        }
+
+        // EXPORTS only when parameter is provided (exact key)
+        $persisted = $this->getPersistedExport($key);
+        if ($persisted !== null) {
+            return $persisted;
+        }
+
+        /** @var LoadedExportInfo $info */
+        $info = $this->getConfigClass()::load($key);
+
+        $this->persistExport($key, $info);
+
+        return $info;
+    }
+
+    private function getPersistedMain(): ?LoadedExportInfo
+    {
+        $cfg = (array) ($this->plugin->config ?? []);
+        $raw = $cfg['resolved']['files']['main'] ?? null;
+
+        return is_array($raw) ? LoadedExportInfo::fromArray($raw) : null;
+    }
+
+    private function getPersistedExport(string $key): ?LoadedExportInfo
+    {
+        $cfg = (array) ($this->plugin->config ?? []);
+        $raw = $cfg['resolved']['files']['exports'][$key] ?? null;
+
+        return is_array($raw) ? LoadedExportInfo::fromArray($raw) : null;
+    }
+
+    private function persistMain(LoadedExportInfo $info): void
+    {
+        $cfg = (array) ($this->plugin->config ?? []);
+
+        // Do not overwrite if already present
+        if (isset($cfg['resolved']['files']['main'])) {
+            return;
+        }
+
+        $cfg['resolved']['files']['main'] = $info->jsonSerialize();
+
+        $this->plugin->config = $cfg;
+        $this->plugin->save();
+    }
+
+    private function persistExport(string $key, LoadedExportInfo $info): void
+    {
+        $cfg = (array) ($this->plugin->config ?? []);
+
+        // Do not overwrite if already present
+        if (isset($cfg['resolved']['files']['exports'][$key])) {
+            return;
+        }
+
+        $cfg['resolved']['files']['exports'][$key] = $info->jsonSerialize();
+
+        $this->plugin->config = $cfg;
+        $this->plugin->save();
     }
 
     public function getSetting(string $key, mixed $default = null): mixed
@@ -75,7 +161,6 @@ final readonly class InstalledPlugin
     {
         $this->settingsWriter->setMany($this->id(), $kv, $types);
     }
-
 
     public function permissions(): PluginPermissions
     {

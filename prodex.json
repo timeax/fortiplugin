@@ -75,6 +75,10 @@
 
     "facade": {
       "files": ["src/Facades/Plugin.php", "src/Facades/PluginZip.php"],
+      "include": [
+        "prisma/**.prisma",
+        "src/Contracts/ConfigInterface.php"
+      ],
       "prefix": "plugin-facade"
     },
 

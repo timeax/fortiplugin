@@ -3,10 +3,10 @@ declare(strict_types=1);
 
 namespace Timeax\FortiPlugin\Facades;
 
-use Illuminate\Support\Facades\Facade;
-use Timeax\FortiPlugin\Services\PluginZipService;
-use Timeax\FortiPlugin\Models\PluginZip as PluginZipModel;
 use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\Facade;
+use Timeax\FortiPlugin\Models\PluginZip as PluginZipModel;
+use Timeax\FortiPlugin\Services\Plugin\PluginZipService;
 
 /**
  * @method static Collection list(int $limit = 100)

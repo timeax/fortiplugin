@@ -60,6 +60,7 @@ final readonly class InternalConfigWriteSection
                 'PLUGIN_NAMESPACE' => $pluginNamespace,
                 'PLUGIN_ID' => (string)$pluginId,
                 'PLUGIN_ALIAS' => $placeholder->slug,
+                'PLUGIN_BASE_PATH' => $meta->paths['install'],
                 'PLUGIN_STUDLY' => Str::studly($meta->placeholder_name),
             ]);
 

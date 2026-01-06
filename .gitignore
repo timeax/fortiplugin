@@ -9,3 +9,6 @@ composer.phar
 /.idea
 /.prodex@forti
 /.ai
+/.prodex
+/.prisma-laravel
+/node_modules
