@@ -56,9 +56,8 @@ class MakePlugin extends Command
             $this->error('Could not create API client from your session.');
             return self::FAILURE;
         }
-        $structure = $client->get('/forti/structure');
         // 3) Prepare the local path
-        $base = $structure['directory'] ?? 'Plugins';
+        $base = config('fortiplugin.dev_directory', 'Plugins');
         $path = $base . DIRECTORY_SEPARATOR . $studly;
 
         if ($this->files->exists($path) && !$this->option('force')) {

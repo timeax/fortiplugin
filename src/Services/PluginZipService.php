@@ -23,13 +23,20 @@ final readonly class PluginZipService
             ->get();
     }
 
+    /**
+     */
     public function install(
         int $zipId,
         ?string $installerToken = null,
         ?string $runId = null,
-        ?string $actor = null
+        ?string $actor = null,
+        string $dispatchMode = 'auto' // 'auto' | 'sync' | 'queue'
     ): array {
-        $zip = $this->getZip($zipId);
+        $zip = PluginZip::query()->with('placeholder')->find($zipId);
+
+        if (!$zip) {
+            throw new RuntimeException("PluginZip #{$zipId} not found");
+        }
 
         $fs = $this->afs->fs();
         $zipPath = ($zip->path ?? '');
@@ -44,13 +51,21 @@ final readonly class PluginZipService
 
         $placeholderId = $zip->placeholder_id;
 
-        $placeholderName = $this->sanitizePlaceholderName(
+        $placeholderSlug = $this->sanitizePlaceholderName(
             (string)(
-                $pluginMan['slug']
+                $zip->placeholder->slug
+                ?? $pluginMan['slug']
                 ?? $manifest['slug']
                 ?? $manifest['name']
                 ?? ('placeholder-' . $placeholderId)
             )
+        );
+
+        $placeholderName = (string)(
+            $zip->placeholder->name
+            ?? $pluginMan['name']
+            ?? $manifest['name']
+            ?? $placeholderSlug
         );
 
         $versionTag = (string)(
@@ -63,14 +78,41 @@ final readonly class PluginZipService
             ? $metaData['validator_config']
             : [];
 
-        $runId = $runId ?: (string)Str::uuid();
+        $runId = $runId ?: (string) Str::uuid();
         $actor = $actor ?: 'system';
+
+        if ($this->shouldDispatchSync($dispatchMode)) {
+            InstallPluginZipJob::dispatchSync(
+                zipId: $zip->id,
+                zipPath: $zipPath,
+                placeholderId: $placeholderId,
+                zipMeta: $metaData,
+                placeholderSlug: $placeholderSlug,
+                placeholderName: $placeholderName,
+                versionTag: $versionTag,
+                validatorConfig: $validatorConfig,
+                runId: $runId,
+                actor: $actor,
+                installerToken: $installerToken,
+            );
+
+            return [
+                'ok' => true,
+                'queued' => false,
+                'run_id' => $runId,
+                'zip_id' => $zip->id,
+                'placeholder_name' => $placeholderName,
+                'placeholder_slug' => $placeholderSlug,
+                'version_tag' => $versionTag,
+            ];
+        }
 
         InstallPluginZipJob::dispatch(
             zipId: $zip->id,
             zipPath: $zipPath,
             placeholderId: $placeholderId,
             zipMeta: $metaData,
+            placeholderSlug: $placeholderSlug,
             placeholderName: $placeholderName,
             versionTag: $versionTag,
             validatorConfig: $validatorConfig,
@@ -85,8 +127,10 @@ final readonly class PluginZipService
             'run_id' => $runId,
             'zip_id' => $zip->id,
             'placeholder_name' => $placeholderName,
+            'placeholder_slug' => $placeholderSlug,
             'version_tag' => $versionTag,
         ];
+
     }
 
     public function delete(int $zipId): array
@@ -106,7 +150,7 @@ final readonly class PluginZipService
         // staging dirs are created like: storage/app/fortiplugin/staging/{zipId}-{runId}
         // we’ll best-effort delete any matching directories
         $stagingDeleted = 0;
-        foreach ((array)glob(storage_path("app/fortiplugin/staging/{$zipId}-*")) as $candidate) {
+        foreach ((array) glob(storage_path("app/fortiplugin/staging/{$zipId}-*")) as $candidate) {
             if ($candidate && $fs->exists($candidate) && $fs->isDirectory($candidate)) {
                 $fs->delete($candidate); // recursive by contract
                 $stagingDeleted++;
@@ -132,6 +176,17 @@ final readonly class PluginZipService
         }
 
         return $zip;
+    }
+
+    private function shouldDispatchSync(string $dispatchMode): bool
+    {
+        $mode = strtolower(trim($dispatchMode));
+
+        if ($mode === 'sync') return true;
+        if ($mode === 'queue') return false;
+
+        // auto: sync in CLI/scripts, queue in normal HTTP lifecycle
+        return app()->runningInConsole();
     }
 
     private function sanitizePlaceholderName(string $name): string

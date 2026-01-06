@@ -31,6 +31,7 @@ trait CreatesPlugin
         unset($over['placeholder']);
 
         $plugin = new Plugin(array_merge([
+            'alias'                 => $ph->slug,
             'name'                  => 'Plugin ' . Str::random(5),
             'status'                => PluginStatus::active,
             'plugin_placeholder_id' => $ph->getKey(),

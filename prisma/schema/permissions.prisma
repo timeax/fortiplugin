@@ -309,6 +309,7 @@ model PluginRoutePermission {
 ///@guarded
 model Plugin {
   id                    BigInt       @id @default(autoincrement()) @db.BigInt
+  alias                 String       @unique
   name                  String       @unique
   image                 String?
   plugin_path           String?

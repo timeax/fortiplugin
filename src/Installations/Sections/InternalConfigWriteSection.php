@@ -57,7 +57,7 @@ final readonly class InternalConfigWriteSection
                 'SIGNATURE_BLOCK' => $signatureBlock,
                 'PLUGIN_NAMESPACE' => $pluginNamespace,
                 'PLUGIN_ID' => (string)$pluginId,
-                'PLUGIN_ALIAS' => $meta->placeholder_name,
+                'PLUGIN_ALIAS' => $meta->placeholder_slug,
                 'PLUGIN_STUDLY' => Str::studly($meta->placeholder_name),
             ]);
 

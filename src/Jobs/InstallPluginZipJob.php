@@ -35,6 +35,7 @@ final class InstallPluginZipJob implements ShouldQueue
         public readonly string $zipPath,
         public readonly int $placeholderId,
         public readonly array $zipMeta,
+        public readonly string $placeholderSlug,
         public readonly string $placeholderName,
         public readonly string $versionTag,
         public readonly array $validatorConfig,
@@ -58,7 +59,7 @@ final class InstallPluginZipJob implements ShouldQueue
             throw new RuntimeException('ZIP_NOT_FOUND');
         }
 
-        $safeName = $this->sanitizePlaceholderName($this->placeholderName);
+
 
         $stagingBase = storage_path("app/fortiplugin/staging/$this->zipId-$this->runId");
         $this->ensureDir($stagingBase);
@@ -73,14 +74,15 @@ final class InstallPluginZipJob implements ShouldQueue
         $logsDir = rtrim($pluginDir, "\\/") . DIRECTORY_SEPARATOR . $policy->getLogsDirName();
         $this->ensureDir($logsDir);
 
-        $installRoot = (string) config('fortiplugin.directory', 'apps');
-        $installDir  = base_path($installRoot . DIRECTORY_SEPARATOR . $safeName);
+        $installRoot = (string) config('fortiplugin.install_directory', 'apps');
+        $installDir  = base_path($installRoot . DIRECTORY_SEPARATOR . $this->placeholderName);
 
         $validatorConfigHash = $this->stableSha256($this->validatorConfig);
 
         $meta = new InstallMeta(
             psr4_root: $policy->getPsr4Root(),
-            placeholder_name: $safeName,
+            placeholder_name: $this->placeholderName,
+            placeholder_slug: $this->placeholderSlug,
             plugin_placeholder_id: $this->placeholderId,
             zip_id: $this->zipId,
             actor: $this->actor,
