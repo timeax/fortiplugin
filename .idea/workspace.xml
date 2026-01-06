@@ -5,11 +5,7 @@
   </component>
   <component name="ChangeListManager">
     <list default="true" id="eaf4cbc6-d298-4694-b042-183ced7c77f7" name="Changes" comment="">
-      <change afterPath="$PROJECT_DIR$/src/Helpers/ui-helpers.php" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/Contracts/ConfigInterface.php" beforeDir="false" afterPath="$PROJECT_DIR$/src/Contracts/ConfigInterface.php" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/Helpers/helpers.php" beforeDir="false" afterPath="$PROJECT_DIR$/src/Helpers/helpers.php" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/Support/PluginContext.php" beforeDir="false" afterPath="$PROJECT_DIR$/src/Support/PluginContext.php" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/README.md" beforeDir="false" afterPath="$PROJECT_DIR$/README.md" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -240,7 +236,7 @@
     "Shell Script.s.sh.executor": "Run",
     "com.intellij.ml.llm.matterhorn.ej.ui.settings.DefaultAutoModeForALLUsers.v1": "true",
     "com.intellij.ml.llm.matterhorn.ej.ui.settings.DefaultModelSelectionForGA.v1": "true",
-    "git-widget-placeholder": "pre-release",
+    "git-widget-placeholder": "preview",
     "ignore.virus.scanning.warn.message": "true",
     "junie.onboarding.icon.badge.shown": "true",
     "laravel_idea.dialogs.code_generation:createConsoleCommand.width": "416",

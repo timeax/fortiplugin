@@ -151,22 +151,10 @@ my-plugin.zip
 
 ## ⚙️ Quick start (repo)
 
-> Pending publication to Packagist. Until then use a VCS/path repo.
-
-**composer.json (app):**
-
-```json
-{
-  "repositories": [
-    { "type": "vcs", "url": "https://github.com/timeax/fortiplugin" }
-  ]
-}
-```
-
 **Install (dev):**
 
 ```bash
-composer require timeax/fortiplugin:*@dev
+composer require timeax/fortiplugin:dev-release
 ```
 
 **Publish default policy (framework‑agnostic example):**
