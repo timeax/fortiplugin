@@ -166,8 +166,7 @@ class MakePlugin extends Command
                 "$path/routes",
                 "$path/config",
                 "$path/public",
-//                "$path/public/index.php",
-                "$path/resources/shared/ts",
+                "$path/resources/shared",
             ] as $dir
         ) {
             $this->files->ensureDirectoryExists($dir);
@@ -258,9 +257,9 @@ class MakePlugin extends Command
     protected function scaffoldViewAssets(string $pluginPath): void
     {
         // Inertia entry + sample page
-        $this->files->ensureDirectoryExists("$pluginPath/resources/inertia/ts/Pages");
+        $this->files->ensureDirectoryExists("$pluginPath/resources/inertia/Pages");
         $this->files->put(
-            "$pluginPath/resources/inertia/ts/app.tsx",
+            "$pluginPath/resources/inertia/app.tsx",
             <<<TS
 import React from 'react';
 import { createInertiaApp } from '@inertiajs/react';
@@ -274,28 +273,27 @@ createInertiaApp({
 TS
         );
         $this->files->put(
-            "$pluginPath/resources/inertia/ts/Pages/Welcome.tsx",
+            "$pluginPath/resources/inertia/Pages/Welcome.tsx",
             "export default () => <h1 className='text-2xl font-bold'>Welcome from {$this->argument('name')}</h1>;"
         );
 
         // Embed sample component
-        $this->files->ensureDirectoryExists("$pluginPath/resources/embed/ts/pages");
-        $this->files->ensureDirectoryExists("$pluginPath/resources/embed/ts/addons");
+        $this->files->ensureDirectoryExists("$pluginPath/resources/embed/pages");
+        $this->files->ensureDirectoryExists("$pluginPath/resources/embed/addons");
         $this->files->put(
-            "$pluginPath/resources/embed/ts/Hello.tsx",
+            "$pluginPath/resources/embed/Hello.tsx",
             "export default () => <div className='p-2'>Embedded Hello!</div>;"
-        );
-
-        // vite input map
-        $this->files->put(
-            "$pluginPath/resources/embed/vite.input.js",
-            $this->renderStub("viteInputGen")
         );
 
         // vite.config.js
         $this->files->put(
-            "$pluginPath/vite.config.js",
-            $this->renderStub("viteConfig")
+            "$pluginPath/vite.config.spa.js",
+            $this->renderStub("vite.config.spa.stub")
+        );
+
+        $this->files->put(
+            "$pluginPath/vite.config.embed.js",
+            $this->renderStub("vite.config.embed.stub")
         );
 
         // tsconfig.json
@@ -307,18 +305,7 @@ TS
         // package.json (bare)
         $this->files->put(
             "$pluginPath/package.json",
-            <<<JSON
-{
-  "name": "{$this->argument('name')}",
-  "private": true,
-  "type": "module",
-  "scripts": {
-    "dev": "vite dev",
-    "build": "vite build",
-    "type-check": "tsc --noEmit"
-  }
-}
-JSON
+            $this->renderStub("package", ["package_name" => $this->argument('name')])
         );
     }
 

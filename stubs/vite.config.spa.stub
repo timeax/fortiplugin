@@ -1,0 +1,38 @@
+import {defineConfig} from 'vite';
+import react from '@vitejs/plugin-react';
+import tailwindcss from '@tailwindcss/vite';
+import {resolve} from 'node:path';
+
+const inertiaEntry = 'resources/inertia/ts/app.tsx';
+
+export default defineConfig({
+    appType: 'custom',
+    publicDir: false,
+
+    plugins: [tailwindcss(), react()],
+
+    build: {
+        outDir: 'public/build',
+        emptyOutDir: true, // SPA build runs first and clears
+        manifest: '.vite/manifest.spa.json', // string path is relative to outDir 0
+        rollupOptions: {
+            input: {
+                inertia: resolve(inertiaEntry),
+            },
+            output: {
+                format: 'es',
+                entryFileNames: 'spa/[name].[hash].js',
+                chunkFileNames: 'spa-chunks/[name].[hash].js',
+                assetFileNames: 'spa-assets/[name].[hash][extname]',
+            },
+        },
+    },
+
+    resolve: {
+        alias: {
+            '@/main': resolve('resources/inertia'),
+            '@/embed': resolve('resources/embed'),
+            '@/shared': resolve('resources/shared'),
+        },
+    },
+});

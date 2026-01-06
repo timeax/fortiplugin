@@ -4,7 +4,7 @@
 declare(strict_types=1);
 
 namespace IGNORE;
-#{PLUGIN_NAMESPACE}\Internal;
+#{PLUGIN_NAMESPACE};
 
 use Illuminate\Support\Arr;
 use Illuminate\Support\Str;
@@ -22,36 +22,180 @@ use Timeax\FortiPlugin\Permissions\Evaluation\Dto\Result;
 final class Config implements ConfigInterface
 {
 
-/**
+    /**
      * Get the Vite build manifest content.
+     *
+     * Supports separate builds:
+     * - public/build/.vite/manifest.spa.json
+     * - public/build/.vite/manifest.integrations.json
      *
      * @return array<string,mixed>
      */
-    public static function getViteBuildManifest(): array
+    public static function getViteBuildManifest(string $lane = 'spa'): array
     {
-        if (self::$manifest !== []) {
-            return self::$manifest;
+        // cache per lane
+        if (isset(self::$manifest[$lane]) && self::$manifest[$lane] !== []) {
+            return self::$manifest[$lane];
         }
 
+        $file = match ($lane) {
+            'spa', 'inertia' => 'manifest.spa.json',
+            'embed', 'integrations' => 'manifest.integrations.json',
+            default => 'manifest.json',
+        };
+
         // Target the manifest in public/build/.vite/
-        $path = dirname(__DIR__) . '/public/build/.vite/manifest.json';
+        $path = public_path(static::$info['alias'] . 'public/build/.vite/' . $file);
 
         if (!is_file($path)) {
-            return self::$manifest = [];
+            return self::$manifest[$lane] = [];
         }
 
         $json = @file_get_contents($path);
 
         if ($json === false) {
-            return self::$manifest = [];
+            return self::$manifest[$lane] = [];
         }
 
         $decoded = json_decode($json, true);
 
-        return self::$manifest = (is_array($decoded) ? $decoded : []);
+        return self::$manifest[$lane] = (is_array($decoded) ? $decoded : []);
     }
 
+    /**
+     * Resolve embed/integration entry by Rollup input key (dot-name).
+     */
+    public static function getViteEmbeddedAsset(string $name): string
+    {
+        $manifest = self::getViteBuildManifest('integrations');
 
+        foreach ($manifest as $entry) {
+            if (!is_array($entry)) {
+                continue;
+            }
+
+            // Keep it entry-only (recommended)
+            if (($entry['isEntry'] ?? false) !== true) {
+                continue;
+            }
+
+            // This matches your dot-name input keys: "pages.Admin.Dashboard", "__app_entry", etc.
+            if (($entry['name'] ?? null) !== $name) {
+                continue;
+            }
+
+            $file = $entry['file'] ?? null;
+
+            if (is_string($file) && $file !== '') {
+                // Manifest "file" is already like: "integrations/<name>.<hash>.js"
+                return static::getPublicUrl('build/' . ltrim($file, '/'));
+            }
+
+            return '';
+        }
+
+        return '';
+    }
+
+    /**
+     * Returns a public URL for this plugin's published assets.
+     * Example: "/my-plugin/build/integrations/x.y.z.js"
+     */
+    public static function getPublicUrl(string $path): string
+    {
+        $alias = trim((string)(static::$info['alias'] ?? ''), '/');
+        $path = ltrim($path, '/');
+
+        return '/' . ($alias !== '' ? $alias . '/' : '') . $path;
+    }
+
+    /**
+     * Optional: filesystem path in /public (only if you truly need disk access).
+     */
+    public static function getPublicDiskPath(string $path): string
+    {
+        $alias = trim((string)(static::$info['alias'] ?? ''), '/');
+        $path = ltrim($path, '/');
+
+        return public_path(($alias !== '' ? $alias . '/' : '') . $path);
+    }
+
+    /**
+     * Resolve a SPA override page asset by a friendly name like:
+     * - "app" or "app.tsx"
+     * - "Admin/Dashboard" or "Admin/Dashboard.tsx"
+     *
+     * It searches for manifest entry keys ending with:
+     * - "/pages/<name>.(tsx|ts|jsx|js)"
+     * - "/Pages/<name>.(tsx|ts|jsx|js)"
+     *
+     * @return string Public path like "/build/spa/<hash>.js" or "" if not found
+     */
+    public static function getVitePageAsset(string $name): string
+    {
+        $manifest = self::getViteBuildManifest('spa');
+
+        $name = str_replace('\\', '/', ltrim($name, '/\\'));
+
+        // If user supplied an extension, match only that;
+        // otherwise try common script/tsx extensions.
+        $exts = preg_match('/\.(tsx|ts|jsx|js)$/i', $name)
+            ? [''] // keep as-is
+            : ['.tsx', '.ts', '.jsx', '.js'];
+
+        $targets = [];
+        foreach ($exts as $ext) {
+            $n = $ext === '' ? $name : ($name . $ext);
+
+            // User may pass "pages/..." explicitly, but usually they pass "app" or "Admin/Dashboard"
+            if (str_starts_with($n, 'pages/') || str_starts_with($n, 'Pages/')) {
+                $targets[] = '/' . $n;
+            } else {
+                $targets[] = '/pages/' . $n;
+                $targets[] = '/Pages/' . $n;
+            }
+        }
+
+        $bestFile = null;
+        $bestScore = null;
+
+        foreach ($manifest as $key => $entry) {
+            if (!is_string($key) || !is_array($entry)) {
+                continue;
+            }
+
+            // Only consider actual entrypoints
+            if (($entry['isEntry'] ?? false) !== true) {
+                continue;
+            }
+
+            $file = $entry['file'] ?? null;
+            if (!is_string($file) || $file === '') {
+                continue;
+            }
+
+            $k = str_replace('\\', '/', $key);
+
+            foreach ($targets as $suffix) {
+                if (!str_ends_with($k, $suffix)) {
+                    continue;
+                }
+
+                // Prefer "/pages/" over "/Pages/", then prefer shorter keys (more specific)
+                $score = 0;
+                if (str_contains($k, '/pages/')) $score += 100;
+                if (str_contains($k, '/Pages/')) $score += 50;
+                $score += max(0, 10000 - strlen($k));
+
+                if ($bestScore === null || $score > $bestScore) {
+                    $bestScore = $score;
+                    $bestFile = $file;
+                }
+            }
+        }
+
+        return $bestFile ? static::getPublicUrl('/build/' . ltrim($bestFile, '/')) : '';
+    }
 
     /**
      * Cached plugin config values – loaded from plugin.config.json (or fallback).
@@ -64,11 +208,11 @@ final class Config implements ConfigInterface
      * These placeholders are replaced during install.
      * @var array{id:int|null,alias:string|null,name?:string|null}
      */
-  private static array $info = [
-      'id' => '#{PLUGIN_ID}',
-      'alias' => '#{PLUGIN_ALIAS}',
-      'name' => '#{PLUGIN_STUDLY}',
-  ];
+    private static array $info = [
+        'id' => '#{PLUGIN_ID}',
+        'alias' => '#{PLUGIN_ALIAS}',
+        'name' => '#{PLUGIN_STUDLY}',
+    ];
 
 
     /** Cached signature contents from `.internal/Signed`. */
@@ -405,10 +549,11 @@ final class Config implements ConfigInterface
      */
     public static function hasPermission(
         PermissionType|string $type,
-        string $actionOrIntent,
-        array|string|null $meta = null,
-        array $context = []
-    ): bool {
+        string                $actionOrIntent,
+        array|string|null     $meta = null,
+        array                 $context = []
+    ): bool
+    {
         return self::checkPermission($type, $actionOrIntent, $meta, $context)->allowed;
     }
 
@@ -417,8 +562,9 @@ final class Config implements ConfigInterface
      */
     public static function getPermission(
         PermissionType|string $type,
-        array|string|null $meta = null
-    ): ?array {
+        array|string|null     $meta = null
+    ): ?array
+    {
         $pluginId = self::getPluginId();
         if (!$pluginId) {
             return null;
@@ -449,10 +595,11 @@ final class Config implements ConfigInterface
      */
     public static function checkPermission(
         PermissionType|string $type,
-        string $actionOrIntent,
-        array|string|null $meta = null,
-        array $context = []
-    ): Result {
+        string                $actionOrIntent,
+        array|string|null     $meta = null,
+        array                 $context = []
+    ): Result
+    {
         $t = $type instanceof PermissionType ? $type->value : (string)$type;
         $normalizedMeta = self::normalizeMeta($t, $meta);
 
@@ -475,7 +622,6 @@ final class Config implements ConfigInterface
     {
         return self::getPermissions()->summary->requiredPending === 0;
     }
-
 
 
     /**
@@ -511,8 +657,8 @@ final class Config implements ConfigInterface
                 'codec' => ['method' => $meta],
                 'network' => [
                     'method' => 'GET',
-                    'url'    => $meta,
-                    'host'   => parse_url($meta, PHP_URL_HOST) ?? $meta
+                    'url' => $meta,
+                    'host' => parse_url($meta, PHP_URL_HOST) ?? $meta
                 ],
                 'notification' => ['channel' => $meta],
                 'route' => ['routeId' => $meta],
