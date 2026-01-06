@@ -1,4 +1,4 @@
-<?php ///** @noinspection ALL */
+<?php /** @noinspection GrazieInspection */ ///** @noinspection ALL */
 #{SIGNATURE_BLOCK}
 
 declare(strict_types=1);
@@ -9,6 +9,7 @@ namespace IGNORE;
 use Illuminate\Support\Str;
 
 use JsonException;
+use RuntimeException;
 use Timeax\FortiPlugin\Contracts\ConfigInterface;
 use Timeax\FortiPlugin\Enums\PermissionType;
 use Timeax\FortiPlugin\Enums\PluginSettingValueType;
@@ -18,6 +19,7 @@ use Timeax\FortiPlugin\Permissions\Evaluation\Dto\PermissionListOptions;
 use Timeax\FortiPlugin\Permissions\Evaluation\Dto\PermissionListResult;
 use Timeax\FortiPlugin\Permissions\Evaluation\Dto\PermissionListSummary;
 use Timeax\FortiPlugin\Permissions\Evaluation\Dto\Result;
+use Timeax\FortiPlugin\Support\LoadedExportInfo;
 
 final class Config implements ConfigInterface
 {
@@ -38,6 +40,8 @@ final class Config implements ConfigInterface
         'id' => '#{PLUGIN_ID}',
         'alias' => '#{PLUGIN_ALIAS}',
         'name' => '#{PLUGIN_STUDLY}',
+        'namespace' => '#{PLUGIN_NAMESPACE}',
+        'basePath' => '#{PLUGIN_BASE_PATH}',
     ];
 
 
@@ -426,14 +430,20 @@ final class Config implements ConfigInterface
      * {@inheritdoc}
      * @throws JsonException
      */
-    public static function getInfo(): array
+    public static function getInfo(?string $key = null): string|array
     {
         // Ensure a consistent shape.
-        return [
+        $info = [
             'id' => is_numeric(self::$info['id'] ?? null) ? (int)self::$info['id'] : null,
             'alias' => is_string(self::$info['alias'] ?? null) ? (string)self::$info['alias'] : null,
             'name' => is_string(self::$info['name'] ?? null) ? (string)self::$info['name'] : self::getName(),
+            'namespace' => is_string(self::$info['namespace'] ?? null) ? (string)self::$info['namespace'] : null,
+            'basePath' => is_string(self::$info['basePath'] ?? null) ? (string)self::$info['basePath'] : null,
         ];
+
+        if ($key !== null) return $info[$key] ?? '';
+        //---
+        return $info;
     }
 
     /**
@@ -514,14 +524,259 @@ final class Config implements ConfigInterface
         return $out;
     }
 
+    /* -----------------------------------------------
+         |  Loaded export info
+        ─────────────────────────────────────────────────────────────── */
     /**
      * {@inheritdoc}
      * @throws JsonException
      */
-    public static function load(?string $export = null): ?string
+    /**
+     * {@inheritdoc}
+     * @throws JsonException
+     */
+    public static function load(?string $export = null): LoadedExportInfo
     {
-        return json_encode(self::all(), JSON_THROW_ON_ERROR | JSON_PRETTY_PRINT);
+        $all = self::all();
+
+        // main ONLY when no parameter
+        if ($export === null) {
+            return self::resolveExportFile($all['main'] ?? null);
+        }
+
+        $export = trim($export);
+        if ($export === '') {
+            throw new RuntimeException('Export key cannot be empty.');
+        }
+
+        $exports = $all['exports'] ?? null;
+        if (!is_array($exports)) {
+            throw new RuntimeException('Plugin config is missing "exports" map.');
+        }
+
+        // exports FULL STOP: exact key lookup (dots are allowed as literal key chars)
+        $def = $exports[$export] ?? null;
+
+        return self::resolveExportFile($def);
     }
+
+    /** @var array<string, LoadedExportInfo|null> */
+    private static array $exportResolveCache = [];
+
+    /**
+     * Strict resolver:
+     * - resolves export definition to a CLASS FQCN only
+     * - no reflection fallbacks
+     * - If class does not exist after require_once, throws
+     *
+     * @param mixed $def string path OR ['file' => '...']
+     * @throws RuntimeException|JsonException
+     */
+    private static function resolveExportFile(mixed $def): LoadedExportInfo
+    {
+        $file = null;
+
+        if (is_string($def) && $def !== '') {
+            $file = $def;
+        } elseif (is_array($def) && isset($def['file']) && is_string($def['file']) && $def['file'] !== '') {
+            $file = $def['file'];
+        }
+
+        if ($file === null) {
+            throw new RuntimeException('Invalid export definition: missing file');
+        }
+
+        $absPath = self::resolveExportPath($file);
+        $realPath = realpath($absPath) ?: $absPath;
+
+        $cacheKey = static::class . '|' . $realPath;
+
+        if (array_key_exists($cacheKey, self::$exportResolveCache)) {
+            $cached = self::$exportResolveCache[$cacheKey];
+            if ($cached === null) {
+                throw new RuntimeException("Export file could not be resolved: $file");
+            }
+            return $cached;
+        }
+
+        if ($realPath === '' || !is_file($realPath)) {
+            self::$exportResolveCache[$cacheKey] = null;
+            throw new RuntimeException("Export file not found: $file");
+        }
+
+        [$ns, $class] = self::parseFirstDeclaredClass($realPath);
+
+        if ($class === null || trim($class) === '') {
+            self::$exportResolveCache[$cacheKey] = null;
+            throw new RuntimeException("No class declaration found in export file: $file");
+        }
+
+        // If namespace missing in source, assume plugin root namespace
+        $ns = trim((string)($ns ?? ''), '\\');
+        if ($ns === '') {
+            $ns = trim((string)self::getInfo('namespace'), '\\');
+        }
+
+        if ($ns === '') {
+            self::$exportResolveCache[$cacheKey] = null;
+            throw new RuntimeException("Cannot resolve class namespace for export: $file");
+        }
+
+        $fqcn = $ns . '\\' . $class;
+
+        // If it's PSR-4 mapped, this should pass; otherwise we require_once for safety.
+        if (!class_exists($fqcn)) {
+            require_once $realPath;
+        }
+
+        if (!class_exists($fqcn)) {
+            self::$exportResolveCache[$cacheKey] = null;
+            throw new RuntimeException("Resolved class does not exist after loading file: $fqcn ($file)");
+        }
+
+        $info = new LoadedExportInfo(
+            type: 'class',
+            file: $file,
+            realpath: $realPath,
+            classString: $fqcn,
+            className: $class,
+            namespace: $ns,
+            sha1: (string)@sha1_file($realPath),
+            mtime: (int)(@filemtime($realPath) ?: 0),
+            resolvedAt: date('c'),
+        );
+
+        return self::$exportResolveCache[$cacheKey] = $info;
+    }
+
+    /**
+     * Parse the first declared class in a PHP file.
+     * Returns [namespace|null, className|null].
+     *
+     * - Skips anonymous classes (`new class {}`).
+     *
+     * @return array{0:string|null,1:string|null}
+     */
+    private static function parseFirstDeclaredClass(string $realPath): array
+    {
+        $src = @file_get_contents($realPath);
+        if ($src === false || $src === '') {
+            return [null, null];
+        }
+
+        $tokens = token_get_all($src);
+
+        $namespace = '';
+        $className = null;
+
+        $captureNamespace = false;
+        $nsParts = [];
+
+        $prevMeaningful = null;
+        $captureClassName = false;
+
+        foreach ($tokens as $tok) {
+            if (!is_array($tok)) {
+                continue;
+            }
+
+            [$id, $text] = $tok;
+
+            if ($id === T_NAMESPACE) {
+                $captureNamespace = true;
+                $nsParts = [];
+                continue;
+            }
+
+            if ($captureNamespace) {
+                if (
+                    $id === T_STRING ||
+                    $id === T_NS_SEPARATOR ||
+                    (defined('T_NAME_QUALIFIED') && $id === T_NAME_QUALIFIED)
+                ) {
+                    $nsParts[] = $text;
+                    continue;
+                }
+
+                $namespace = trim(implode('', $nsParts));
+                $captureNamespace = false;
+                $nsParts = [];
+            }
+
+            if ($id === T_CLASS) {
+                if ($prevMeaningful === T_NEW) {
+                    $prevMeaningful = $id;
+                    continue;
+                }
+
+                $captureClassName = true;
+                $prevMeaningful = $id;
+                continue;
+            }
+
+            if ($captureClassName) {
+                if ($id === T_STRING) {
+                    $className = $text;
+                    break;
+                }
+                continue;
+            }
+
+            if ($id !== T_WHITESPACE && $id !== T_COMMENT && $id !== T_DOC_COMMENT) {
+                $prevMeaningful = $id;
+            }
+        }
+
+        return [$namespace !== '' ? $namespace : null, $className];
+    }
+
+    /**
+     * @throws JsonException
+     */
+    private static function resolveExportPath(string $file): string
+    {
+        $file = trim($file);
+
+        if ($file === '') {
+            return '';
+        }
+
+        // Disallow stream wrappers (phar://, http://, etc.)
+        if (preg_match('~^[a-zA-Z][a-zA-Z0-9+.-]*://~', $file)) {
+            return '';
+        }
+
+        // Block traversal in any path
+        if (preg_match('~(^|/)\.\.(/|$)~', $file)) {
+            return '';
+        }
+
+        // Absolute path is allowed (still traversal-checked above)
+        if (self::isAbsolutePath($file)) {
+            return $file;
+        }
+
+        // Resolve relative export file against the plugin install directory
+        // and the current plugin folder (self::$info['name']).
+        $pluginDir = trim((string)self::getInfo('name'));
+        if ($pluginDir === '') {
+            return '';
+        }
+
+        return plugin_path($pluginDir . DIRECTORY_SEPARATOR . ltrim($file, "/\\"));
+    }
+
+    private static function isAbsolutePath(string $path): bool
+    {
+        if (str_starts_with($path, '/') || str_starts_with($path, '\\')) {
+            return true;
+        }
+
+        // Windows drive path: C:\... or C:/...
+        return (bool)preg_match('~^[A-Za-z]:/.+~', $path);
+    }
+
+
 
     /* ───────────────────────────────────────────────────────────────
      |  Permissions – list / has / get (via PermissionService)
@@ -530,7 +785,8 @@ final class Config implements ConfigInterface
     /**
      * {@inheritdoc}
      */
-    public static function getPermissions(?PermissionListOptions $options = null): PermissionListResult
+    public
+    static function getPermissions(?PermissionListOptions $options = null): PermissionListResult
     {
         $pluginId = self::getPluginId();
         if (!$pluginId) {
@@ -554,7 +810,8 @@ final class Config implements ConfigInterface
     /**
      * {@inheritdoc}
      */
-    public static function hasPermission(
+    public
+    static function hasPermission(
         PermissionType|string $type,
         string                $actionOrIntent,
         array|string|null     $meta = null,
@@ -567,7 +824,8 @@ final class Config implements ConfigInterface
     /**
      * {@inheritdoc}
      */
-    public static function getPermission(
+    public
+    static function getPermission(
         PermissionType|string $type,
         array|string|null     $meta = null
     ): ?array
@@ -600,7 +858,8 @@ final class Config implements ConfigInterface
     /**
      * {@inheritdoc}
      */
-    public static function checkPermission(
+    public
+    static function checkPermission(
         PermissionType|string $type,
         string                $actionOrIntent,
         array|string|null     $meta = null,
@@ -625,7 +884,8 @@ final class Config implements ConfigInterface
     /**
      * {@inheritdoc}
      */
-    public static function hasRequiredPermissions(): bool
+    public
+    static function hasRequiredPermissions(): bool
     {
         return self::getPermissions()->summary->requiredPending === 0;
     }
@@ -634,7 +894,8 @@ final class Config implements ConfigInterface
     /**
      * Check if normalized meta matches the permission definition meta.
      */
-    private static function metaMatches(array $requested, array $defined): bool
+    private
+    static function metaMatches(array $requested, array $defined): bool
     {
         foreach ($requested as $key => $val) {
             if ($val === '' || $val === null || $val === []) {
@@ -650,7 +911,8 @@ final class Config implements ConfigInterface
     /**
      * Internal meta normalization layer.
      */
-    private static function normalizeMeta(string $type, string|array|null $meta): ?array
+    private
+    static function normalizeMeta(string $type, string|array|null $meta): ?array
     {
         if ($meta === null) {
             return null;
@@ -717,7 +979,8 @@ final class Config implements ConfigInterface
     /**
      * Dispatch to the correct typed `can*` method on the Permissions facade.
      */
-    private static function dispatchCan(string $type, int $pluginId, string $action, array $target, array $context): Result
+    private
+    static function dispatchCan(string $type, int $pluginId, string $action, array $target, array $context): Result
     {
         return match ($type) {
             'db' => Permissions::canDb($pluginId, $action, $target, $context),

@@ -47,4 +47,18 @@ if (!function_exists('ensureFileExistsAtomic')) {
     }
 }
 
+if (!function_exists('plugin_path')) {
+    /**
+     * Get the path to the plugins directory.
+     *
+     * @param string $path Optional subpath to append to the plugins directory.
+     * @return string The full path to the plugins directory or the specified subpath.
+     */
+    function plugin_path(string $path = ''): string
+    {
+        $basePath = base_path(config('fortiplugin.install_directory'));
+        return $path ? $basePath . DIRECTORY_SEPARATOR . ltrim($path, DIRECTORY_SEPARATOR) : $basePath;
+    }
+}
+
 require_once __DIR__ . '/ui-helpers.php';

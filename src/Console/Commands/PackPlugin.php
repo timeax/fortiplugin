@@ -180,9 +180,9 @@ class PackPlugin extends Command
             // TODO: Actually encrypt this zip file using the session key before sending! Currently sending raw zip under 'enc_zip' to bypass validation.
             // 11) Upload encrypted ZIP (client provides as enc_zip per contract; here we send raw zip under enc_zip)
 
-            $stream = fopen($zipPath, 'r');
+            $stream = fopen($zipPath, 'rb');
 
-            $uReq = $this->getHttp()->timeout(300);
+            $uReq = $this->getHttp()?->timeout(300);
 
             $response = $uReq
                 ->attach(
@@ -210,7 +210,7 @@ class PackPlugin extends Command
             ]);
 
             $complete = $this->safeJson($final);
-            logger()->info("PACK COMPLETE RESPONSE", [
+            logger()?->info("PACK COMPLETE RESPONSE", [
                 'complete' => $complete
             ]);
 

@@ -2,9 +2,13 @@
 
 namespace Timeax\FortiPlugin;
 
-use Illuminate\Contracts\Container\BindingResolutionException;
 use Illuminate\Filesystem\Filesystem as LaravelFs;
 use Illuminate\Support\ServiceProvider;
+use Timeax\FortiPlugin\Autoload\ComposerLoaderResolver;
+use Timeax\FortiPlugin\Autoload\PluginAutoloader;
+use Timeax\FortiPlugin\Autoload\PluginAutoloadMapBuilder;
+use Timeax\FortiPlugin\Autoload\Psr4RegistryStore;
+use Timeax\FortiPlugin\Autoload\Psr4RegistryWriter;
 use Timeax\FortiPlugin\Console\Commands\ChangeHostCommand;
 use Timeax\FortiPlugin\Console\Commands\CreateAuthorCommand;
 use Timeax\FortiPlugin\Console\Commands\GenerateHostKeyCommand;
@@ -60,16 +64,11 @@ use Timeax\FortiPlugin\Permissions\Bootstrap\FortiPermissions;
 use Timeax\FortiPlugin\Permissions\Contracts\PermissionServiceInterface;
 use Timeax\FortiPlugin\Permissions\Evaluation\PermissionService;
 use Timeax\FortiPlugin\Services\HostKeyService;
-use Timeax\FortiPlugin\Services\PluginService;
-use Timeax\FortiPlugin\Services\PluginZipService;
+use Timeax\FortiPlugin\Services\Plugin\PluginService;
+use Timeax\FortiPlugin\Services\Plugin\PluginZipService;
 use Timeax\FortiPlugin\Services\PolicyService;
 use Timeax\FortiPlugin\Services\ValidatorService;
 use Timeax\FortiPlugin\Support\FortiGateRegistrar;
-use Timeax\FortiPlugin\Autoload\ComposerLoaderResolver;
-use Timeax\FortiPlugin\Autoload\Psr4RegistryStore;
-use Timeax\FortiPlugin\Autoload\PluginAutoloadMapBuilder;
-use Timeax\FortiPlugin\Autoload\Psr4RegistryWriter;
-use Timeax\FortiPlugin\Autoload\PluginAutoloader;
 
 
 // crypto service

@@ -3,117 +3,82 @@ declare(strict_types=1);
 
 namespace Timeax\FortiPlugin\Services;
 
-use RuntimeException;
 use Timeax\FortiPlugin\Installations\Support\AtomicFilesystem;
 use Timeax\FortiPlugin\Models\Plugin;
 use Timeax\FortiPlugin\Permissions\Contracts\PermissionServiceInterface;
 use Timeax\FortiPlugin\Runtime\InstalledPlugin;
-use function Illuminate\Filesystem\join_paths;
+use Timeax\FortiPlugin\Services\Plugins\PluginCatalog;
+use Timeax\FortiPlugin\Services\Plugins\PluginConfigResolver;
+use Timeax\FortiPlugin\Services\Plugins\PluginInstallLocator;
+use Timeax\FortiPlugin\Services\Plugins\PluginRuntimeManager;
 
-// 1. Removed 'readonly' from class so we can mutate the cache property
 final class PluginService
 {
-    // 2. Add a local cache array
-    private array $cache = [];
+    private PluginCatalog $catalog;
+    private PluginRuntimeManager $runtime;
 
     public function __construct(
-        // 3. Moved 'readonly' to specific properties
-        private readonly AtomicFilesystem $afs,
-        private readonly PluginSettingsWriter $settingsWriter,
+        private readonly AtomicFilesystem           $afs,
+        private readonly PluginSettingsWriter       $settingsWriter,
         private readonly PermissionServiceInterface $permissionService,
-    ) {}
-
-    public function getPlugin(int $pluginId): Plugin
+    )
     {
-        // 4. Return immediately if we already have it
-        if (isset($this->cache[$pluginId])) {
-            return $this->cache[$pluginId];
-        }
+        $this->catalog = new PluginCatalog();
 
-        $plugin = Plugin::query()->find($pluginId);
+        $locator = new PluginInstallLocator();
+        $resolver = new PluginConfigResolver();
 
-        if (!$plugin) {
-            throw new RuntimeException("Plugin #{$pluginId} not found");
-        }
+        $this->runtime = new PluginRuntimeManager(
+            $locator,
+            $resolver,
+            $this->settingsWriter,
+            $this->permissionService
+        );
+    }
 
-        // 5. Store result in cache before returning
-        return $this->cache[$pluginId] = $plugin;
+    /**
+     * @return PluginCatalog
+     */
+    public function getCatalog(): PluginCatalog
+    {
+        return $this->catalog;
+    }
+
+    public function getPlugin(int|string $idOrAlias): Plugin
+    {
+        return $this->catalog->get($idOrAlias);
+    }
+
+    /**
+     * Facade advertises this; keep it here for compatibility.
+     *
+     * @return array<int, Plugin>
+     */
+    public function list(): array
+    {
+        return $this->catalog->list();
     }
 
     public function installedRoot(int $pluginId): string
     {
-        // This now hits the cache instead of the DB
-        $plugin = $this->getPlugin($pluginId);
-
-        $root = trim((string) ($plugin->plugin_path ?? ''));
-        if ($root === '') {
-            throw new RuntimeException("Plugin #{$pluginId} has no plugin_path");
-        }
-
-        return rtrim($root, "\\/");
+        return $this->runtime->installedRoot($this->getPlugin($pluginId));
     }
 
     /**
      * Load the plugin's runtime Config class file and return its FQCN.
+     *
      * @return class-string
      */
     public function loadConfigClass(int $pluginId): string
     {
-        // Hits cache
         $plugin = $this->getPlugin($pluginId);
+        $root = $this->runtime->installedRoot($plugin);
 
-        $meta = $plugin->meta ?? [];
-        if (!is_array($meta)) {
-            $meta = (array) $meta;
-        }
-
-        $psr4Root = (string)($meta['psr4_root'] ?? config('fortiplugin.psr4_root', 'Plugins'));
-        $psr4Root = rtrim(trim($psr4Root), "\\ \t\n\r\0\x0B");
-
-        $nsSegment = (string)($meta['placeholder_name'] ?? $plugin->name);
-
-        if ($nsSegment === '') {
-            throw new RuntimeException(
-                "Plugin #{$pluginId} has no namespace segment (meta.placeholder_name / name)"
-            );
-        }
-
-        $fqcn = "{$psr4Root}\\{$nsSegment}\\Config";
-
-        if (class_exists($fqcn)) {
-            return $fqcn;
-        }
-
-        // This calls installedRoot -> getPlugin, which now also hits cache
-        $root = $this->installedRoot($pluginId);
-        $cfgPath = join_paths($root, '.internal', 'Config.php');
-
-        if (is_file($cfgPath)) {
-            require_once $cfgPath;
-        }
-
-        if (!class_exists($fqcn)) {
-            throw new RuntimeException(
-                "Plugin #{$pluginId} Config class not found: {$fqcn} (autoload + fallback include attempted)"
-            );
-        }
-
-        return $fqcn;
+        return $this->runtime->configClass($plugin, $root);
     }
 
-    public function load(int $pluginId): InstalledPlugin
+    public function load(int|string $idOrAlias): InstalledPlugin
     {
-        // All these calls now share the single DB result fetched by the first one
-        $plugin = $this->getPlugin($pluginId);
-        $root = $this->installedRoot($pluginId);
-        $configClass = $this->loadConfigClass($pluginId);
-
-        return new InstalledPlugin(
-            $plugin,
-            $root,
-            $configClass,
-            $this->settingsWriter,
-            $this->permissionService
-        );
+        return $this->runtime->load($this->getPlugin($idOrAlias));
     }
 }

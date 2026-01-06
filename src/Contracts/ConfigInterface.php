@@ -6,6 +6,7 @@ namespace Timeax\FortiPlugin\Contracts;
 use Timeax\FortiPlugin\Enums\PermissionType;
 use Timeax\FortiPlugin\Permissions\Evaluation\Dto\PermissionListResult;
 use Timeax\FortiPlugin\Permissions\Evaluation\Dto\Result;
+use Timeax\FortiPlugin\Support\LoadedExportInfo;
 
 /**
  * Contract each plugin’s internal Config class must implement.
@@ -135,11 +136,13 @@ interface ConfigInterface
      * Keys are host-defined but MUST include:
      *  - id:    The installed plugin's primary key (or null before install).
      *  - alias: The installed alias (may be present before id exists).
-     *  - name:  The installed name (for convenience).
+     *  - name:  The installed name (for convenience)
+     *  - namespace: The installed namespace
+     *  - basePath: The root folder the plugin is installed at.
      *
      * @return array{id:int|null, alias:string|null, name:string}
      */
-    public static function getInfo(): array;
+    public static function getInfo(): array|string;
 
     /**
      * Convenience accessor for the installed plugin’s database id.
@@ -335,5 +338,5 @@ interface ConfigInterface
      * @param string|null $export Export slug/key from `exports` (null selects `main`).
      * @return class-string|null   Fully-qualified class name if resolved, or null when not found.
      */
-    public static function load(?string $export = null): ?string;
+    public static function load(?string $export = null): LoadedExportInfo;
 }

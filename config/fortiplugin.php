@@ -26,7 +26,7 @@ return [
      */
     'psr4_root' => env('FORTIPLUGIN_PSR4_ROOT', 'Plugins'),
     'dev_directory' => env('FORTIPLUGIN_DEV_DIRECTORY', 'Plugins'),
-    'install_directory' => env('FORTIPLUGIN_INSTALL_DIRECTORY', 'apps'),
+    'install_directory' => env('FORTIPLUGIN_INSTALL_DIRECTORY', 'modules'),
 
     /*
     |--------------------------------------------------------------------------

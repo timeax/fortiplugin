@@ -23,7 +23,7 @@ final readonly class PluginSettingsWriter
         }
 
         return match ($type) {
-            PluginSettingValueType::string => $raw,
+            PluginSettingValueType::string, PluginSettingValueType::file, PluginSettingValueType::blob => $raw,
 
             PluginSettingValueType::number => (str_contains($raw, '.') || str_contains($raw, 'e') || str_contains($raw, 'E'))
                 ? (float) $raw
@@ -33,12 +33,9 @@ final readonly class PluginSettingsWriter
                 filter_var($raw, FILTER_VALIDATE_BOOLEAN, FILTER_NULL_ON_FAILURE) ?? $default,
 
             PluginSettingValueType::json => (static function () use ($raw, $default) {
-                $decoded = json_decode($raw, true);
+                $decoded = json_decode($raw, true, 512, JSON_THROW_ON_ERROR);
                 return json_last_error() === JSON_ERROR_NONE ? $decoded : $default;
             })(),
-
-            PluginSettingValueType::file,
-            PluginSettingValueType::blob => $raw,
         };
     }
 
@@ -139,13 +136,13 @@ final readonly class PluginSettingsWriter
     public function setMany(int $pluginId, array $kv, ?array $types = null): void
     {
         foreach ($kv as $key => $value) {
-            $t = $types[(string)$key] ?? null;
+            $t = $types[$key] ?? null;
 
             if (is_string($t)) {
                 $t = PluginSettingValueType::tryFrom($t);
             }
 
-            $this->set($pluginId, (string)$key, $value, $t instanceof PluginSettingValueType ? $t : null);
+            $this->set($pluginId, $key, $value, $t instanceof PluginSettingValueType ? $t : null);
         }
     }
 }
