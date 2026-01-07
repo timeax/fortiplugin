@@ -32,9 +32,9 @@ class PermissionDeniedException extends RuntimeException
         $this->meta = $result->meta ?? $meta;
         $this->request = $request;
 
-        $message = "Permission denied for {$type}:{$action}";
+        $message = "Permission denied for $type:$action";
         if ($result->reason) {
-            $message .= " (Reason: {$result->reason})";
+            $message .= " (Reason: $result->reason)";
         }
 
         parent::__construct($message, 0, $previous);
@@ -54,8 +54,8 @@ class PermissionDeniedException extends RuntimeException
         }
 
         // 1. API/axios/JSON requests
+        $this->dispatchDeniedEvent();
         if ($request->expectsJson() || $request->isXmlHttpRequest() || $request->wantsJson()) {
-            $this->dispatchDeniedEvent();
             return response()->json([
                 'error' => 'plugin_permission_denied',
                 'type' => $this->type,
@@ -71,7 +71,6 @@ class PermissionDeniedException extends RuntimeException
         }
 
         // 2. All browser/inertia/other requests: redirect back with flash data only
-        $this->dispatchDeniedEvent();
         return redirect()->back()->with('plugin_permission_data', [
             'type' => $this->type,
             'action' => $this->action,

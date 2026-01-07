@@ -41,10 +41,15 @@
       }
     },
     "hostConfig": {
-      "type": "array",
-      "items": {
-        "$ref": "#/definitions/HostConfig"
-      }
+      "description": "Either a relative path to a host-config JSON file, or an inline host config object.",
+      "oneOf": [
+        {
+          "$ref": "#/definitions/HostConfigPath"
+        },
+        {
+          "$ref": "#/definitions/HostConfigInline"
+        }
+      ]
     },
     "uiConfig": {
       "type": "object",
@@ -57,7 +62,9 @@
           }
         }
       },
-      "required": ["items"],
+      "required": [
+        "items"
+      ],
       "additionalProperties": false
     },
     "routes": {
@@ -74,7 +81,9 @@
           "default": "**/*.routes.json"
         }
       },
-      "required": ["dir"],
+      "required": [
+        "dir"
+      ],
       "additionalProperties": false
     },
     "main": {
@@ -91,83 +100,20 @@
       "description": "Map of dashed-lowercase slugs to export definitions"
     }
   },
-  "required": ["name", "alias", "description"],
+  "required": [
+    "name",
+    "alias",
+    "description"
+  ],
   "additionalProperties": false,
   "definitions": {
-    "TriState": {
-      "type": ["boolean", "null"],
-      "description": "Boolean or null (tri-state)"
+    "HostConfigPath": {
+      "type": "string",
+      "pattern": "^(?!/)(?!.*\\.\\.)[A-Za-z0-9._/@-]+\\.json$",
+      "description": "Relative path to a JSON file inside the plugin (no leading '/', no '..'). Example: 'host/host-config.json'."
     },
-    "SettingValue": {
-      "anyOf": [
-        {
-          "type": "boolean"
-        },
-        {
-          "type": "null"
-        },
-        {
-          "type": "string"
-        },
-        {
-          "type": "number"
-        },
-        {
-          "type": "array",
-          "items": {
-            "type": "string"
-          }
-        },
-        {
-          "type": "object",
-          "additionalProperties": {
-            "$ref": "#/definitions/TriState"
-          }
-        }
-      ],
-      "description": "Allowed value types for settings (incl. arrays of strings, and maps of TriState)"
-    },
-    "Setting": {
-      "type": "object",
-      "properties": {
-        "id": {
-          "oneOf": [
-            {
-              "type": "string"
-            },
-            {
-              "type": "number"
-            }
-          ]
-        }
-      },
-      "required": ["id"],
-      "additionalProperties": {
-        "$ref": "#/definitions/SettingValue"
-      },
-      "description": "A single host setting; 'id' must be unique (enforced by installer/validator)"
-    },
-    "HostConfig": {
-      "type": "object",
-      "properties": {
-        "global": {
-          "type": "object",
-          "properties": {
-            "id": false
-          },
-          "additionalProperties": {
-            "$ref": "#/definitions/SettingValue"
-          },
-          "description": "Defaults applied globally for the plugin (no 'id' allowed here)"
-        },
-        "settings": {
-          "type": "array",
-          "items": {
-            "$ref": "#/definitions/Setting"
-          }
-        }
-      },
-      "additionalProperties": false
+    "HostConfigInline": {
+      "$ref": "fortiplugin://schemas/fortiplugin.host-config.schema.json"
     },
     "UiItem": {
       "type": "object",
@@ -201,7 +147,9 @@
               "description": "Host target id inside the section."
             }
           },
-          "required": ["targetId"],
+          "required": [
+            "targetId"
+          ],
           "additionalProperties": false
         },
         "props": {
@@ -229,7 +177,9 @@
                   "additionalProperties": true
                 }
               },
-              "required": ["name"],
+              "required": [
+                "name"
+              ],
               "additionalProperties": false
             }
           ]
@@ -254,7 +204,9 @@
                   "additionalProperties": true
                 }
               },
-              "required": ["name"],
+              "required": [
+                "name"
+              ],
               "additionalProperties": false
             }
           ]
@@ -265,7 +217,10 @@
           "description": "Plugin suggests enabling this item; admin makes the final decision."
         }
       },
-      "required": ["section", "id"],
+      "required": [
+        "section",
+        "id"
+      ],
       "additionalProperties": false,
       "allOf": [
         {
@@ -275,7 +230,9 @@
                 "pattern": "^floating\\."
               }
             },
-            "required": ["section"]
+            "required": [
+              "section"
+            ]
           },
           "then": {
             "description": "Floating UI items (e.g., chat/support launchers). 'text' may be omitted for icon-only."
@@ -284,7 +241,10 @@
         {
           "description": "Disallow using both 'overridelayout' and 'overrideLayout' at the same time.",
           "not": {
-            "required": ["overridelayout", "overrideLayout"]
+            "required": [
+              "overridelayout",
+              "overrideLayout"
+            ]
           }
         }
       ]
@@ -305,7 +265,11 @@
           "type": "string"
         }
       },
-      "required": ["href", "text", "id"],
+      "required": [
+        "href",
+        "text",
+        "id"
+      ],
       "additionalProperties": false,
       "description": "Legacy shape (kept for backward compatibility in older configs). Prefer uiConfig.items[]."
     },
@@ -343,7 +307,10 @@
           ]
         }
       },
-      "required": ["file", "desc"],
+      "required": [
+        "file",
+        "desc"
+      ],
       "additionalProperties": false,
       "description": "Explicit export definition with optional binding to a HostConfig setting id"
     },
@@ -398,13 +365,19 @@
               "type": "string"
             }
           },
-          "required": ["version"],
+          "required": [
+            "version"
+          ],
           "anyOf": [
             {
-              "required": ["source"]
+              "required": [
+                "source"
+              ]
             },
             {
-              "required": ["url"]
+              "required": [
+                "url"
+              ]
             }
           ],
           "additionalProperties": false,

@@ -23,19 +23,35 @@ final readonly class PluginSettingsWriter
         }
 
         return match ($type) {
-            PluginSettingValueType::string, PluginSettingValueType::file, PluginSettingValueType::blob => $raw,
+            PluginSettingValueType::string,
+            PluginSettingValueType::file,
+            PluginSettingValueType::blob,
+            PluginSettingValueType::select => $raw,
 
-            PluginSettingValueType::number => (str_contains($raw, '.') || str_contains($raw, 'e') || str_contains($raw, 'E'))
-                ? (float) $raw
-                : (int) $raw,
+            // arrays (stored as JSON array string)
+            PluginSettingValueType::radio,
+            PluginSettingValueType::multiselect,
+            PluginSettingValueType::chips => self::tryDecodeJsonArray($raw, $default),
 
-            PluginSettingValueType::boolean =>
+            PluginSettingValueType::number => is_numeric($raw)
+                ? ((str_contains($raw, '.') || str_contains($raw, 'e') || str_contains($raw, 'E'))
+                    ? (float) $raw
+                    : (int) $raw)
+                : $default,
+
+            PluginSettingValueType::boolean,
+            PluginSettingValueType::checkbox =>
                 filter_var($raw, FILTER_VALIDATE_BOOLEAN, FILTER_NULL_ON_FAILURE) ?? $default,
 
-            PluginSettingValueType::json => (static function () use ($raw, $default) {
-                $decoded = json_decode($raw, true, 512, JSON_THROW_ON_ERROR);
-                return json_last_error() === JSON_ERROR_NONE ? $decoded : $default;
-            })(),
+            PluginSettingValueType::tristate => match (strtolower(trim($raw))) {
+                'true' => true,
+                'false' => false,
+                'null' => null,
+                default => $default,
+            },
+
+            // any JSON (object/array/scalar) stored as JSON string
+            PluginSettingValueType::json => self::tryDecodeJson($raw, $default),
         };
     }
 
@@ -58,7 +74,7 @@ final readonly class PluginSettingsWriter
                 return [(string) $value, PluginSettingValueType::number];
             }
 
-            if (is_array($value)) {
+            if (is_array($value) || is_object($value)) {
                 return [self::encodeJson($value), PluginSettingValueType::json];
             }
 
@@ -67,31 +83,40 @@ final readonly class PluginSettingsWriter
 
         // Explicit type passed
         return match ($type) {
-            PluginSettingValueType::boolean => [
-                is_bool($value) ? ($value ? 'true' : 'false') : (string) $value,
-                PluginSettingValueType::boolean
+            PluginSettingValueType::boolean,
+            PluginSettingValueType::checkbox => [
+                is_bool($value)
+                    ? ($value ? 'true' : 'false')
+                    : self::normalizeBoolString((string) $value),
+                $type
             ],
 
-            PluginSettingValueType::number => [(string) $value, PluginSettingValueType::number],
+            PluginSettingValueType::tristate => [
+                $value === null
+                    ? 'null'
+                    : (is_bool($value)
+                    ? ($value ? 'true' : 'false')
+                    : self::normalizeTriStateString((string) $value)),
+                $type
+            ],
+
+            PluginSettingValueType::number, PluginSettingValueType::select, PluginSettingValueType::file, PluginSettingValueType::blob, PluginSettingValueType::string => [(string) $value, $type],
 
             PluginSettingValueType::json => [
-                is_array($value) ? self::encodeJson($value) : (string) $value,
-                PluginSettingValueType::json
+                (is_array($value) || is_object($value)) ? self::encodeJson($value) : (string) $value,
+                $type
             ],
 
-            PluginSettingValueType::file,
-            PluginSettingValueType::blob,
-            PluginSettingValueType::string => [(string) $value, $type],
+            // arrays stored as JSON array string
+            PluginSettingValueType::radio,
+            PluginSettingValueType::multiselect,
+            PluginSettingValueType::chips => [
+                is_array($value)
+                    ? self::encodeJson(array_values($value))
+                    : self::encodeJson([(string) $value]),
+                $type
+            ],
         };
-    }
-
-    private static function encodeJson(array $value): string
-    {
-        try {
-            return json_encode($value, JSON_THROW_ON_ERROR | JSON_UNESCAPED_SLASHES);
-        } catch (JsonException $e) {
-            throw new RuntimeException('Failed to JSON-encode plugin setting value: ' . $e->getMessage(), 0, $e);
-        }
     }
 
     /**
@@ -144,5 +169,41 @@ final readonly class PluginSettingsWriter
 
             $this->set($pluginId, $key, $value, $t instanceof PluginSettingValueType ? $t : null);
         }
+    }
+
+    private static function encodeJson(array|object $value): string
+    {
+        try {
+            return json_encode($value, JSON_THROW_ON_ERROR | JSON_UNESCAPED_SLASHES);
+        } catch (JsonException $e) {
+            throw new RuntimeException('Failed to JSON-encode plugin setting value: ' . $e->getMessage(), 0, $e);
+        }
+    }
+
+    private static function tryDecodeJson(string $raw, mixed $default): mixed
+    {
+        try {
+            return json_decode($raw, true, 512, JSON_THROW_ON_ERROR);
+        } catch (JsonException) {
+            return $default;
+        }
+    }
+
+    private static function tryDecodeJsonArray(string $raw, mixed $default): mixed
+    {
+        $decoded = self::tryDecodeJson($raw, $default);
+        return is_array($decoded) ? $decoded : $default;
+    }
+
+    private static function normalizeBoolString(string $raw): string
+    {
+        $v = strtolower(trim($raw));
+        return ($v === 'true' || $v === 'false') ? $v : $raw;
+    }
+
+    private static function normalizeTriStateString(string $raw): string
+    {
+        $v = strtolower(trim($raw));
+        return in_array($v, ['true', 'false', 'null'], true) ? $v : $raw;
     }
 }

@@ -3,6 +3,8 @@ declare(strict_types=1);
 
 namespace Timeax\FortiPlugin\Services;
 
+use JsonException;
+use Timeax\FortiPlugin\Contracts\ConfigInterface;
 use Timeax\FortiPlugin\Installations\Support\AtomicFilesystem;
 use Timeax\FortiPlugin\Models\Plugin;
 use Timeax\FortiPlugin\Permissions\Contracts\PermissionServiceInterface;
@@ -11,9 +13,11 @@ use Timeax\FortiPlugin\Services\Plugins\PluginCatalog;
 use Timeax\FortiPlugin\Services\Plugins\PluginConfigResolver;
 use Timeax\FortiPlugin\Services\Plugins\PluginInstallLocator;
 use Timeax\FortiPlugin\Services\Plugins\PluginRuntimeManager;
+use Timeax\FortiPlugin\Traits\PluginSettingsLoader;
 
 final class PluginService
 {
+    use PluginSettingsLoader;
     private PluginCatalog $catalog;
     private PluginRuntimeManager $runtime;
 
@@ -67,9 +71,9 @@ final class PluginService
     /**
      * Load the plugin's runtime Config class file and return its FQCN.
      *
-     * @return class-string
+     * @return class-string<ConfigInterface>
      */
-    public function loadConfigClass(int $pluginId): string
+    public function loadConfigClass(int|string $pluginId): string
     {
         $plugin = $this->getPlugin($pluginId);
         $root = $this->runtime->installedRoot($plugin);
@@ -80,5 +84,19 @@ final class PluginService
     public function load(int|string $idOrAlias): InstalledPlugin
     {
         return $this->runtime->load($this->getPlugin($idOrAlias));
+    }
+
+    /**
+     * @throws JsonException
+     */
+    public function initSettings(int|string $idOrAlias, array $settings): void
+    {
+        $plugin = $this->getPlugin($idOrAlias);
+        $Ctx = $this->loadConfigClass($idOrAlias);
+        $config = $Ctx::getHostConfig();
+
+        if ($config !== null) {
+            $this->installHostConfig($plugin->id, $config);
+        }
     }
 }

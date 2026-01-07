@@ -6,19 +6,17 @@ declare(strict_types=1);
 namespace IGNORE;
 #{PLUGIN_NAMESPACE};
 
-use Illuminate\Support\Str;
-
 use JsonException;
 use RuntimeException;
 use Timeax\FortiPlugin\Contracts\ConfigInterface;
 use Timeax\FortiPlugin\Enums\PermissionType;
-use Timeax\FortiPlugin\Enums\PluginSettingValueType;
 use Timeax\FortiPlugin\Facades\Permissions;
 use Timeax\FortiPlugin\Models\PluginSetting;
 use Timeax\FortiPlugin\Permissions\Evaluation\Dto\PermissionListOptions;
 use Timeax\FortiPlugin\Permissions\Evaluation\Dto\PermissionListResult;
 use Timeax\FortiPlugin\Permissions\Evaluation\Dto\PermissionListSummary;
 use Timeax\FortiPlugin\Permissions\Evaluation\Dto\Result;
+use Timeax\FortiPlugin\Services\PluginSettingsWriter;
 use Timeax\FortiPlugin\Support\LoadedExportInfo;
 
 final class Config implements ConfigInterface
@@ -319,20 +317,7 @@ final class Config implements ConfigInterface
             return $default;
         }
 
-        $type = $row->type; // enum PluginSettingValueType
-        $raw = $row->value;
-
-        return match ($type) {
-            PluginSettingValueType::string, PluginSettingValueType::file, PluginSettingValueType::blob => $raw,
-            PluginSettingValueType::number => (Str::contains($raw, ['.', 'e', 'E']))
-                ? (float)$raw
-                : (int)$raw,
-            PluginSettingValueType::boolean => filter_var($raw, FILTER_VALIDATE_BOOLEAN, FILTER_NULL_ON_FAILURE) ?? $default,
-            PluginSettingValueType::json => (static function () use ($raw, $default) {
-                $decoded = json_decode($raw, true, 512, JSON_THROW_ON_ERROR);
-                return json_last_error() === JSON_ERROR_NONE ? $decoded : $default;
-            })(),
-        };
+        return PluginSettingsWriter::decodeValue($row->type, $row->value, $default);
     }
 
     /* ───────────────────────────────────────────────────────────────
@@ -420,10 +405,55 @@ final class Config implements ConfigInterface
      * {@inheritdoc}
      * @throws JsonException
      */
-    public static function getHostConfig(): ?array
+    public static function getHostConfig(?string $pluginRoot = null): mixed
     {
         $c = self::get('hostConfig');
-        return is_array($c) ? $c : null;
+
+        // inline host config (decoded as array)
+        if (is_array($c) || is_object($c)) {
+            return $c;
+        }
+
+        // path-based host config
+        if (is_string($c)) {
+            if ($pluginRoot === null || trim($pluginRoot) === '') {
+                throw new RuntimeException('hostConfig is a path but pluginRoot was not provided.');
+            }
+
+            // must be relative; no traversal; no absolute (unix/windows)
+            $path = trim($c);
+
+            if (
+                $path === '' ||
+                str_starts_with($path, '/') ||
+                str_starts_with($path, '\\') ||
+                preg_match('~^[A-Za-z]:[\\\\/]~', $path) ||
+                str_contains($path, '..')
+            ) {
+                throw new RuntimeException('Invalid hostConfig path (must be relative, no "..", no absolute paths).');
+            }
+
+            $fullPath = rtrim($pluginRoot, '/\\') . DIRECTORY_SEPARATOR
+                . str_replace(['/', '\\'], DIRECTORY_SEPARATOR, $path);
+
+            if (!is_file($fullPath)) {
+                throw new RuntimeException("hostConfig file not found: $path");
+            }
+
+            $json = file_get_contents($fullPath);
+            if ($json === false) {
+                throw new RuntimeException("Unable to read hostConfig file: $path");
+            }
+
+            try {
+                // keep as object by default (matches your validator usage)
+                return json_decode($json, false, 512, JSON_THROW_ON_ERROR);
+            } catch (JsonException $e) {
+                throw new RuntimeException("Invalid JSON in hostConfig file '$path': {$e->getMessage()}", 0, $e);
+            }
+        }
+
+        return null;
     }
 
     /**

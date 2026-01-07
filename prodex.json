@@ -6,13 +6,17 @@
   },
   "shortcuts": {
     "install": {
-      "files": ["src/Facades/Plugin.php", "src/Facades/PluginZip.php"]
+      "files": [
+        "src/Facades/Plugin.php",
+        "src/Facades/PluginZip.php"
+      ]
     },
     "act": {
-      "files": ["src/Installations/Activation/**"],
+      "files": [
+        "src/Installations/Activation/**"
+      ],
       "prefix": "activation"
     },
-
     "context": {
       "prefix": "context",
       "include": [
@@ -41,11 +45,16 @@
     },
     "prisma": {
       "prefix": "prisma",
-      "include": ["prisma/**"]
+      "include": [
+        "prisma/**"
+      ]
     },
     "load": {
       "prefix": "load",
-      "files": ["src/Autoload/**", "src/Installations/Activation/**"],
+      "files": [
+        "src/Autoload/**",
+        "src/Installations/Activation/**"
+      ],
       "include": [
         "config/fortiplugin.php",
         "src/FortiPluginServiceProvider.php",
@@ -57,31 +66,58 @@
         "src/Http/Middleware/FortiTokenGuard.php",
         "src/Http/Controllers/Ui/EmbedResolveController.php"
       ],
-      "include": ["routes/api.php"]
+      "include": [
+        "routes/api.php"
+      ]
     },
-
     "permissions-full": {
       "files": [
         "src/Lib/**",
         "src/Contracts/ConfigInterface.php",
         "**/*[Pp]ermission*.php"
       ],
-      "include": ["stubs/config-*.stub"]
+      "include": [
+        "stubs/config-*.stub"
+      ]
     },
     "permissions": {
-      "files": ["src/Lib/**", "src/Contracts/ConfigInterface.php"],
-      "include": ["stubs/config-*.stub", "**/*[Pp]ermission*.php"]
+      "files": [
+        "src/Lib/**",
+        "src/Contracts/ConfigInterface.php"
+      ],
+      "include": [
+        "stubs/config-*.stub",
+        "**/*[Pp]ermission*.php"
+      ]
     },
-
     "facade": {
-      "files": ["src/Facades/Plugin.php", "src/Facades/PluginZip.php"],
+      "files": [
+        "src/Facades/Plugin.php",
+        "src/Facades/PluginZip.php"
+      ],
       "include": [
         "prisma/**.prisma",
         "src/Contracts/ConfigInterface.php"
       ],
       "prefix": "plugin-facade"
     },
-
+    "major": {
+      "files": [
+        "src/Permissions/Evaluation/PermissionService.php",
+        "src/Runtime/PluginPermissions.php"
+      ],
+      "include": [
+        "src/Runtime/**",
+        "src/Services/Plugin*.php",
+        "src/Facades/Plugin*.php",
+        "src/Contracts/ConfigInterface.php",
+        "stubs/config-prod.stub",
+        "config/**",
+        "stubs/**",
+        "schema/**",
+        "prisma/**.prisma"
+      ]
+    },
     "latest": {
       "include": [
         "src/Runtime/**",

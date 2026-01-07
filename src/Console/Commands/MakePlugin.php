@@ -316,7 +316,7 @@ TS
             'vite', 'typescript', '@vitejs/plugin-react',
             '@types/react', '@types/react-dom',
             'tailwindcss',
-            'tyger-plugin-prep'
+            'fortiplugin-bundle-adapter'
         ];
         (new Process($cmd, $cwd))->setTimeout(600)->run(fn($t, $b) => $this->output->write($b));
     }

@@ -51,6 +51,12 @@ enum PluginSettingValueType {
   json
   file
   blob
+  tristate
+  multiselect
+  select
+  checkbox
+  radio
+  chips
 }
 
 enum AuthorRole {
@@ -143,13 +149,17 @@ model PluginAuthor {
 ///@guarded:id
 ///@fillable:plugin_id,key,value,type
 model PluginSetting {
-  id         BigInt                 @id @default(autoincrement()) @db.BigInt
-  plugin_id  BigInt                 @db.BigInt
-  key        String
-  value      String                 @db.LongText
-  type       PluginSettingValueType @default(string)
-  created_at DateTime               @default(now())
-  updated_at DateTime               @updatedAt
+  id           BigInt                 @id @default(autoincrement()) @db.BigInt
+  plugin_id    BigInt                 @db.BigInt
+  key          String                 @unique
+  group        String
+  label        String
+  value        String                 @db.LongText
+  type         PluginSettingValueType @default(string)
+  is_required  Boolean                @default(true)
+  is_sensitive Boolean                @default(false)
+  created_at   DateTime               @default(now())
+  updated_at   DateTime               @updatedAt
 
   plugin Plugin @relation(fields: [plugin_id], references: [id], onDelete: Cascade)
 

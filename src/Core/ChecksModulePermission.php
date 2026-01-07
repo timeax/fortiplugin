@@ -2,7 +2,7 @@
 
 namespace Timeax\FortiPlugin\Core;
 
- use Timeax\FortiPlugin\Contracts\ConfigInterface;
+use Timeax\FortiPlugin\Contracts\ConfigInterface;
 use Timeax\FortiPlugin\Models\PluginAuditLog;
 use Timeax\FortiPlugin\Support\PluginContext;
 use Timeax\FortiPlugin\Exceptions\PermissionDeniedException;
@@ -27,19 +27,20 @@ trait ChecksModulePermission
     /**
      * Checks if the plugin has permission for the current operation.
      *
-     * @param string            $type           Permission type (db, file, network, etc.)
-     * @param string            $actionOrIntent Action (read, write, POST, invoke, etc.)
-     * @param string|array| $meta           Target metadata (model name, path, host, etc.)
-     * @param array             $context        Optional execution context
+     * @param string $type Permission type (db, file, network, etc.)
+     * @param string $actionOrIntent Action (read, write, POST, invoke, etc.)
+     * @param string|array| $meta Target metadata (model name, path, host, etc.)
+     * @param array $context Optional execution context
      * @return void
      * @throws PermissionDeniedException|PluginContextException
      */
     protected function checkModulePermission(
-        string            $type,
-        string            $actionOrIntent,
-        string|array $meta ,
-        array             $context = []
-    ): void {
+        string       $type,
+        string       $actionOrIntent,
+        string|array $meta,
+        array        $context = []
+    ): void
+    {
         $configClass = $this->getPluginConfigClass();
 
         // Single source of truth: one evaluation, one result
@@ -52,17 +53,15 @@ trait ChecksModulePermission
 
         PluginAuditLog::create([
             'plugin_id' => $pluginId,
-
-            //TODO: INCLUDE ACTOR_ID and stuff
-            'type'      => $type,
-            'action'    => $actionOrIntent,
-            'resource'  => is_array($meta) ? json_encode($meta) : (string)$meta,
-            'context'   => array_merge($context, [
+            'type' => $type,
+            'action' => $actionOrIntent,
+            'resource' => is_array($meta) ? json_encode($meta) : (string)$meta,
+            'context' => array_merge($context, [
                 'granted' => $allowed,
-                'class'   => static::class,
+                'class' => static::class,
 
                 // extra useful signal (cheap + high value)
-                'reason'  => $result->reason,
+                'reason' => $result->reason,
                 'matched' => $result->matched?->toArray(),
             ]),
         ]);
@@ -87,7 +86,8 @@ trait ChecksModulePermission
         string            $actionOrIntent,
         string|array|null $meta = null,
         ?string           $reason = null
-    ): void {
+    ): void
+    {
         $result = Result::deny($reason ?? 'explicit_denial');
 
         throw new PermissionDeniedException(

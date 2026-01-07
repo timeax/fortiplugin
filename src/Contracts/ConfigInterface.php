@@ -128,7 +128,7 @@ interface ConfigInterface
      *
      * @return array<string,mixed>|null
      */
-    public static function getHostConfig(): ?array;
+    public static function getHostConfig(): mixed;
 
     /**
      * Runtime install info for the plugin, set by the host at install time.

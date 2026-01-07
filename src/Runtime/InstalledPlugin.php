@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Timeax\FortiPlugin\Runtime;
 
 use InvalidArgumentException;
+use JsonException;
 use RuntimeException;
 use Timeax\FortiPlugin\Contracts\ConfigInterface;
 use Timeax\FortiPlugin\Enums\PluginSettingValueType;
@@ -12,9 +13,11 @@ use Timeax\FortiPlugin\Models\Plugin;
 use Timeax\FortiPlugin\Permissions\Contracts\PermissionServiceInterface;
 use Timeax\FortiPlugin\Services\PluginSettingsWriter;
 use Timeax\FortiPlugin\Support\LoadedExportInfo;
+use Timeax\FortiPlugin\Traits\PluginSettingsLoader;
 
 final readonly class InstalledPlugin
 {
+    use PluginSettingsLoader;
     /**
      * @param class-string $configClass
      */
@@ -168,5 +171,13 @@ final readonly class InstalledPlugin
             $this->id(),
             $this->permissionService
         );
+    }
+
+    /**
+     * @throws JsonException
+     */
+    public function initSettings(): void
+    {
+      $this->installHostConfig($this->id(), $this->getConfigClass()::getHostConfig());
     }
 }

@@ -1,0 +1,120 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://yourdomain.com/schemas/fortiplugin.host-config.schema.json",
+  "title": "FortiPluginHostConfig",
+  "type": "object",
+  "properties": {
+    "settings": {
+      "type": "object",
+      "propertyNames": {
+        "type": "string",
+        "pattern": "^[a-z][a-z0-9_-]*$"
+      },
+      "additionalProperties": {
+        "$ref": "#/definitions/PluginSettingNode"
+      }
+    }
+  },
+  "required": [
+    "settings"
+  ],
+  "additionalProperties": false,
+  "definitions": {
+    "PluginSettingValueType": {
+      "type": "string",
+      "enum": [
+        "string",
+        "number",
+        "boolean",
+        "json",
+        "file",
+        "blob",
+        "tristate",
+        "multiselect",
+        "select",
+        "checkbox",
+        "radio",
+        "chips"
+      ]
+    },
+    "PluginSettingLeaf": {
+      "type": "object",
+      "properties": {
+        "label": {
+          "type": "string"
+        },
+        "type": {
+          "$ref": "#/definitions/PluginSettingValueType"
+        },
+        "value": {
+          "type": "string"
+        },
+        "is_required": {
+          "type": "boolean",
+          "default": true,
+          "description": "Whether the admin must provide/keep a value for this setting."
+        },
+        "is_sensitive": {
+          "type": "boolean",
+          "default": false,
+          "description": "Treat value as secret (mask in UI, avoid logs, consider encryption)."
+        },
+        "meta": {
+          "type": "object",
+          "additionalProperties": true
+        }
+      },
+      "required": [
+        "label",
+        "type",
+        "value"
+      ],
+      "additionalProperties": false
+    },
+    "PluginSettingGroup": {
+      "type": "object",
+      "properties": {
+        "type": {
+          "const": "group"
+        },
+        "label": {
+          "type": "string"
+        },
+        "is_required": {
+          "type": "boolean",
+          "default": true
+        },
+        "is_sensitive": {
+          "type": "boolean",
+          "default": false
+        },
+        "children": {
+          "type": "object",
+          "propertyNames": {
+            "type": "string",
+            "pattern": "^[a-z][a-z0-9_-]*$"
+          },
+          "additionalProperties": {
+            "$ref": "#/definitions/PluginSettingNode"
+          }
+        }
+      },
+      "required": [
+        "type",
+        "label",
+        "children"
+      ],
+      "additionalProperties": false
+    },
+    "PluginSettingNode": {
+      "oneOf": [
+        {
+          "$ref": "#/definitions/PluginSettingGroup"
+        },
+        {
+          "$ref": "#/definitions/PluginSettingLeaf"
+        }
+      ]
+    }
+  }
+}
