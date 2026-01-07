@@ -246,6 +246,7 @@ final class PackagerController extends Controller
                 'per_type_limits' => [],
                 'file_gates' => [],
             ],
+            'ignore' => $exclude
         ];
 
         return response()->json([

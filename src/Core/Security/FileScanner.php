@@ -261,7 +261,7 @@ class FileScanner
      */
     protected function shouldIgnore(string $absolutePath): bool
     {
-        $patterns = $this->policy->getConfig()['ignore'] ?? [];
+        $patterns = $this->policy->getConfig()['ignore'] ?? ['/vendor/*', '/node_modules/*', '/.git/*', '/*.log', '.internal/*'];
         if (!$patterns) {
             return false;
         }

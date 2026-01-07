@@ -6,7 +6,7 @@
   <component name="ChangeListManager">
     <list default="true" id="eaf4cbc6-d298-4694-b042-183ced7c77f7" name="Changes" comment="">
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/Console/Commands/PackPlugin.php" beforeDir="false" afterPath="$PROJECT_DIR$/src/Console/Commands/PackPlugin.php" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/Core/Security/FileScanner.php" beforeDir="false" afterPath="$PROJECT_DIR$/src/Core/Security/FileScanner.php" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -237,7 +237,7 @@
     "Shell Script.s.sh.executor": "Run",
     "com.intellij.ml.llm.matterhorn.ej.ui.settings.DefaultAutoModeForALLUsers.v1": "true",
     "com.intellij.ml.llm.matterhorn.ej.ui.settings.DefaultModelSelectionForGA.v1": "true",
-    "git-widget-placeholder": "main",
+    "git-widget-placeholder": "pre-release",
     "ignore.virus.scanning.warn.message": "true",
     "junie.onboarding.icon.badge.shown": "true",
     "laravel_idea.dialogs.code_generation:createConsoleCommand.width": "416",
