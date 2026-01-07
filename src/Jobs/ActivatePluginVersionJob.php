@@ -9,7 +9,10 @@ use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
 use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\SerializesModels;
+use JsonException;
+use Random\RandomException;
 use RuntimeException;
+use Throwable;
 use Timeax\FortiPlugin\Installations\Activation\Activator;
 use Timeax\FortiPlugin\Models\PluginVersion;
 
@@ -27,6 +30,11 @@ final class ActivatePluginVersionJob implements ShouldQueue
         public readonly string $actor,
     ) {}
 
+    /**
+     * @throws Throwable
+     * @throws RandomException
+     * @throws JsonException
+     */
     public function handle(Activator $activator): void
     {
         $version = PluginVersion::query()

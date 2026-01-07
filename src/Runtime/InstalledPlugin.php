@@ -9,6 +9,8 @@ use JsonException;
 use RuntimeException;
 use Timeax\FortiPlugin\Contracts\ConfigInterface;
 use Timeax\FortiPlugin\Enums\PluginSettingValueType;
+use Timeax\FortiPlugin\Enums\PluginStatus;
+use Timeax\FortiPlugin\Installations\Activation\Activator;
 use Timeax\FortiPlugin\Models\Plugin;
 use Timeax\FortiPlugin\Permissions\Contracts\PermissionServiceInterface;
 use Timeax\FortiPlugin\Services\PluginSettingsWriter;
@@ -171,6 +173,20 @@ final readonly class InstalledPlugin
             $this->id(),
             $this->permissionService
         );
+    }
+
+    public function deactivate(): void
+    {
+        $this->plugin->status = PluginStatus::inactive;
+        $this->plugin->save();
+    }
+
+    public function activate(): void
+    {
+//        Activator::run();
+        //----
+        $this->plugin->status = PluginStatus::active;
+        $this->plugin->save();
     }
 
     /**
