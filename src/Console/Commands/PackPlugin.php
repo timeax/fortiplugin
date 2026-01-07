@@ -7,6 +7,7 @@ namespace Timeax\FortiPlugin\Console\Commands;
 use Closure;
 use FilesystemIterator;
 use Illuminate\Console\Command;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
 use RecursiveDirectoryIterator;
 use RecursiveIteratorIterator;
@@ -37,6 +38,7 @@ class PackPlugin extends Command
      */
     public function handle(): int
     {
+        Log::info('Packing plugin...');
         // Session / API
         $session = $this->auth();
         if (!$session) return self::FAILURE;
@@ -48,20 +50,25 @@ class PackPlugin extends Command
         }
 
         $name = $this->argument('name');
-        $root = ($client->get("forti/structure"))['directory'] ?? 'Plugins';
+        $root = config('fortiplugin.dev_directory', 'Plugins');
 
         $plugin = base_path("$root/$name");
         if (!is_dir($plugin)) {
             $this->error("Plugin not found: $plugin");
             return self::FAILURE;
         }
-
-        // 0) Copy working dir to temp, applying ignores
-        $tempPath = $this->copyToTempWithIgnores($plugin);
+        $tempPath = '';
 
         try {
             // 1) Load or generate publish.json
-            $this->assertOutDirUnchanged($tempPath);
+            $this->assertOutDirUnchanged($plugin);
+
+            //ZEKI-1 build before copying to temp
+            $this->runNpmBuild($plugin);
+
+            // 0) Copy working dir to temp, applying ignores
+            $tempPath = $this->copyToTempWithIgnores($plugin);
+
             $publishPath = $plugin . '/publish.json';
             $publish = $this->ensurePublishJson($plugin, $publishPath);
             if (!$publish) {
@@ -85,9 +92,9 @@ class PackPlugin extends Command
             $validatorConfig = (array)($handshake['validator_config'] ?? []);
             $encryptionNonce = (string)($handshake['encryption']['nonce'] ?? '');
 
-            // 3) Build assets first (if any)
-            $this->assertOutDirUnchanged($tempPath);
-            $this->runNpmBuild($tempPath);
+//            // 3) Build assets first (if any)
+//            $this->assertOutDirUnchanged($tempPath);
+//            $this->runNpmBuild($tempPath);
 
             // 4) Collect files honoring both local and host excludes
             $excludeList = $excludeFromHost; // server-provided extra excludes
@@ -130,6 +137,7 @@ class PackPlugin extends Command
             $validator = new ValidatorService($policy, $validatorConfig);
             $emit = ($this->option('silent') || $this->option('ignore-verbose')) ? null : $this->makeEmitCallback();
             $summary = $validator->run($tempPath, $emit);
+            if ($emit) $this->line(json_encode($summary, JSON_THROW_ON_ERROR | JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES));
             if ($summary['should_fail'] ?? false) {
                 $this->warn('Validation indicates failure according to fail_policy. Aborting pack.');
                 $this->deleteDirectory($tempPath);
@@ -159,34 +167,53 @@ class PackPlugin extends Command
             file_put_contents($manifestPath, json_encode($manifestWithSig, JSON_THROW_ON_ERROR | JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES));
 
             // 10) Zip working directory (raw zip; transport encryption handled by server expectation)
-            $zipPath = $this->option('output') ?: base_path("Plugins/$name-" . date('Ymd-His') . ".zip");
+            $zipPath = $this->resolveZipPath($name, $this->option('output'));
+
+
+//            $zipPath = $this->option('output') ?: base_path("Plugins/$name-" . date('Ymd-His') . ".zip");
             if (file_exists($zipPath) && !$this->option('force')) {
                 throw new RuntimeException("Zip already exists: $zipPath (use --force to overwrite)");
             }
             $this->makeZipFromFiles($files, $manifestPath, $zipPath);
 
+
+            // TODO: Actually encrypt this zip file using the session key before sending! Currently sending raw zip under 'enc_zip' to bypass validation.
             // 11) Upload encrypted ZIP (client provides as enc_zip per contract; here we send raw zip under enc_zip)
-            $uReq = $this->getHttp();
-            $response = $uReq?->attach(
-                'enc_zip',
-                fopen($zipPath, 'rb'),
-                basename($zipPath)
-            )->post('/forti/pack/upload', [
-                'token' => $manifestAck['upload']['token'] ?? null,
-                'placeholder' => $pluginSlug,
-                'plugin_key' => $pluginKey,
-            ]);
+
+            $stream = fopen($zipPath, 'rb');
+
+            $uReq = $this->getHttp()?->timeout(300);
+
+            $response = $uReq
+                ->attach(
+                    'enc_zip',
+                    $stream, // Pass the resource, Guzzle handles the rest lazily
+                    basename($zipPath),
+                    ['Content-Type' => 'application/zip']
+                )
+                ->post('/forti/pack/upload', [
+                    'token' => $manifestAck['upload']['token'],
+                    'placeholder' => $pluginSlug,
+                    'plugin_key' => $pluginKey,
+                ]);
+
             $upload = $this->safeJson($response);
             if (!($upload['ok'] ?? false)) {
                 throw new RuntimeException('Upload failed: ' . ($upload['error'] ?? 'Unknown'));
             }
+
 
             // 12) Finalize
             $final = $client->post('/forti/pack/complete', [
                 'receipt_id' => $upload['receipt_id'] ?? null,
                 'action' => 'auto',
             ]);
+
             $complete = $this->safeJson($final);
+            logger()?->info("PACK COMPLETE RESPONSE", [
+                'complete' => $complete
+            ]);
+
             if (!($complete['ok'] ?? false)) {
                 throw new RuntimeException('Finalize failed: ' . ($complete['error'] ?? 'Unknown'));
             }
@@ -308,6 +335,26 @@ class PackPlugin extends Command
         }
         return $files;
     }
+
+    private function resolveZipPath(string $name, ?string $outputOption): string
+    {
+        // If user passed --output=...
+        if (!empty($outputOption)) {
+            $zipPath = $outputOption;
+            $zipDir = dirname($zipPath);
+        } else {
+            // Default: dedicated internal folder for packed plugins
+            $zipDir = storage_path('app/forti_packages');
+            $zipPath = $zipDir . DIRECTORY_SEPARATOR . ($name . '-' . date('Ymd-His') . '.zip');
+        }
+
+        if (!is_dir($zipDir) && !mkdir($zipDir, 0755, true) && !is_dir($zipDir)) {
+            throw new RuntimeException("Unable to create directory for zip: $zipDir");
+        }
+
+        return $zipPath;
+    }
+
 
     protected function makeZipFromFiles(array $files, string $manifestPath, string $zipPath): void
     {

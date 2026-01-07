@@ -5,6 +5,7 @@ namespace Timeax\FortiPlugin\Installations\Support;
 
 use JsonException;
 use Random\RandomException;
+use Timeax\FortiPlugin\Installations\DTO\DecisionResult;
 use Timeax\FortiPlugin\Installations\DTO\InstallSummary;
 use Timeax\FortiPlugin\Installations\Enums\Install;
 use Timeax\FortiPlugin\Installations\InstallerPolicy;
@@ -26,9 +27,10 @@ use Timeax\FortiPlugin\Services\ValidatorService;
 final readonly class ValidatorBridge
 {
     public function __construct(
-        private VerificationSection $verification,
-        private FileScanSection     $fileScan,
-        private InstallerPolicy     $policy,
+        private VerificationSection  $verification,
+        private FileScanSection      $fileScan,
+        private InstallerPolicy      $policy,
+        private InstallationLogStore $logStore,
     )
     {
     }
@@ -119,6 +121,19 @@ final readonly class ValidatorBridge
                 'status' => $validator->shouldFail() ? 'fail' : 'ok',
                 'errors' => [], // can be enriched later from validator logs if desired
             ];
+        } else {
+            // When FileScan is disabled, persist an “OK” decision anyway so activation passes
+            $fingerprint = $this->logStore->read()['meta']['fingerprint'] ?? '';
+            $this->logStore->writeDecision(new DecisionResult(
+                status: 'installed',
+                at: gmdate('c'),
+                run_id: $runId,
+                zip_id: $zipId,
+                fingerprint: $fingerprint,
+                validator_config_hash: $validatorConfigHash,
+                file_scan_enabled: false,
+                reason: 'file_scan_skipped_by_policy',
+            ));
         }
 
         // 3) Compose DTO

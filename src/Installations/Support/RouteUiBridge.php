@@ -42,12 +42,12 @@ final readonly class RouteUiBridge
     /**
      * Discover and compile all route JSON files for a staged plugin.
      *
-     * @param string        $stagingRoot Absolute path to staged plugin root (directory containing fortiplugin.json)
-     * @param callable|null $emit        Optional emitter: fn(array $payload): void
+     * @param string   $stagingRoot Absolute path to staged plugin root (directory containing fortiplugin.json)
+     * @param callable $emit        Installer-level emitter: fn(array $payload): void (non-null)
      * @return array{compiled:array,registry:array,route_ids:array,files:array,root:string,pattern:string}
      * @throws JsonException
      */
-    public function discoverAndCompile(string $stagingRoot, ?callable $emit = null): array
+    public function discoverAndCompile(string $stagingRoot, callable $emit): array
     {
         $stagingRoot = rtrim($stagingRoot, "\\/");
 
@@ -72,7 +72,7 @@ final readonly class RouteUiBridge
             throw new RuntimeException("Routes directory not found: $root");
         }
 
-        $emit && $emit([
+        $emit([
             'title' => 'ROUTE_DISCOVERY_START',
             'description' => 'Searching for JSON route files',
             'meta' => ['root' => $root, 'pattern' => $glob],
@@ -80,7 +80,7 @@ final readonly class RouteUiBridge
 
         $files = $this->findRouteFiles($root, $glob);
 
-        $emit && $emit([
+        $emit([
             'title' => 'ROUTE_DISCOVERY_DONE',
             'description' => 'Route files discovered',
             'meta' => ['count' => count($files), 'root' => $root],
@@ -97,7 +97,7 @@ final readonly class RouteUiBridge
             ];
         }
 
-        $emit && $emit([
+        $emit([
             'title' => 'ROUTE_COMPILE_START',
             'description' => 'Compiling route JSON files',
             'meta' => ['count' => count($files)],
@@ -124,7 +124,7 @@ final readonly class RouteUiBridge
         // Persist registry to .internal
         $this->registryStore->write($stagingRoot, $registryEntries);
 
-        $emit && $emit([
+        $emit([
             'title' => 'ROUTE_COMPILE_DONE',
             'description' => 'Routes compiled',
             'meta' => ['compiled' => count($compiled), 'registry_entries' => count($registryEntries), 'route_ids' => count($routeIds)],

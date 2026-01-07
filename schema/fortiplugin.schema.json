@@ -41,10 +41,15 @@
       }
     },
     "hostConfig": {
-      "type": "array",
-      "items": {
-        "$ref": "#/definitions/HostConfig"
-      }
+      "description": "Either a relative path to a host-config JSON file, or an inline host config object.",
+      "oneOf": [
+        {
+          "$ref": "#/definitions/HostConfigPath"
+        },
+        {
+          "$ref": "#/definitions/HostConfigInline"
+        }
+      ]
     },
     "uiConfig": {
       "type": "object",
@@ -102,85 +107,13 @@
   ],
   "additionalProperties": false,
   "definitions": {
-    "TriState": {
-      "type": [
-        "boolean",
-        "null"
-      ],
-      "description": "Boolean or null (tri-state)"
+    "HostConfigPath": {
+      "type": "string",
+      "pattern": "^(?!/)(?!.*\\.\\.)[A-Za-z0-9._/@-]+\\.json$",
+      "description": "Relative path to a JSON file inside the plugin (no leading '/', no '..'). Example: 'host/host-config.json'."
     },
-    "SettingValue": {
-      "anyOf": [
-        {
-          "type": "boolean"
-        },
-        {
-          "type": "null"
-        },
-        {
-          "type": "string"
-        },
-        {
-          "type": "number"
-        },
-        {
-          "type": "array",
-          "items": {
-            "type": "string"
-          }
-        },
-        {
-          "type": "object",
-          "additionalProperties": {
-            "$ref": "#/definitions/TriState"
-          }
-        }
-      ],
-      "description": "Allowed value types for settings (incl. arrays of strings, and maps of TriState)"
-    },
-    "Setting": {
-      "type": "object",
-      "properties": {
-        "id": {
-          "oneOf": [
-            {
-              "type": "string"
-            },
-            {
-              "type": "number"
-            }
-          ]
-        }
-      },
-      "required": [
-        "id"
-      ],
-      "additionalProperties": {
-        "$ref": "#/definitions/SettingValue"
-      },
-      "description": "A single host setting; 'id' must be unique (enforced by installer/validator)"
-    },
-    "HostConfig": {
-      "type": "object",
-      "properties": {
-        "global": {
-          "type": "object",
-          "properties": {
-            "id": false
-          },
-          "additionalProperties": {
-            "$ref": "#/definitions/SettingValue"
-          },
-          "description": "Defaults applied globally for the plugin (no 'id' allowed here)"
-        },
-        "settings": {
-          "type": "array",
-          "items": {
-            "$ref": "#/definitions/Setting"
-          }
-        }
-      },
-      "additionalProperties": false
+    "HostConfigInline": {
+      "$ref": "fortiplugin://schemas/fortiplugin.host-config.schema.json"
     },
     "UiItem": {
       "type": "object",
@@ -360,6 +293,9 @@
           "type": "string",
           "pattern": "^(?!.*\\.\\.)[A-Za-z0-9._/@-]+$"
         },
+        "desc": {
+          "type": "string"
+        },
         "setting_id": {
           "oneOf": [
             {
@@ -372,7 +308,8 @@
         }
       },
       "required": [
-        "file"
+        "file",
+        "desc"
       ],
       "additionalProperties": false,
       "description": "Explicit export definition with optional binding to a HostConfig setting id"

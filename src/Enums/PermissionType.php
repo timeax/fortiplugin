@@ -10,4 +10,5 @@ enum PermissionType: string
 	case module = "module";
 	case network = "network";
 	case codec = "codec";
+    const route = "route";
 }

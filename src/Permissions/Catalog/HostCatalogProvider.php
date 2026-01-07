@@ -5,6 +5,7 @@ namespace Timeax\FortiPlugin\Permissions\Catalog;
 
 use JsonException;
 use Throwable;
+use Timeax\FortiPlugin\Models\PluginSetting;
 use Timeax\FortiPlugin\Permissions\Cache\KeyBuilder;
 use Timeax\FortiPlugin\Permissions\Contracts\CatalogProviderInterface;
 
@@ -144,7 +145,7 @@ final readonly class HostCatalogProvider implements CatalogProviderInterface
 
     public function settingsForPlugin(int $pluginId): array
     {
-        $modelClass = '\\Timeax\\FortiPlugin\\Models\\PluginSetting';
+        $modelClass = PluginSetting::class;
 
         if (class_exists($modelClass)) {
             try {

@@ -2,8 +2,10 @@
 
 namespace Timeax\FortiPlugin\Models;
 
+use Carbon\Carbon;
 use Illuminate\Database\Eloquent\Casts\AsArrayObject;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Support\Collection;
 
 /**
  * @property int $id
@@ -12,11 +14,11 @@ use Illuminate\Database\Eloquent\Model;
  * @property string $unique_key
  * @property string|null $owner_ref
  * @property array|null $meta
- * @property \Carbon\Carbon $created_at
- * @property \Carbon\Carbon $updated_at
- * @property \Illuminate\Support\Collection<int, PluginToken::class> $tokens
- * @property \Illuminate\Support\Collection<int, PluginSignature::class> $signatures
- * @property \Illuminate\Support\Collection<int, PluginZip::class> $zips
+ * @property Carbon $created_at
+ * @property Carbon $updated_at
+ * @property Collection<int, PluginToken::class> $tokens
+ * @property Collection<int, PluginSignature::class> $signatures
+ * @property Collection<int, PluginZip::class> $zips
  * @property Plugin::class $plugin
  */
 class PluginPlaceholder extends Model

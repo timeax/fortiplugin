@@ -1,25 +1,28 @@
-<?php /** @noinspection ALL */
+<?php /** @noinspection GrazieInspection */ ///** @noinspection ALL */
 #{SIGNATURE_BLOCK}
 
 declare(strict_types=1);
 
 namespace IGNORE;
-#{PLUGIN_NAMESPACE}\Internal;
+#{PLUGIN_NAMESPACE};
 
-use Illuminate\Support\Arr;
-use Illuminate\Support\Str;
+use JsonException;
+use RuntimeException;
 use Timeax\FortiPlugin\Contracts\ConfigInterface;
 use Timeax\FortiPlugin\Enums\PermissionType;
-use Timeax\FortiPlugin\Enums\PluginSettingValueType;
 use Timeax\FortiPlugin\Facades\Permissions;
 use Timeax\FortiPlugin\Models\PluginSetting;
 use Timeax\FortiPlugin\Permissions\Evaluation\Dto\PermissionListOptions;
 use Timeax\FortiPlugin\Permissions\Evaluation\Dto\PermissionListResult;
 use Timeax\FortiPlugin\Permissions\Evaluation\Dto\PermissionListSummary;
 use Timeax\FortiPlugin\Permissions\Evaluation\Dto\Result;
+use Timeax\FortiPlugin\Services\PluginSettingsWriter;
+use Timeax\FortiPlugin\Support\LoadedExportInfo;
 
 final class Config implements ConfigInterface
 {
+    /** @var array<string, array<string,mixed>> */
+    protected static array $manifest = [];
     /**
      * Cached plugin config values – loaded from plugin.config.json (or fallback).
      * @var array<string,mixed>
@@ -28,45 +31,219 @@ final class Config implements ConfigInterface
 
     /**
      * Runtime installation info (e.g., from DB / installer).
-     * These placeholders are replaced during install.
+     * These placeholders are replaced during installation.
      * @var array{id:int|null,alias:string|null,name?:string|null}
      */
     private static array $info = [
-        'id' => (int)'#{PLUGIN_ID}',
+        'id' => '#{PLUGIN_ID}',
         'alias' => '#{PLUGIN_ALIAS}',
         'name' => '#{PLUGIN_STUDLY}',
+        'namespace' => '#{PLUGIN_NAMESPACE}',
+        'basePath' => '#{PLUGIN_BASE_PATH}',
     ];
+
 
     /** Cached signature contents from `.internal/Signed`. */
     private static ?string $signature = null;
 
-    /** Manifest cache. */
-    private static array $manifest = [];
+    /**
+     * Resolve the configured public base template for this plugin.
+     *
+     * Returns a normalized path segment WITHOUT leading/trailing slashes.
+     * Example: "vendor/fortiplugin/my-plugin"
+     * @throws JsonException
+     */
+    protected static function resolvePublicBaseRelative(): string
+    {
+        $alias = self::getAlias();
+        $slug = (string)(static::$info['slug'] ?? $alias);
+
+        $baseTpl = (string)config('fortiplugin.ui.embed.public_base', '');
+        if (trim($baseTpl) === '') {
+            $baseTpl = '/vendor/fortiplugin/{alias}';
+        }
+
+        $base = strtr($baseTpl, [
+            '{alias}' => $alias,
+            '{slug}' => $slug,
+            '{plugin}' => $alias, // backward-compat
+        ]);
+
+        return trim(str_replace('\\', '/', $base), '/');
+    }
+
+    /**
+     * Get the Vite build manifest content.
+     *
+     * Supports separate builds:
+     * - public/<public_base>/build/.vite/manifest.spa.json
+     * - public/<public_base>/build/.vite/manifest.integrations.json
+     *
+     * @return array<string,mixed>
+     * @throws JsonException
+     */
+    public static function getViteBuildManifest(string $lane = 'spa'): array
+    {
+        // Cache per lane (cache empty too)
+        if (array_key_exists($lane, self::$manifest)) {
+            return self::$manifest[$lane];
+        }
+
+        $file = match ($lane) {
+            'spa', 'inertia' => 'manifest.spa.json',
+            'embed', 'integrations' => 'manifest.integrations.json',
+            default => 'manifest.json',
+        };
+
+        $relativeBase = static::resolvePublicBaseRelative();
+        $path = public_path($relativeBase . '/build/.vite/' . $file);
+
+        if (!is_file($path)) {
+            return self::$manifest[$lane] = [];
+        }
+
+        $json = @file_get_contents($path);
+        if ($json === false) {
+            return self::$manifest[$lane] = [];
+        }
+
+        $decoded = json_decode($json, true, 512, JSON_THROW_ON_ERROR);
+
+        return self::$manifest[$lane] = (is_array($decoded) ? $decoded : []);
+    }
+
+    /**
+     * Returns a public URL for this plugin's published assets.
+     * Example: "/vendor/fortiplugin/<alias>/build/integrations/x.y.z.js"
+     * @throws JsonException
+     */
+    public static function getPublicUrl(string $path): string
+    {
+        $relativeBase = static::resolvePublicBaseRelative();
+
+        $base = '/' . $relativeBase; // ensure leading slash
+        $path = ltrim(str_replace('\\', '/', $path), '/');
+
+        return rtrim($base, '/') . '/' . $path;
+    }
+
+    /**
+     * Resolve embed/integration entry by Rollup input key (dot-name).
+     * @throws JsonException
+     */
+    public static function getViteEmbededAsset(string $name): string
+    {
+        $manifest = self::getViteBuildManifest('integrations');
+
+        foreach ($manifest as $entry) {
+            if (!is_array($entry)) {
+                continue;
+            }
+
+            // Keep it entry-only (recommended)
+            if (($entry['isEntry'] ?? false) !== true) {
+                continue;
+            }
+
+            // This matches your dot-name input keys: "pages.Admin.Dashboard", "__app_entry", etc.
+            if (($entry['name'] ?? null) !== $name) {
+                continue;
+            }
+
+            $file = $entry['file'] ?? null;
+
+            if (is_string($file) && $file !== '') {
+                // Manifest "file" is already like: "integrations/<name>.<hash>.js"
+                return static::getPublicUrl('build/' . ltrim($file, '/'));
+            }
+
+            return '';
+        }
+
+        return '';
+    }
+
+    /**
+     * Resolve an SPA override page asset by a friendly name like:
+     * - "app" or "app.tsx"
+     * - "Admin/Dashboard" or "Admin/Dashboard.tsx"
+     *
+     * It searches for manifest entry keys ending with:
+     * - "/pages/<name>.(tsx|ts|jsx|js)"
+     * - "/Pages/<name>.(tsx|ts|jsx|js)"
+     *
+     * @return string Public path like "/build/spa/<hash>.js" or "" if not found
+     * @throws JsonException
+     */
+    public static function getVitePageAsset(string $name): string
+    {
+        $manifest = self::getViteBuildManifest();
+
+        $name = str_replace('\\', '/', ltrim($name, '/\\'));
+
+        // If the user supplied an extension, match only that;
+        // otherwise try common script/tsx extensions.
+        $exts = preg_match('/\.(tsx|ts|jsx|js)$/i', $name)
+            ? [''] // keep as-is
+            : ['.tsx', '.ts', '.jsx', '.js'];
+
+        $targets = [];
+        foreach ($exts as $ext) {
+            $n = $ext === '' ? $name : ($name . $ext);
+
+            // User may pass "pages/..." explicitly, but usually they pass "app" or "Admin/Dashboard"
+            if (str_starts_with($n, 'pages/') || str_starts_with($n, 'Pages/')) {
+                $targets[] = '/' . $n;
+            } else {
+                $targets[] = '/pages/' . $n;
+                $targets[] = '/Pages/' . $n;
+            }
+        }
+
+        $bestFile = null;
+        $bestScore = null;
+
+        foreach ($manifest as $key => $entry) {
+            if (!is_string($key) || !is_array($entry)) {
+                continue;
+            }
+
+            // Only consider actual entrypoints
+            if (($entry['isEntry'] ?? false) !== true) {
+                continue;
+            }
+
+            $file = $entry['file'] ?? null;
+            if (!is_string($file) || $file === '') {
+                continue;
+            }
+
+            $k = str_replace('\\', '/', $key);
+
+            foreach ($targets as $suffix) {
+                if (!str_ends_with($k, $suffix)) {
+                    continue;
+                }
+
+                // Prefer "/pages/" over "/Pages/", then prefer shorter keys (more specific)
+                $score = 0;
+                if (str_contains($k, '/pages/')) $score += 100;
+                if (str_contains($k, '/Pages/')) $score += 50;
+                $score += max(0, 10000 - strlen($k));
+
+                if ($bestScore === null || $score > $bestScore) {
+                    $bestScore = $score;
+                    $bestFile = $file;
+                }
+            }
+        }
+
+        return $bestFile ? static::getPublicUrl('/build/' . ltrim($bestFile, '/')) : '';
+    }
 
     /* ───────────────────────────────────────────────────────────────
      |  Internal helpers (IO + tiny utilities)
      ─────────────────────────────────────────────────────────────── */
-
-    /**
-     * Load and cache manifest.json.
-     *
-     * @return array<string,mixed>
-     */
-    private static function loadManifest(): array
-    {
-        if (self::$manifest !== []) {
-            return self::$manifest;
-        }
-
-        $path = dirname(__DIR__) . '/manifest.json';
-        if (!is_file($path)) {
-            return self::$manifest = [];
-        }
-
-        $json = @file_get_contents($path);
-        $data = json_decode($json ?: 'null', true);
-        return self::$manifest = is_array($data) ? $data : [];
-    }
 
     /**
      * Load and cache plugin.config.json (with safe fallbacks).
@@ -77,6 +254,7 @@ final class Config implements ConfigInterface
      *  - plugin.json
      *
      * @return array<string,mixed>
+     * @throws JsonException
      */
     private static function loadConfig(): array
     {
@@ -88,13 +266,13 @@ final class Config implements ConfigInterface
         $candidates = [
             $root . '/plugin.config.json',
             $root . '/config.json',
-            $root . '/../fortiplugin.json',
+            $root . '/fortiplugin.json',
         ];
 
         foreach ($candidates as $file) {
             if (is_file($file)) {
                 $json = @file_get_contents($file);
-                $arr = json_decode($json ?: 'null', true);
+                $arr = json_decode($json ?: 'null', true, 512, JSON_THROW_ON_ERROR);
                 if (is_array($arr)) {
                     return self::$configData = $arr;
                 }
@@ -118,7 +296,7 @@ final class Config implements ConfigInterface
         if (array_key_exists($key, $source)) {
             return $source[$key];
         }
-        $segments = \explode('.', $key);
+        $segments = explode('.', $key);
         $cursor = $source;
         foreach ($segments as $seg) {
             if (is_array($cursor) && array_key_exists($seg, $cursor)) {
@@ -139,22 +317,7 @@ final class Config implements ConfigInterface
             return $default;
         }
 
-        $type = $row->type; // enum PluginSettingValueType
-        $raw = $row->value;
-
-        return match ($type) {
-            PluginSettingValueType::string => $raw,
-            PluginSettingValueType::number => (Str::contains($raw, ['.', 'e', 'E']))
-                ? (float)$raw
-                : (int)$raw,
-            PluginSettingValueType::boolean => filter_var($raw, FILTER_VALIDATE_BOOLEAN, FILTER_NULL_ON_FAILURE) ?? $default,
-            PluginSettingValueType::json => (static function () use ($raw, $default) {
-                $decoded = json_decode($raw, true);
-                return json_last_error() === JSON_ERROR_NONE ? $decoded : $default;
-            })(),
-            PluginSettingValueType::file,
-            PluginSettingValueType::blob => $raw,
-        };
+        return PluginSettingsWriter::decodeValue($row->type, $row->value, $default);
     }
 
     /* ───────────────────────────────────────────────────────────────
@@ -163,6 +326,7 @@ final class Config implements ConfigInterface
 
     /**
      * {@inheritdoc}
+     * @throws JsonException
      */
     public static function all(): array
     {
@@ -171,6 +335,7 @@ final class Config implements ConfigInterface
 
     /**
      * {@inheritdoc}
+     * @throws JsonException
      */
     public static function get(string $key, mixed $default = null): mixed
     {
@@ -179,6 +344,7 @@ final class Config implements ConfigInterface
 
     /**
      * {@inheritdoc}
+     * @throws JsonException
      */
     public static function getName(): string
     {
@@ -188,6 +354,7 @@ final class Config implements ConfigInterface
 
     /**
      * {@inheritdoc}
+     * @throws JsonException
      */
     public static function getAlias(): string
     {
@@ -197,6 +364,7 @@ final class Config implements ConfigInterface
 
     /**
      * {@inheritdoc}
+     * @throws JsonException
      */
     public static function getVersion(): string
     {
@@ -205,6 +373,7 @@ final class Config implements ConfigInterface
 
     /**
      * {@inheritdoc}
+     * @throws JsonException
      */
     public static function getDescription(): ?string
     {
@@ -214,6 +383,7 @@ final class Config implements ConfigInterface
 
     /**
      * {@inheritdoc}
+     * @throws JsonException
      */
     public static function getAuthor(): ?string
     {
@@ -223,33 +393,87 @@ final class Config implements ConfigInterface
 
     /**
      * {@inheritdoc}
+     * @throws JsonException
      */
     public static function getUiConfig(): ?array
     {
-        $c = self::get('ui');
+        $c = self::get('uiConfig');
         return is_array($c) ? $c : null;
     }
 
     /**
      * {@inheritdoc}
+     * @throws JsonException
      */
-    public static function getHostConfig(): ?array
+    public static function getHostConfig(?string $pluginRoot = null): mixed
     {
-        $c = self::get('host');
-        return is_array($c) ? $c : null;
+        $c = self::get('hostConfig');
+
+        // inline host config (decoded as array)
+        if (is_array($c) || is_object($c)) {
+            return $c;
+        }
+
+        // path-based host config
+        if (is_string($c)) {
+            if ($pluginRoot === null || trim($pluginRoot) === '') {
+                throw new RuntimeException('hostConfig is a path but pluginRoot was not provided.');
+            }
+
+            // must be relative; no traversal; no absolute (unix/windows)
+            $path = trim($c);
+
+            if (
+                $path === '' ||
+                str_starts_with($path, '/') ||
+                str_starts_with($path, '\\') ||
+                preg_match('~^[A-Za-z]:[\\\\/]~', $path) ||
+                str_contains($path, '..')
+            ) {
+                throw new RuntimeException('Invalid hostConfig path (must be relative, no "..", no absolute paths).');
+            }
+
+            $fullPath = rtrim($pluginRoot, '/\\') . DIRECTORY_SEPARATOR
+                . str_replace(['/', '\\'], DIRECTORY_SEPARATOR, $path);
+
+            if (!is_file($fullPath)) {
+                throw new RuntimeException("hostConfig file not found: $path");
+            }
+
+            $json = file_get_contents($fullPath);
+            if ($json === false) {
+                throw new RuntimeException("Unable to read hostConfig file: $path");
+            }
+
+            try {
+                // keep as object by default (matches your validator usage)
+                return json_decode($json, false, 512, JSON_THROW_ON_ERROR);
+            } catch (JsonException $e) {
+                throw new RuntimeException("Invalid JSON in hostConfig file '$path': {$e->getMessage()}", 0, $e);
+            }
+        }
+
+        return null;
     }
 
     /**
      * {@inheritdoc}
+     * @throws JsonException
      */
-    public static function getInfo(): array
+    public static function getInfo(?string $key = null): string|array
     {
         // Ensure a consistent shape.
-        return [
+        $info = [
             'id' => is_numeric(self::$info['id'] ?? null) ? (int)self::$info['id'] : null,
             'alias' => is_string(self::$info['alias'] ?? null) ? (string)self::$info['alias'] : null,
             'name' => is_string(self::$info['name'] ?? null) ? (string)self::$info['name'] : self::getName(),
+            'namespace' => is_string(self::$info['namespace'] ?? null) ? (string)self::$info['namespace'] : null,
+            'basePath' => is_string(self::$info['basePath'] ?? null) ? (string)self::$info['basePath'] : null,
         ];
+
+        if ($key !== null) return $info[$key] ?? '';
+        //---
+        return $info;
     }
 
     /**
@@ -308,6 +532,325 @@ final class Config implements ConfigInterface
         return self::decodeHostSetting($row, $default);
     }
 
+    /**
+     * {@inheritdoc}
+     */
+    public static function getAllHost(): array
+    {
+        $pluginId = self::getPluginId();
+        if (!$pluginId) {
+            return [];
+        }
+
+        $rows = PluginSetting::query()
+            ->where('plugin_id', $pluginId)
+            ->get();
+
+        // If no group exists at all, keep the old flat shape for backward-compat.
+        $hasAnyGroup = false;
+        foreach ($rows as $r) {
+            if (!empty($r->group)) {
+                $hasAnyGroup = true;
+                break;
+            }
+        }
+
+        $flat = [];
+        foreach ($rows as $row) {
+            $flat[$row->key] = self::decodeHostSetting($row, null);
+        }
+
+        if (!$hasAnyGroup) {
+            return $flat;
+        }
+
+        /**
+         * Grouped shape:
+         * [
+         *   "_ungrouped" => [ "key" => value, ... ],
+         *   "UI" => [ "ui.theme" => value, ... ],
+         *   "UI / Sidebar" => [ "ui.sidebar.sections" => value, ... ],
+         *   ...
+         * ]
+         */
+        $grouped = [
+            '_ungrouped' => [],
+        ];
+
+        foreach ($rows as $row) {
+            $value = $flat[$row->key];
+
+            $group = is_string($row->group) ? trim($row->group) : '';
+            if ($group === '') {
+                $grouped['_ungrouped'][$row->key] = $value;
+                continue;
+            }
+
+            if (!array_key_exists($group, $grouped)) {
+                $grouped[$group] = [];
+            }
+
+            $grouped[$group][$row->key] = $value;
+        }
+
+        // Remove _ungrouped if empty (optional)
+        if ($grouped['_ungrouped'] === []) {
+            unset($grouped['_ungrouped']);
+        }
+
+        return $grouped;
+    }
+
+    /* -----------------------------------------------
+         |  Loaded export info
+        ─────────────────────────────────────────────────────────────── */
+    /**
+     * {@inheritdoc}
+     * @throws JsonException
+     */
+    public static function load(?string $export = null): LoadedExportInfo
+    {
+        $all = self::all();
+
+        // main ONLY when no parameter
+        if ($export === null) {
+            return self::resolveExportFile($all['main'] ?? null);
+        }
+
+        $export = trim($export);
+        if ($export === '') {
+            throw new RuntimeException('Export key cannot be empty.');
+        }
+
+        $exports = $all['exports'] ?? null;
+        if (!is_array($exports)) {
+            throw new RuntimeException('Plugin config is missing "exports" map.');
+        }
+
+        // exports FULL STOP: exact key lookup (dots are allowed as literal key chars)
+        $def = $exports[$export] ?? null;
+
+        return self::resolveExportFile($def);
+    }
+
+    /** @var array<string, LoadedExportInfo|null> */
+    private static array $exportResolveCache = [];
+
+    /**
+     * Strict resolver:
+     * - resolves export definition to a CLASS FQCN only
+     * - no reflection fallbacks
+     * - If class does not exist after require_once, throws
+     *
+     * @param mixed $def string path OR ['file' => '...']
+     * @throws RuntimeException|JsonException
+     */
+    private static function resolveExportFile(mixed $def): LoadedExportInfo
+    {
+        $file = null;
+
+        if (is_string($def) && $def !== '') {
+            $file = $def;
+        } elseif (is_array($def) && isset($def['file']) && is_string($def['file']) && $def['file'] !== '') {
+            $file = $def['file'];
+        }
+
+        if ($file === null) {
+            throw new RuntimeException('Invalid export definition: missing file');
+        }
+
+        $absPath = self::resolveExportPath($file);
+        $realPath = realpath($absPath) ?: $absPath;
+
+        $cacheKey = static::class . '|' . $realPath;
+
+        if (array_key_exists($cacheKey, self::$exportResolveCache)) {
+            $cached = self::$exportResolveCache[$cacheKey];
+            if ($cached === null) {
+                throw new RuntimeException("Export file could not be resolved: $file");
+            }
+            return $cached;
+        }
+
+        if ($realPath === '' || !is_file($realPath)) {
+            self::$exportResolveCache[$cacheKey] = null;
+            throw new RuntimeException("Export file not found: $file");
+        }
+
+        [$ns, $class] = self::parseFirstDeclaredClass($realPath);
+
+        if ($class === null || trim($class) === '') {
+            self::$exportResolveCache[$cacheKey] = null;
+            throw new RuntimeException("No class declaration found in export file: $file");
+        }
+
+        // If namespace missing in source, assume plugin root namespace
+        $ns = trim((string)($ns ?? ''), '\\');
+        if ($ns === '') {
+            $ns = trim((string)self::getInfo('namespace'), '\\');
+        }
+
+        if ($ns === '') {
+            self::$exportResolveCache[$cacheKey] = null;
+            throw new RuntimeException("Cannot resolve class namespace for export: $file");
+        }
+
+        $fqcn = $ns . '\\' . $class;
+
+        // If it's PSR-4 mapped, this should pass; otherwise we require_once for safety.
+        if (!class_exists($fqcn)) {
+            require_once $realPath;
+        }
+
+        if (!class_exists($fqcn)) {
+            self::$exportResolveCache[$cacheKey] = null;
+            throw new RuntimeException("Resolved class does not exist after loading file: $fqcn ($file)");
+        }
+
+        $info = new LoadedExportInfo(
+            type: 'class',
+            file: $file,
+            realpath: $realPath,
+            classString: $fqcn,
+            className: $class,
+            namespace: $ns,
+            sha1: (string)@sha1_file($realPath),
+            mtime: (int)(@filemtime($realPath) ?: 0),
+            resolvedAt: date('c'),
+        );
+
+        return self::$exportResolveCache[$cacheKey] = $info;
+    }
+
+    /**
+     * Parse the first declared class in a PHP file.
+     * Returns [namespace|null, className|null].
+     *
+     * - Skips anonymous classes (`new class {}`).
+     *
+     * @return array{0:string|null,1:string|null}
+     */
+    private static function parseFirstDeclaredClass(string $realPath): array
+    {
+        $src = @file_get_contents($realPath);
+        if ($src === false || $src === '') {
+            return [null, null];
+        }
+
+        $tokens = token_get_all($src);
+
+        $namespace = '';
+        $className = null;
+
+        $captureNamespace = false;
+        $nsParts = [];
+
+        $prevMeaningful = null;
+        $captureClassName = false;
+
+        foreach ($tokens as $tok) {
+            if (!is_array($tok)) {
+                continue;
+            }
+
+            [$id, $text] = $tok;
+
+            if ($id === T_NAMESPACE) {
+                $captureNamespace = true;
+                $nsParts = [];
+                continue;
+            }
+
+            if ($captureNamespace) {
+                if (
+                    $id === T_STRING ||
+                    $id === T_NS_SEPARATOR ||
+                    (defined('T_NAME_QUALIFIED') && $id === T_NAME_QUALIFIED)
+                ) {
+                    $nsParts[] = $text;
+                    continue;
+                }
+
+                $namespace = trim(implode('', $nsParts));
+                $captureNamespace = false;
+                $nsParts = [];
+            }
+
+            if ($id === T_CLASS) {
+                if ($prevMeaningful === T_NEW) {
+                    $prevMeaningful = $id;
+                    continue;
+                }
+
+                $captureClassName = true;
+                $prevMeaningful = $id;
+                continue;
+            }
+
+            if ($captureClassName) {
+                if ($id === T_STRING) {
+                    $className = $text;
+                    break;
+                }
+                continue;
+            }
+
+            if ($id !== T_WHITESPACE && $id !== T_COMMENT && $id !== T_DOC_COMMENT) {
+                $prevMeaningful = $id;
+            }
+        }
+
+        return [$namespace !== '' ? $namespace : null, $className];
+    }
+
+    /**
+     * @throws JsonException
+     */
+    private static function resolveExportPath(string $file): string
+    {
+        $file = trim($file);
+
+        if ($file === '') {
+            return '';
+        }
+
+        // Disallow stream wrappers (phar://, http://, etc.)
+        if (preg_match('~^[a-zA-Z][a-zA-Z0-9+.-]*://~', $file)) {
+            return '';
+        }
+
+        // Block traversal in any path
+        if (preg_match('~(^|/)\.\.(/|$)~', $file)) {
+            return '';
+        }
+
+        // Absolute path is allowed (still traversal-checked above)
+        if (self::isAbsolutePath($file)) {
+            return $file;
+        }
+
+        // Resolve relative export file against the plugin install directory
+        // and the current plugin folder (self::$info['name']).
+        $pluginDir = trim((string)self::getInfo('name'));
+        if ($pluginDir === '') {
+            return '';
+        }
+
+        return plugin_path($pluginDir . DIRECTORY_SEPARATOR . ltrim($file, "/\\"));
+    }
+
+    private static function isAbsolutePath(string $path): bool
+    {
+        if (str_starts_with($path, '/') || str_starts_with($path, '\\')) {
+            return true;
+        }
+
+        // Windows drive path: C:\... or C:/...
+        return (bool)preg_match('~^[A-Za-z]:/.+~', $path);
+    }
+
+
+
     /* ───────────────────────────────────────────────────────────────
      |  Permissions – list / has / get (via PermissionService)
      ─────────────────────────────────────────────────────────────── */
@@ -315,7 +858,8 @@ final class Config implements ConfigInterface
     /**
      * {@inheritdoc}
      */
-    public static function getPermissions(?PermissionListOptions $options = null): PermissionListResult
+    public
+    static function getPermissions(?PermissionListOptions $options = null): PermissionListResult
     {
         $pluginId = self::getPluginId();
         if (!$pluginId) {
@@ -339,224 +883,177 @@ final class Config implements ConfigInterface
     /**
      * {@inheritdoc}
      */
-    public static function hasPermission(PermissionType|string $type, string $actionOrIntent, array|string|null $meta = null, array $context = []): bool
+    public
+    static function hasPermission(
+        PermissionType|string $type,
+        string                $actionOrIntent,
+        array|string|null     $meta = null,
+        array                 $context = []
+    ): bool
     {
-        $pluginId = self::getPluginId();
-        if (!$pluginId) {
-            return false;
-        }
-
-        $t = $type instanceof PermissionType ? $type->value : (string)$type;
-        $target = self::buildTarget($t, $actionOrIntent, $meta);
-        if ($target === null) {
-            return false;
-        }
-
-        $result = self::dispatchCan($t, $pluginId, $actionOrIntent, $target, $context);
-        return $result->allowed;
+        return self::checkPermission($type, $actionOrIntent, $meta, $context)->allowed;
     }
 
     /**
      * {@inheritdoc}
      */
-    public static function getPermission(PermissionType|string $type, string $actionOrIntent, array|string|null $meta = null, array $context = []): Result
+    public
+    static function getPermission(
+        PermissionType|string $type,
+        array|string|null     $meta = null
+    ): ?array
     {
         $pluginId = self::getPluginId();
         if (!$pluginId) {
-            return Result::deny('plugin_not_installed');
+            return null;
         }
 
         $t = $type instanceof PermissionType ? $type->value : (string)$type;
-        $target = self::buildTarget($t, $actionOrIntent, $meta);
-        if ($target === null) {
-            return Result::deny('bad_target');
+        $normalizedMeta = self::normalizeMeta($t, $meta);
+        if ($normalizedMeta === null) {
+            return null;
         }
 
-        // Typed dispatch: canDb/canFile/… → Result
-        $result = self::dispatchCan($t, $pluginId, $actionOrIntent, $target, $context);
-
-        // If nothing matched, return as-is.
-        if ($result->matched === null) {
-            return $result;
-        }
-
-        // Enrich with matched concrete row via listPermissions() using only allowed options.
-        $matchedType = $result->matched->type;
-        $matchedId = $result->matched->id;
-
-        $opts = new PermissionListOptions(
-            type: $matchedType,
-            requiredOnly: null,   // include both required & optional
-            activeOnly: null,     // include both active & inactive
-            source: 'both',       // include direct and tag
-            tagId: null,
-            search: null,
-            page: null,
-            perPage: null
-        );
-
-        $list = Permissions::listPermissions($pluginId, $opts);
-        $row = self::extractMatchedRow($list, $matchedType, $matchedId);
-
-        if ($row === null) {
-            return $result;
-        }
-
-        $ctx = $result->context ?? [];
-        $ctx['matched_row'] = $row;
-
-        return new Result(
-            allowed: $result->allowed,
-            reason: $result->reason,
-            matched: $result->matched,
-            context: $ctx
-        );
-    }
-
-    /**
-     * Locate the concrete row for (type,id) inside a PermissionListResult.
-     *
-     * The list structure is expected to be:
-     *   $list->entries = [
-     *     'db' => [ ['id'=>int, 'row'=>array, ...], ... ],
-     *     'file' => [ ... ],
-     *     ...
-     *   ]
-     *
-     * Returns the 'row' array if present, otherwise the whole entry.
-     */
-    private static function extractMatchedRow(PermissionListResult $list, string $type, int $id): ?array
-    {
-        $bucket = $list->entries[$type] ?? null;
-        if (is_array($bucket)) {
-            foreach ($bucket as $entry) {
-                if ((int)($entry['id'] ?? 0) === $id) {
-                    return $entry['row'] ?? $entry;
-                }
+        $list = self::getPermissions();
+        foreach ($list->items as $item) {
+            if ($item->type !== $t) {
+                continue;
             }
-        }
 
-        // Fallback scan (defensive)
-        foreach ($list->entries as $entries) {
-            if (!is_array($entries)) continue;
-            foreach ($entries as $entry) {
-                if ((int)($entry['id'] ?? 0) === $id) {
-                    return $entry['row'] ?? $entry;
-                }
+            if (self::metaMatches($normalizedMeta, $item->concrete['meta'] ?? [])) {
+                return $item->toArray();
             }
         }
 
         return null;
     }
 
-    /* ───────────────────────────────────────────────────────────────
-     |  Private routing for `can*` calls
-     ─────────────────────────────────────────────────────────────── */
+    /**
+     * {@inheritdoc}
+     */
+    public
+    static function checkPermission(
+        PermissionType|string $type,
+        string                $actionOrIntent,
+        array|string|null     $meta = null,
+        array                 $context = []
+    ): Result
+    {
+        $t = $type instanceof PermissionType ? $type->value : (string)$type;
+        $normalizedMeta = self::normalizeMeta($t, $meta);
+
+        $pluginId = self::getPluginId();
+        if (!$pluginId) {
+            return Result::deny('plugin_not_installed', meta: $normalizedMeta);
+        }
+
+        if ($normalizedMeta === null) {
+            return Result::deny('bad_target');
+        }
+
+        return self::dispatchCan($t, $pluginId, $actionOrIntent, $normalizedMeta, $context);
+    }
 
     /**
-     * Build the target array for a typed `can*` call from flexible meta.
-     * Returns null if the shape is insufficient for the requested type.
-     *
-     * @param string $type
-     * @param string $action
-     * @param array|string|null $meta
-     * @return array<string,mixed>|null
+     * {@inheritdoc}
      */
-    private static function buildTarget(string $type, string $action, array|string|null $meta): ?array
+    public
+    static function hasRequiredPermissions(): bool
     {
-        switch ($type) {
-            case 'db':
-                // Accept: ['model'=>...,'columns'=>[]] OR ['table'=>...,'columns'=>[]]
-                if (is_array($meta)) {
-                    $out = [];
-                    if (isset($meta['model'])) $out['model'] = (string)$meta['model'];
-                    if (isset($meta['table'])) $out['table'] = (string)$meta['table'];
-                    if (isset($meta['columns']) && is_array($meta['columns'])) {
-                        $out['columns'] = array_values(array_unique(array_map('strval', $meta['columns'])));
-                    }
-                    return $out ?: null;
-                }
-                if (is_string($meta)) {
-                    return ['model' => $meta];
-                }
-                return null;
+        return self::getPermissions()->summary->requiredPending === 0;
+    }
 
-            case 'file':
-                // Must provide baseDir + path explicitly
-                if (is_array($meta) && isset($meta['baseDir'], $meta['path'])) {
-                    return ['baseDir' => (string)$meta['baseDir'], 'path' => (string)$meta['path']];
-                }
-                return null;
 
-            case 'notification':
-                if (is_array($meta)) {
-                    $out = ['channel' => (string)($meta['channel'] ?? '')];
-                    if ($out['channel'] === '') return null;
-                    if (isset($meta['template'])) $out['template'] = (string)$meta['template'];
-                    if (isset($meta['recipient'])) $out['recipient'] = (string)$meta['recipient'];
-                    return $out;
-                }
-                if (is_string($meta)) {
-                    return ['channel' => $meta];
-                }
-                return null;
-
-            case 'module':
-                if (is_array($meta) && isset($meta['module'], $meta['api'])) {
-                    return ['module' => (string)$meta['module'], 'api' => (string)$meta['api']];
-                }
-                return null;
-
-            case 'network':
-                if (is_array($meta)) {
-                    if (!isset($meta['method'], $meta['url'])) return null;
-                    return ['method' => strtoupper((string)$meta['method']), 'url' => (string)$meta['url'], 'headers' => $meta['headers'] ?? null];
-                }
-                if (is_string($meta)) {
-                    return ['method' => 'GET', 'url' => $meta];
-                }
-                return null;
-
-            case 'codec':
-                if (is_array($meta) && isset($meta['method'])) {
-                    $out = ['method' => (string)$meta['method']];
-                    if (isset($meta['options']) && is_array($meta['options'])) {
-                        $out['options'] = $meta['options'];
-                    }
-                    return $out;
-                }
-                if (is_string($meta)) {
-                    return ['method' => $meta];
-                }
-                return null;
-
-            case 'route':
-                if (is_array($meta) && isset($meta['routeId'])) {
-                    $out = ['routeId' => (string)$meta['routeId']];
-                    if (isset($meta['guard'])) $out['guard'] = (string)$meta['guard'];
-                    return $out;
-                }
-                if (is_string($meta)) {
-                    return ['routeId' => $meta];
-                }
-                return null;
-
-            default:
-                return null;
+    /**
+     * Check if normalized meta matches the permission definition meta.
+     */
+    private
+    static function metaMatches(array $requested, array $defined): bool
+    {
+        foreach ($requested as $key => $val) {
+            if ($val === '' || $val === null || $val === []) {
+                continue;
+            }
+            if (!isset($defined[$key]) || $defined[$key] !== $val) {
+                return false;
+            }
         }
+        return true;
+    }
+
+    /**
+     * Internal meta normalization layer.
+     */
+    private
+    static function normalizeMeta(string $type, string|array|null $meta): ?array
+    {
+        if ($meta === null) {
+            return null;
+        }
+
+        if (is_string($meta)) {
+            return match ($type) {
+                'db' => ['model' => $meta],
+                'file' => ['path' => $meta],
+                'module' => ['module' => $meta],
+                'codec' => ['method' => $meta],
+                'network' => [
+                    'method' => 'GET',
+                    'url' => $meta,
+                    'host' => parse_url($meta, PHP_URL_HOST) ?? $meta
+                ],
+                'notification' => ['channel' => $meta],
+                'route' => ['routeId' => $meta],
+                default => null,
+            };
+        }
+
+        if (is_array($meta)) {
+            return match ($type) {
+                'db' => [
+                    'model' => (string)($meta['model'] ?? ($meta['table'] ?? '')),
+                    'table' => (string)($meta['table'] ?? ''),
+                    'columns' => is_array($meta['columns'] ?? null) ? array_values(array_unique(array_map('strval', $meta['columns']))) : [],
+                ],
+                'file' => [
+                    'baseDir' => (string)($meta['baseDir'] ?? ''),
+                    'path' => (string)($meta['path'] ?? ''),
+                ],
+                'notification' => [
+                    'channel' => (string)($meta['channel'] ?? ''),
+                    'template' => (string)($meta['template'] ?? ''),
+                    'recipient' => (string)($meta['recipient'] ?? ''),
+                ],
+                'module' => [
+                    'module' => (string)($meta['module'] ?? ''),
+                    'api' => (string)($meta['api'] ?? ''),
+                ],
+                'network' => [
+                    'method' => strtoupper((string)($meta['method'] ?? 'GET')),
+                    'url' => (string)($meta['url'] ?? ''),
+                    'host' => (string)($meta['host'] ?? ''),
+                    'headers' => $meta['headers'] ?? null,
+                ],
+                'codec' => [
+                    'method' => (string)($meta['method'] ?? ''),
+                    'options' => $meta['options'] ?? [],
+                ],
+                'route' => [
+                    'routeId' => (string)($meta['routeId'] ?? ''),
+                    'guard' => (string)($meta['guard'] ?? ''),
+                ],
+                default => $meta,
+            };
+        }
+
+        return null;
     }
 
     /**
      * Dispatch to the correct typed `can*` method on the Permissions facade.
-     *
-     * @param string $type
-     * @param int $pluginId
-     * @param string $action
-     * @param array $target
-     * @param array $context
-     * @return Result
      */
-    private static function dispatchCan(string $type, int $pluginId, string $action, array $target, array $context): Result
+    private
+    static function dispatchCan(string $type, int $pluginId, string $action, array $target, array $context): Result
     {
         return match ($type) {
             'db' => Permissions::canDb($pluginId, $action, $target, $context),

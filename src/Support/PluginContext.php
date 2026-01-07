@@ -99,7 +99,8 @@ class PluginContext
         if (!$pluginDir) return null;
 
         $pluginName = basename($pluginDir); // Studly class
-        $class = "Plugins\\$pluginName\\Internal\\Config";
+        $psr4 = config('fortiplugin.psr4_root');
+        $class = "$psr4\\$pluginName\\Config";
         return class_exists($class) ? $class : null;
     }
 

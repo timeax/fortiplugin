@@ -309,13 +309,15 @@ model PluginRoutePermission {
 ///@guarded
 model Plugin {
   id                    BigInt       @id @default(autoincrement()) @db.BigInt
+  alias                 String       @unique
   name                  String       @unique
   image                 String?
+  plugin_path           String?
   status                PluginStatus @default(active)
   config                Json?
   meta                  Json?
   plugin_placeholder_id BigInt       @unique @db.BigInt
-  active_version_id     BigInt
+  active_version_id     BigInt?
   owner_ref             String?
 
   // existing relations (assumed to exist)

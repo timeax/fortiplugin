@@ -9,8 +9,8 @@ use Throwable;
 use Timeax\FortiPlugin\Installations\DTO\InstallMeta;
 use Timeax\FortiPlugin\Installations\Enums\VendorMode;
 use Timeax\FortiPlugin\Installations\InstallerPolicy;
-use Timeax\FortiPlugin\Installations\Support\InstallationLogStore;
 use Timeax\FortiPlugin\Installations\Support\AtomicFilesystem;
+use Timeax\FortiPlugin\Installations\Support\InstallationLogStore;
 
 /**
  * InstallFilesSection
@@ -33,26 +33,29 @@ final readonly class InstallFilesSection
         private InstallerPolicy      $policy,
         private InstallationLogStore $log,
         private AtomicFilesystem     $afs,
-    ) {}
+    )
+    {
+    }
 
     /**
      * @param InstallMeta $meta Canonical meta (paths, psr4_root, placeholder_name, etc.)
      * @param string $stagingPluginRoot Absolute path to staged/unpacked plugin root
-     * @param callable|null $emit Optional installer-level emitter fn(array $payload): void
+     * @param callable $emit Installer-level emitter fn(array $payload): void (non-null; persisted by installer emitter)
      * @return array{status:'ok'|'fail', dest?:string, vendor_mode?:string}
      * @throws JsonException
      * @noinspection PhpUndefinedClassInspection
      */
     public function run(
         InstallMeta $meta,
-        string $stagingPluginRoot,
-        ?callable $emit = null
-    ): array {
+        string      $stagingPluginRoot,
+        callable    $emit
+    ): array
+    {
         $dest = (string)($meta->paths['install'] ?? '');
         $vendorMode = $this->policy->getVendorMode();
 
         // Basic guards
-        $emit && $emit([
+        $start = [
             'title' => 'INSTALL_FILES_START',
             'description' => 'Copying plugin files into install directory',
             'meta' => [
@@ -61,17 +64,8 @@ final readonly class InstallFilesSection
                 'dest' => $dest,
                 'vendor_mode' => $vendorMode->value,
             ],
-        ]);
-        $this->log->appendInstallerEmit([
-            'title' => 'INSTALL_FILES_START',
-            'description' => 'Copying plugin files into install directory',
-            'meta' => [
-                'placeholder_name' => $meta->placeholder_name,
-                'source' => $stagingPluginRoot,
-                'dest' => $dest,
-                'vendor_mode' => $vendorMode->value,
-            ],
-        ]);
+        ];
+        $emit($start);
 
         try {
             if ($dest === '') {
@@ -101,9 +95,9 @@ final readonly class InstallFilesSection
 
             // Persist a concise install_files block
             $this->log->writeSection('install_files', [
-                'source'       => $stagingPluginRoot,
-                'dest'         => $dest,
-                'vendor_mode'  => $vendorMode->value,
+                'source' => $stagingPluginRoot,
+                'dest' => $dest,
+                'vendor_mode' => $vendorMode->value,
                 'vendor_stripped' => $stripVendor,
             ]);
 
@@ -116,8 +110,7 @@ final readonly class InstallFilesSection
                     'vendor_stripped' => $stripVendor,
                 ],
             ];
-            $emit && $emit($ok);
-            $this->log->appendInstallerEmit($ok);
+            $emit($ok);
 
             return ['status' => 'ok', 'dest' => $dest, 'vendor_mode' => $vendorMode->value];
         } catch (Throwable $e) {
@@ -129,7 +122,8 @@ final readonly class InstallFilesSection
                     'dest' => $dest,
                     'vendor_mode' => $vendorMode->value,
                 ]);
-            } catch (Throwable $_) {}
+            } catch (Throwable $_) {
+            }
 
             $fail = [
                 'title' => 'INSTALL_FILES_FAIL',
@@ -141,8 +135,7 @@ final readonly class InstallFilesSection
                     'vendor_mode' => $vendorMode->value,
                 ],
             ];
-            $emit && $emit($fail);
-            $this->log->appendInstallerEmit($fail);
+            $emit($fail);
 
             return ['status' => 'fail'];
         }

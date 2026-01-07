@@ -12,6 +12,7 @@ namespace Timeax\FortiPlugin\Installations\DTO;
  * @phpstan-type TInstallMeta array{
  *   psr4_root: string,
  *   placeholder_name: string,
+ *   placeholder_slug: string,
  *   plugin_placeholder_id: int|string,
  *   zip_id: int|string,
  *   actor: string,
@@ -27,6 +28,7 @@ final readonly class InstallMeta implements ArraySerializable
     public function __construct(
         public string     $psr4_root,
         public string     $placeholder_name,
+        public string     $placeholder_slug,
         public int|string $plugin_placeholder_id,
         public int|string $zip_id,
         public string     $actor,
@@ -44,6 +46,7 @@ final readonly class InstallMeta implements ArraySerializable
         return new self(
             $data['psr4_root'],
             $data['placeholder_name'],
+            $data['placeholder_slug'],
             $data['plugin_placeholder_id'],
             $data['zip_id'],
             $data['actor'],
@@ -61,6 +64,7 @@ final readonly class InstallMeta implements ArraySerializable
         return [
             'psr4_root' => $this->psr4_root,
             'placeholder_name' => $this->placeholder_name,
+            'placeholder_slug' => $this->placeholder_slug,
             'plugin_placeholder_id' => $this->plugin_placeholder_id,
             'zip_id' => $this->zip_id,
             'actor' => $this->actor,

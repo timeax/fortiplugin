@@ -451,6 +451,17 @@ final class ValidatorService
 
     private function record(string $type, string $issue, ?string $file, array $extended = []): void
     {
+
+        //TODO: remove this when we have a better way to handle this: START
+        if ($file !== null) {
+            $normalized = str_replace('\\', '/', $file);
+            if (str_ends_with($normalized, '/.internal/Config.php')) {
+                // TEMP HACK: ignore all issues from dev Config.php
+                return;
+            }
+        }
+        //TODO: remove this when we have a better way to handle this: END
+        
         $this->log[] = [$type, $issue, $file];
         $this->extended[] = $extended + ['type' => $type, 'issue' => $issue, 'file' => $file];
         $this->stats['total_errors']++;

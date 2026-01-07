@@ -9,8 +9,12 @@ use Illuminate\Database\Eloquent\Model;
  * @property int $id
  * @property int $plugin_id
  * @property string $key
- * @property string $value
+ * @property string $group
+ * @property string $label
+ * @property string|null $value
  * @property PluginSettingValueType::class $type
+ * @property bool $is_required
+ * @property bool $is_sensitive
  * @property \Carbon\Carbon $created_at
  * @property \Carbon\Carbon $updated_at
  * @property Plugin::class $plugin

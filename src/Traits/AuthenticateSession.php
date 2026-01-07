@@ -12,8 +12,8 @@ trait AuthenticateSession
     use ClientSession;
 
     /**
-     * Ensure we have a valid host session, or guide the user to create/switch one.
-     * Returns the active session array: ['alias','host','token','expires_at',...]
+     * Ensure we have a valid host session or guide the user to create/switch one.
+     * Returns the active session array: ['alias','host','token','expires_at', ...]
      *
      * @throws Throwable
      */
@@ -83,7 +83,7 @@ trait AuthenticateSession
 
         $picked = $this->choice('Select a host to switch to', $options, 0);
         $spacePos = strpos($picked, ' ');
-        $alias    = $spacePos === false ? $picked : substr($picked, 0, $spacePos);
+        $alias = $spacePos === false ? $picked : substr($picked, 0, $spacePos);
 
         if (CliSessionManager::setCurrent($alias)) {
             $session = CliSessionManager::getCurrentSession();
@@ -103,11 +103,7 @@ trait AuthenticateSession
      */
     protected function loginToNewHost(): ?array
     {
-        $raw  = trim($this->ask('Enter host (domain or full URL)'));
-        $host = $this->normalizeBaseUri($raw);
-
-        $this->call('forti:login', ['--host' => $host]);
-
+        $this->call('fp:login');
         $session = CliSessionManager::getCurrentSession();
         if ($session) {
             $this->info('Login successful. Proceeding…');
@@ -118,10 +114,10 @@ trait AuthenticateSession
         return null;
     }
 
-    /** Resolve plugin path under configured directory. */
+    /** Resolve plugin path under configured development directory. */
     public function getPath(string $relative): string
     {
-        $pluginDir = rtrim(config('fortiplugin.directory', base_path('Plugins')), DIRECTORY_SEPARATOR);
-        return $pluginDir . DIRECTORY_SEPARATOR . ltrim($relative, DIRECTORY_SEPARATOR);
+        $pluginDir = rtrim(config('fortiplugin.dev_directory', 'Plugins'), DIRECTORY_SEPARATOR);
+        return base_path($pluginDir . DIRECTORY_SEPARATOR . ltrim($relative, DIRECTORY_SEPARATOR));
     }
 }

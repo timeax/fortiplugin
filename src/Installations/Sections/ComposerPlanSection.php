@@ -6,9 +6,6 @@ namespace Timeax\FortiPlugin\Installations\Sections;
 use Throwable;
 use Timeax\FortiPlugin\Installations\Support\ComposerInspector;
 use Timeax\FortiPlugin\Installations\Support\InstallationLogStore;
-use Timeax\FortiPlugin\Installations\Support\EmitsEvents;
-use Timeax\FortiPlugin\Installations\Support\Events;
-use Timeax\FortiPlugin\Installations\Support\ErrorCodes;
 
 /**
  * ComposerPlanSection
@@ -29,8 +26,6 @@ use Timeax\FortiPlugin\Installations\Support\ErrorCodes;
  */
 final class ComposerPlanSection
 {
-    use EmitsEvents;
-
     public function __construct(
         private readonly InstallationLogStore $log,
         private readonly ComposerInspector    $inspector,
@@ -41,7 +36,7 @@ final class ComposerPlanSection
     /**
      * @param string $pluginDir Plugin root directory (must contain composer.json)
      * @param string|null $hostComposerLock Absolute path to host composer.lock; if null, defaults to getcwd().'/composer.lock'
-     * @param callable|null $emit Optional installer-level emitter fn(array $payload): void
+     * @param callable $emit Installer-level emitter fn(array $payload): void (non-null; persisted by installer emitter)
      * @return array{
      *   status: 'ok'|'fail',
      *   packages?: array<string, array{is_foreign:bool,status:string}>,
@@ -51,10 +46,11 @@ final class ComposerPlanSection
     public function run(
         string    $pluginDir,
         ?string   $hostComposerLock = null,
-        ?callable $emit = null
+        callable  $emit
     ): array
     {
-        $emit && $emit(['title' => 'COMPOSER_PLAN_START', 'description' => 'Collecting packages & computing plan']);
+        $start = ['title' => 'COMPOSER_PLAN_START', 'description' => 'Collecting packages & computing plan'];
+        $emit($start);
 
         $pluginComposer = rtrim($pluginDir, "\\/") . DIRECTORY_SEPARATOR . 'composer.json';
         $hostLock = $hostComposerLock ?: (getcwd() . DIRECTORY_SEPARATOR . 'composer.lock');
@@ -72,32 +68,35 @@ final class ComposerPlanSection
                 'plan' => $plan->toArray(),
             ]);
 
-            $emit && $emit(['title' => 'COMPOSER_PLAN_COMPUTED', 'description' => 'Composer plan persisted', 'meta' => [
+            $ok = ['title' => 'COMPOSER_PLAN_COMPUTED', 'description' => 'Composer plan persisted', 'meta' => [
                 'path' => $this->log->path(),
                 'packages' => count($packages),
                 'core_conflicts' => $plan->core_conflicts,
-            ]]);
+            ]];
+            $emit($ok);
+
+            $packagesMeta = array_map(static fn($e) => $e->toArray(), $packages);
 
             return [
                 'status' => 'ok',
-                'packages' => array_map(static fn($e) => $e->toArray(), $packages),
+                'packages' => $packagesMeta,     // keep for summary/UI
+                'packages_dto' => $packages,     // NEW: for DbPersist (DTO map)
                 'plan' => $plan->toArray(),
             ];
+
+
         } catch (Throwable $e) {
             // Emit a concise failure and return
-            $this->emitFail(
-                Events::COMPOSER_PLAN_FAIL,
-                ErrorCodes::FILESYSTEM_READ_FAILED,
-                'Failed to compute Composer plan',
-                [
-                    'exception' => $e->getMessage(),
+            $fail = [
+                'title' => 'COMPOSER_PLAN_FAIL',
+                'description' => 'Failed to compute Composer plan',
+                'meta' => [
+                    'error' => $e->getMessage(),
                     'host_lock' => $hostLock,
                     'plugin_composer' => $pluginComposer,
                 ]
-            );
-            $emit && $emit(['title' => 'COMPOSER_PLAN_FAIL', 'description' => 'Composer plan failed', 'meta' => [
-                'error' => $e->getMessage()
-            ]]);
+            ];
+            $emit($fail);
 
             return ['status' => 'fail'];
         }

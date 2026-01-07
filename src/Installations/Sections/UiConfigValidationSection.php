@@ -43,7 +43,7 @@ final readonly class UiConfigValidationSection
      *              ]
      *          ]
      *        ]
-     * @param callable|null $emit Optional: fn(array $payload): void
+     * @param callable $emit Installer-level emitter: fn(array $payload): void (non-null; persistence handled by emitter)
      *
      * @return array{
      *   status:'ok',
@@ -59,7 +59,7 @@ final readonly class UiConfigValidationSection
         InstallMeta $meta,
         array       $knownRouteIds,
         array       $hostScheme,
-        ?callable   $emit = null
+        callable    $emit
     ): array
     {
         $staging = (string)($meta->paths['staging'] ?? '');
@@ -83,8 +83,7 @@ final readonly class UiConfigValidationSection
                 'scheme_sections' => array_keys($sections),
             ],
         ];
-        $emit && $emit($start);
-        $this->log->appendInstallerEmit($start);
+        $emit($start);
 
         // If no fortiplugin.json → nothing to validate (OK)
         if (!$this->afs->fs()->exists($cfgPath)) {
@@ -92,8 +91,7 @@ final readonly class UiConfigValidationSection
                 'title' => 'UI_CONFIG_CHECK_OK',
                 'description' => 'No fortiplugin.json found; skipping UIConfig validation',
             ];
-            $emit && $emit($ok);
-            $this->log->appendInstallerEmit($ok);
+            $emit($ok);
 
             $this->log->writeSection('ui_config', [
                 'declared' => 0,
@@ -268,24 +266,19 @@ final readonly class UiConfigValidationSection
 
         // Emit end
         if ($errors !== []) {
-            $this->log->appendInstallerEmit([
+            $msg = [
                 'title' => 'UI_CONFIG_CHECK_FAIL',
                 'description' => 'UIConfig validation recorded errors (non-blocking)',
                 'meta' => ['declared' => $declared, 'accepted' => $accepted, 'errors' => count($errors), 'warnings' => count($warnings)],
-            ]);
-            $emit && $emit([
-                'title' => 'UI_CONFIG_CHECK_FAIL',
-                'description' => 'UIConfig validation recorded errors (non-blocking)',
-                'meta' => ['declared' => $declared, 'accepted' => $accepted, 'errors' => count($errors), 'warnings' => count($warnings)],
-            ]);
+            ];
+            $emit($msg);
         } else {
             $msg = [
                 'title' => 'UI_CONFIG_CHECK_OK',
                 'description' => 'UIConfig validation completed',
                 'meta' => ['declared' => $declared, 'accepted' => $accepted, 'warnings' => count($warnings)],
             ];
-            $this->log->appendInstallerEmit($msg);
-            $emit && $emit($msg);
+            $emit($msg);
         }
 
         return ['status' => 'ok', 'declared' => $declared, 'accepted' => $accepted, 'errors' => $errors, 'warnings' => $warnings];

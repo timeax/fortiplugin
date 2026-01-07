@@ -1,0 +1,12 @@
+{
+  "name": "#{package_name}",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "vite dev",
+    "build:spa": "vite build --config vite.config.spa.js",
+    "build:embed": "vite build --config vite.config.embed.js",
+    "build": "npm run build:spa && npm run build:embed",
+    "type-check": "tsc --noEmit"
+  }
+}

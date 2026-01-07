@@ -1,0 +1,59 @@
+// noinspection NpmUsedModulesInstalled,JSUnresolvedReference,JSUnusedGlobalSymbols
+
+import {defineConfig} from "vite";
+import react from "@vitejs/plugin-react";
+import tailwindcss from "@tailwindcss/vite";
+import fortiPrep, {discoverEntrypoints} from "fortiplugin-bundle-adapter"; // ← your new adapter package name
+import {resolve} from "node:path";
+
+const integrations = discoverEntrypoints("resources/embed");
+
+export default defineConfig({
+    appType: "custom",
+    publicDir: false,
+
+    // Order matters: run the adapter after React/Tailwind so it rewrites final entry chunks
+    plugins: [
+        tailwindcss(),
+        react(),
+        fortiPrep({
+            injectedIds: ["react", "react/jsx-runtime"],
+            injectedPrefixes: ["@inertiajs/", "@host/"],
+            runtimeKey: "imports",
+            depsParam: "deps",
+        }),
+    ],
+
+    build: {
+        outDir: "public/build",
+        emptyOutDir: false, // do NOT wipe the SPA build
+        manifest: ".vite/manifest.integrations.json", // path is relative to outDir
+        rollupOptions: {
+            // Keep these externals (the adapter ALSO sets external, but this keeps intent explicit here)
+            external: (id) =>
+                id === "react" ||
+                id === "react/jsx-runtime" ||
+                id.startsWith("@inertiajs/") ||
+                id.startsWith("@host/"),
+
+            input: {
+                ...integrations,
+            },
+
+            output: {
+                format: "es",
+                entryFileNames: "integrations/[name].[hash].js",
+                chunkFileNames: "embed-chunks/[name].[hash].js",
+                assetFileNames: "embed-assets/[name].[hash][extname]",
+            },
+        },
+    },
+
+    resolve: {
+        alias: {
+            "@/main": resolve("resources/inertia"),
+            "@/embed": resolve("resources/embed"),
+            "@/shared": resolve("resources/shared"),
+        },
+    },
+});

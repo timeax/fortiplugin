@@ -4,9 +4,10 @@ declare(strict_types=1);
 namespace Timeax\FortiPlugin\Installations\Activation\Writers;
 
 use RuntimeException;
+use Throwable;
 use Timeax\FortiPlugin\Installations\Contracts\RegistryWriter;
-use Timeax\FortiPlugin\Installations\Support\AtomicFilesystem;
 use Timeax\FortiPlugin\Installations\InstallerPolicy;
+use Timeax\FortiPlugin\Installations\Support\AtomicFilesystem;
 use Timeax\FortiPlugin\Models\Plugin;
 
 final readonly class RoutesRegistryWriter implements RegistryWriter
@@ -14,7 +15,9 @@ final readonly class RoutesRegistryWriter implements RegistryWriter
     public function __construct(
         private AtomicFilesystem $afs,
         private InstallerPolicy  $policy,
-    ) {}
+    )
+    {
+    }
 
     /**
      * Strategy:
@@ -27,9 +30,9 @@ final readonly class RoutesRegistryWriter implements RegistryWriter
         $fs = $this->afs->fs();
 
         // 1) Locate installation log in installed root
-        $logsDir   = trim($this->policy->getLogsDirName(), "\\/");
-        $logFile   = $this->policy->getInstallationLogFilename();
-        $logPath   = rtrim($installedPluginRoot, "\\/") . DIRECTORY_SEPARATOR . $logsDir . DIRECTORY_SEPARATOR . $logFile;
+        $logsDir = trim($this->policy->getLogsDirName(), "\\/");
+        $logFile = $this->policy->getInstallationLogFilename();
+        $logPath = rtrim($installedPluginRoot, "\\/") . DIRECTORY_SEPARATOR . $logsDir . DIRECTORY_SEPARATOR . $logFile;
 
         if (!$fs->exists($logPath)) {
             throw new RuntimeException("activation: installation log not found at $logPath");
@@ -39,26 +42,43 @@ final readonly class RoutesRegistryWriter implements RegistryWriter
         if (!is_array($routesWrite) || empty($routesWrite['aggregator'])) {
             // No routes for this plugin — nothing to publish
             return [
-                'commit'   => static function (): void {},
-                'rollback' => static function (): void {},
-                'meta'     => ['changed' => false, 'reason' => 'no_routes_aggregator'],
+                'commit' => static function (): void {
+                },
+                'rollback' => static function (): void {
+                },
+                'meta' => ['changed' => false, 'reason' => 'no_routes_aggregator'],
             ];
         }
 
-        $aggregator = (string)$routesWrite['aggregator'];
-        if ($aggregator === '' || !$fs->exists($aggregator)) {
-            throw new RuntimeException("activation: aggregator file not found: $aggregator");
+        $aggregatorRel = (string)$routesWrite['aggregator'];
+        $installedAggregator = rtrim($installedPluginRoot, "\\/") . DIRECTORY_SEPARATOR . ltrim($aggregatorRel, "\\/");
+        $installedAggregator = str_replace(['/', '\\'], DIRECTORY_SEPARATOR, $installedAggregator);
+
+
+        if ($installedAggregator === '' || !$fs->exists($installedAggregator)) {
+            throw new RuntimeException("activation: installed aggregator file not found: $installedAggregator");
         }
 
+
         // 2) Host registry paths (configurable)
-        $registryPath   = (string) (config('fortiplugin.routes.registry_path')    ?? base_path('routes/fortiplugin.registry.json'));
-        $aggregatorPath = (string) (config('fortiplugin.routes.aggregator_path')  ?? base_path('routes/fortiplugin.plugins.php'));
+        $registryPath = (string)(config('fortiplugin.routes.registry_path') ?? base_path('routes' . DIRECTORY_SEPARATOR . 'fortiplugin.registry.json'));
+        $aggregatorPath = (string)(config('fortiplugin.routes.aggregator_path') ?? base_path('routes' . DIRECTORY_SEPARATOR . 'fortiplugin.plugins.php'));
 
         // 3) Read and update registry JSON (plugin_slug => aggregator)
-        $slug  = (string)($plugin->placeholder->slug ?? $plugin->slug ?? $plugin->id);
-        $json  = $fs->exists($registryPath) ? $fs->readJson($registryPath) : [];
-        if (!is_array($json)) $json = [];
-        $json[$slug] = $aggregator;
+        $slug = (string)($plugin->placeholder->slug ?? $plugin->slug ?? $plugin->id);
+        try {
+            $json = $fs->exists($registryPath) ? $fs->readJson($registryPath) : [];
+        } catch (Throwable) {
+            $json = [];
+        }
+
+        $json[$slug] = $installedAggregator;
+
+        // 3.1) Smooth upgrade: convert all paths to relative
+        foreach ($json as $s => $p) {
+            $json[$s] = $this->makeRelative((string)$p);
+        }
+
 
         // Staged contents
         $newRegistryJson = $json;
@@ -70,10 +90,11 @@ final readonly class RoutesRegistryWriter implements RegistryWriter
                 $this->afs->writeJsonAtomic($registryPath, $newRegistryJson, true);
                 $this->afs->fs()->writeAtomic($aggregatorPath, $newAggregatorPhp);
             },
-            'rollback' => static function (): void { /* best effort noop */ },
+            'rollback' => static function (): void { /* best effort noop */
+            },
             'meta' => [
-                'changed'         => true,
-                'registry_path'   => $registryPath,
+                'changed' => true,
+                'registry_path' => $registryPath,
                 'aggregator_path' => $aggregatorPath,
             ],
         ];
@@ -91,9 +112,23 @@ final readonly class RoutesRegistryWriter implements RegistryWriter
             $fileEsc = var_export($file, true);
             $slugEsc = var_export($slug, true);
             $lines[] = "// plugin: $slugEsc";
-            $lines[] = "if (file_exists($fileEsc)) { require $fileEsc; }";
+            $lines[] = "\$path = base_path($fileEsc);";
+            $lines[] = "if (is_file(\$path)) { require_once \$path; }";
+            $lines[] = "elseif (is_file($fileEsc)) { require_once $fileEsc; }";
+            $lines[] = "";
         }
-        $lines[] = "";
         return implode("\n", $lines);
+    }
+
+    private function makeRelative(string $path): string
+    {
+        $path = str_replace(['\\', '/'], '/', $path);
+        $base = str_replace(['\\', '/'], '/', base_path());
+
+        if (str_starts_with($path, $base)) {
+            return ltrim(substr($path, strlen($base)), '/');
+        }
+
+        return $path;
     }
 }

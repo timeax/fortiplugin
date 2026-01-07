@@ -3,7 +3,7 @@ declare(strict_types=1);
 
 namespace Timeax\FortiPlugin\Permissions\Evaluation;
 
-use DateTimeImmutable;
+use   DateTimeImmutable;
 use DateTimeInterface;
 use JsonException;
 use Throwable;
@@ -210,6 +210,8 @@ final readonly class PermissionService implements PermissionServiceInterface
         $options = $this->auditOptionsForMatched($pluginId, $type, $result);
 
         $this->audit->record('check', $type, $pluginId, $request->toArray(), $result, $options);
+
+        $result['meta'] = $request->toArray();
 
         return $result;
     }

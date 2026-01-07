@@ -8,7 +8,7 @@ use Illuminate\Database\Eloquent\Model;
 use InvalidArgumentException;
 use LogicException;
 use Timeax\FortiPlugin\Exceptions\PermissionDeniedException;
-use Timeax\FortiPlugin\Models\PluginDbPermission;
+use Timeax\FortiPlugin\Models\DbPermission;
 use Timeax\FortiPlugin\Lib\Db\Traits\OrderingGroupingLimitTrait;
 use Timeax\FortiPlugin\Lib\Db\Traits\Relationships;
 use Timeax\FortiPlugin\Lib\Db\Traits\SoftDeleteQueryTrait;
@@ -53,7 +53,7 @@ class PluginQueryBuilder
         $this->ensurePermission('select');
 
         // Just load the permission row for this model
-        $dbPerm = PluginDbPermission::where('model', $modelAlias)->first();
+        $dbPerm = DbPermission::where('model', $modelAlias)->first();
 
         $this->readableFields = $dbPerm?->readable_fields ?? null;
         $this->writableFields = $dbPerm?->writable_fields ?? null;
@@ -67,7 +67,7 @@ class PluginQueryBuilder
     {
         if (!isset($this->checkedPerms[$action])) {
             // Will throw if not allowed; if returns, it's safe
-            $this->checkModulePermission($action, $this->type, $this->target);
+            $this->checkModulePermission($this->type, $action, ['model' => $this->target]);
             $this->checkedPerms[$action] = true;
         }
         // else, already confirmed for this action+model on this instance
@@ -79,8 +79,8 @@ class PluginQueryBuilder
         if ($alias === $this->target) {
             $this->ensurePermission($action);
         } else {
-            // Use your trait, but override the $target param
-            $this->checkModulePermission($action, $this->type, $alias);
+            // Use your trait but override the $target param
+            $this->checkModulePermission($this->type, $action, ['model' => $alias]);
             $this->checkedPerms["$action:$alias"] = true;
         }
     }
@@ -199,9 +199,10 @@ class PluginQueryBuilder
             foreach ($columns as $col) {
                 if (in_array($col, $this->hiddenFields, true)) {
                     $this->denyPermission(
-                        "Plugin is not allowed to select hidden/forbidden column '$col' on '{$this->modelAlias}'.",
-                        $this->target,
-                        'select'
+                        $this->type,
+                        'select',
+                        ['model' => $this->target, 'column' => $col],
+                        "Plugin is not allowed to select hidden/forbidden column '$col' on '{$this->modelAlias}'."
                     );
                 }
             }

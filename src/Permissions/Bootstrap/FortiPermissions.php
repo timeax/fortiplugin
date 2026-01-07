@@ -12,7 +12,13 @@ use Timeax\FortiPlugin\Permissions\Contracts\{
     ConditionsEvaluatorInterface,
     PermissionRepositoryInterface
 };
+use Timeax\FortiPlugin\Permissions\Audit\AuditEmitter;
+use Timeax\FortiPlugin\Permissions\Cache\CapabilityCache;
+use Timeax\FortiPlugin\Permissions\Catalog\HostCatalogProvider;
+use Timeax\FortiPlugin\Permissions\Evaluation\PermissionService;
+use Timeax\FortiPlugin\Permissions\Policy\ConditionsEvaluator;
 use Timeax\FortiPlugin\Permissions\Registry\PermissionRegistry;
+use Timeax\FortiPlugin\Permissions\Repositories\EloquentPermissionRepository;
 
 final class FortiPermissions
 {
@@ -44,11 +50,18 @@ final class FortiPermissions
         });
 
         // Core contract bindings (swap these FQCNs with your concrete implementations as you add them)
-        $app->bind(PermissionServiceInterface::class,    \Timeax\FortiPlugin\Permissions\Evaluation\PermissionService::class);
-        $app->bind(CapabilityCacheInterface::class,      \Timeax\FortiPlugin\Permissions\Cache\CapabilityCache::class);
-        $app->bind(AuditEmitterInterface::class,         \Timeax\FortiPlugin\Permissions\Audit\AuditEmitter::class);
-        $app->bind(CatalogProviderInterface::class,      \Timeax\FortiPlugin\Permissions\Catalog\HostCatalogProvider::class);
-        $app->bind(ConditionsEvaluatorInterface::class,  \Timeax\FortiPlugin\Permissions\Policy\ConditionsEvaluator::class);
-        $app->bind(PermissionRepositoryInterface::class, \Timeax\FortiPlugin\Permissions\Repositories\EloquentPermissionRepository::class);
+        $app->bind(PermissionServiceInterface::class,    PermissionService::class);
+        $app->bind(CapabilityCacheInterface::class,      CapabilityCache::class);
+        $app->bind(AuditEmitterInterface::class,         AuditEmitter::class);
+        $app->bind(CatalogProviderInterface::class,      HostCatalogProvider::class);
+        $app->bind(ConditionsEvaluatorInterface::class, function (Container $app) {
+            $catalog = $app->make(CatalogProviderInterface::class);
+
+            return new ConditionsEvaluator(
+                [$catalog, 'env'],
+                [$catalog, 'settingsForPlugin']
+            );
+        });
+        $app->bind(PermissionRepositoryInterface::class, EloquentPermissionRepository::class);
     }
 }

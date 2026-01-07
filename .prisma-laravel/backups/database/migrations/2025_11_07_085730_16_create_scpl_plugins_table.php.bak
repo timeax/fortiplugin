@@ -13,8 +13,10 @@ return new class extends Migration {
 	{
 		Schema::create("scpl_plugins", static function (Blueprint $table) {
 			$table->id();
+			$table->string("alias")->unique();
 			$table->string("name")->unique();
 			$table->string("image")->nullable();
+			$table->string("plugin_path")->nullable();
 			$table
 				->enum("status", ["active", "inactive", "archived"])
 				->default("active");
@@ -25,7 +27,7 @@ return new class extends Migration {
 				->constrained("scpl_placeholders", "id")
 				->onDelete("no action")
 				->onUpdate("no action");
-			$table->bigInteger("active_version_id");
+			$table->bigInteger("active_version_id")->nullable();
 			$table->string("owner_ref")->nullable();
 			$table->timestamp("activated_at")->nullable();
 			$table->bigInteger("activated_by")->nullable();

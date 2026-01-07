@@ -18,8 +18,16 @@ final readonly class RouteRegistryStore
     public function read(string $pluginRoot): array
     {
         $p = $this->path($pluginRoot);
-        if (!$this->afs->fs()->exists($p)) return [];
-        $doc = $this->afs->fs()->readJson($p);
+        if (!$this->afs->fs()->exists($p)) {
+            return [];
+        }
+
+        try {
+            $doc = $this->afs->fs()->readJson($p);
+        } catch (\Throwable) {
+            return [];
+        }
+
         return is_array($doc) ? array_values($doc) : [];
     }
 

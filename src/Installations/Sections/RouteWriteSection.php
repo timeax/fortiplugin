@@ -40,7 +40,7 @@ final readonly class RouteWriteSection
      *   routeIds: string[],
      *   slug: string
      * }> $compiled (ignored for writing; kept for compatibility with caller)
-     * @param callable|null $emit Optional installer emitter fn(array $payload): void
+     * @param callable $emit Installer emitter fn(array $payload): void (non-null; persistence handled upstream)
      *
      * @return array{
      *   status: 'ok'|'fail',
@@ -56,7 +56,7 @@ final readonly class RouteWriteSection
     public function run(
         Plugin    $plugin,
         array     $compiled,
-        ?callable $emit = null
+        callable  $emit
     ): array
     {
         // Resolve STAGING root from installation log meta
@@ -69,39 +69,31 @@ final readonly class RouteWriteSection
             throw new RuntimeException('RouteWriteSection: missing meta.paths.staging in InstallationLogStore.');
         }
 
-        $emit && $emit([
+        $start = [
             'title' => 'ROUTES_WRITE_START',
             'description' => 'Materializing routes from registry',
             'meta' => ['staging_root' => $stagingRoot, 'chunks_seen' => count($compiled)],
-        ]);
-        $this->log->appendInstallerEmit([
-            'title' => 'ROUTES_WRITE_START',
-            'description' => 'Materializing routes from registry',
-            'meta' => ['staging_root' => $stagingRoot],
-        ]);
+        ];
+        $emit($start);
 
         try {
             $entries = $this->registry->read($stagingRoot);
             if ($entries === []) {
                 // Nothing to write (okay)
                 $doc = [
-                    'dir' => rtrim($stagingRoot, DIRECTORY_SEPARATOR) . DIRECTORY_SEPARATOR . 'routes',
+                    'dir' => 'routes',
                     'files' => [],
                     'aggregator' => null,
-                    'registry' => $this->registry->path($stagingRoot),
+                    'registry' => '.internal/routes.registry.json',
                 ];
                 $this->log->writeSection('routes_write', $doc);
 
-                $emit && $emit([
+                $okEmpty = [
                     'title' => 'ROUTES_WRITE_OK',
                     'description' => 'No registry entries to write',
                     'meta' => ['dir' => $doc['dir'], 'file_count' => 0],
-                ]);
-                $this->log->appendInstallerEmit([
-                    'title' => 'ROUTES_WRITE_OK',
-                    'description' => 'No registry entries to write',
-                    'meta' => ['dir' => $doc['dir'], 'file_count' => 0],
-                ]);
+                ];
+                $emit($okEmpty);
 
                 return ['status' => 'ok'] + $doc;
             }
@@ -110,42 +102,34 @@ final readonly class RouteWriteSection
             $mat = $this->materializer->materialize($stagingRoot, $slug, $entries);
 
             $out = [
-                'dir' => $mat['dir'],
+                'dir' => 'routes',
                 'files' => $mat['files'],
-                'aggregator' => $mat['aggregator'],
-                'registry' => $this->registry->path($stagingRoot),
+                'aggregator' => 'routes/fortiplugin.route.php',
+                'registry' => '.internal/routes.registry.json',
             ];
 
             $this->log->writeSection('routes_write', $out);
 
-            $emit && $emit([
+            $ok = [
                 'title' => 'ROUTES_WRITE_OK',
                 'description' => 'Routes registry materialized',
-                'meta' => ['dir' => $mat['dir'], 'file_count' => count($mat['files']), 'aggregator' => $mat['aggregator']],
-            ]);
-            $this->log->appendInstallerEmit([
-                'title' => 'ROUTES_WRITE_OK',
-                'description' => 'Routes registry materialized',
-                'meta' => ['dir' => $mat['dir'], 'file_count' => count($mat['files']), 'aggregator' => $mat['aggregator']],
-            ]);
+                'meta' => ['dir' => $out['dir'], 'file_count' => count($out['files']), 'aggregator' => $out['aggregator']],
+            ];
+            $emit($ok);
 
             return ['status' => 'ok'] + $out;
         } catch (Throwable $e) {
-            $emit && $emit([
+            $fail = [
                 'title' => 'ROUTES_WRITE_FAIL',
                 'description' => 'Materialization error',
                 'meta' => ['exception' => $e->getMessage()],
-            ]);
-            $this->log->appendInstallerEmit([
-                'title' => 'ROUTES_WRITE_FAIL',
-                'description' => 'Materialization error',
-                'meta' => ['exception' => $e->getMessage()],
-            ]);
+            ];
+            $emit($fail);
 
             $this->log->writeSection('routes_write', [
                 'error' => 'exception',
                 'exception' => $e->getMessage(),
-                'registry' => $this->registry->path($stagingRoot),
+                'registry' => '.internal/routes.registry.json',
             ]);
 
             return ['status' => 'fail', 'reason' => 'exception'];

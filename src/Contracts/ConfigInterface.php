@@ -5,6 +5,8 @@ namespace Timeax\FortiPlugin\Contracts;
 
 use Timeax\FortiPlugin\Enums\PermissionType;
 use Timeax\FortiPlugin\Permissions\Evaluation\Dto\PermissionListResult;
+use Timeax\FortiPlugin\Permissions\Evaluation\Dto\Result;
+use Timeax\FortiPlugin\Support\LoadedExportInfo;
 
 /**
  * Contract each plugin’s internal Config class must implement.
@@ -30,6 +32,31 @@ interface ConfigInterface
      * @return array<string, mixed>
      */
     public static function all(): array;
+
+    /**
+     * Return the entire parsed Vite build manifest.
+     *
+     * The array SHOULD include top-level keys you expose in your plugin’s
+     * vite.config.js (e.g. "publicPath", "assetsDir", "input", "output", ...).
+     *
+     * @return array<string, mixed>
+     */
+    public static function getViteBuildManifest(): array;
+
+    public static function getViteEmbededAsset(string $name): string;
+
+    /**
+     * Resolve a SPA override page asset by a friendly name like:
+     * - "app" or "app.tsx"
+     * - "Admin/Dashboard" or "Admin/Dashboard.tsx"
+     *
+     * It searches for manifest entry keys ending with:
+     * - "/pages/<name>.(tsx|ts|jsx|js)"
+     * - "/Pages/<name>.(tsx|ts|jsx|js)"
+     *
+     * @return string Public path like "/build/spa/<hash>.js" or "" if not found
+     */
+    public static function getVitePageAsset(string $name): string;
 
     /**
      * Get a config key or a default value when missing.
@@ -101,7 +128,7 @@ interface ConfigInterface
      *
      * @return array<string,mixed>|null
      */
-    public static function getHostConfig(): ?array;
+    public static function getHostConfig(): mixed;
 
     /**
      * Runtime install info for the plugin, set by the host at install time.
@@ -109,11 +136,13 @@ interface ConfigInterface
      * Keys are host-defined but MUST include:
      *  - id:    The installed plugin's primary key (or null before install).
      *  - alias: The installed alias (may be present before id exists).
-     *  - name:  The installed name (for convenience).
+     *  - name:  The installed name (for convenience)
+     *  - namespace: The installed namespace
+     *  - basePath: The root folder the plugin is installed at.
      *
      * @return array{id:int|null, alias:string|null, name:string}
      */
-    public static function getInfo(): array;
+    public static function getInfo(): array|string;
 
     /**
      * Convenience accessor for the installed plugin’s database id.
@@ -203,6 +232,27 @@ interface ConfigInterface
     ): ?array;
 
     /**
+     * Evaluate and return a detailed permission check result for a given selector.
+     *
+     * This returns a rich DTO with details about the evaluation process,
+     * including whether the action/intent is allowed, which grants matched,
+     * and any relevant messages or metadata.
+     *
+     * @param PermissionType|string $type Permission family: db|file|notification|module|network|codec
+     * @param string $actionOrIntent Action/intent to verify (see hasPermission for details).
+     * @param string|array|null $meta Type-specific selector (see hasPermission for details).
+     * @param array $context Optional runtime hints (e.g., ['guard'=>'api','env'=>'staging']).
+     * @return Result Detailed permission evaluation result.
+     * @see Result::class for exact shape & accessors.
+     */
+    public static function checkPermission(
+        PermissionType|string $type,
+        string                $actionOrIntent,
+        string|array|null     $meta = null,
+        array                 $context = []
+    ): Result;
+
+    /**
      * Read the raw content of .internal/Signed if present.
      *
      * This can be used for host verification or debugging. Implementations
@@ -288,5 +338,5 @@ interface ConfigInterface
      * @param string|null $export Export slug/key from `exports` (null selects `main`).
      * @return class-string|null   Fully-qualified class name if resolved, or null when not found.
      */
-    public static function load(?string $export = null): ?string;
+    public static function load(?string $export = null): LoadedExportInfo;
 }

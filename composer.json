@@ -60,7 +60,11 @@
     "laravel": {
       "providers": [
         "Timeax\\FortiPlugin\\FortiPluginServiceProvider"
-      ]
+      ],
+      "aliases": {
+        "Plugin": "Timeax\\FortiPlugin\\Facades\\Plugin",
+        "PluginZip": "Timeax\\FortiPlugin\\Facades\\PluginZip"
+      }
     }
   }
 }

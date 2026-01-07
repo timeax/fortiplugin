@@ -20,8 +20,10 @@ return new class extends Migration {
 				->constrained("scpl_plugins", "id")
 				->onDelete("cascade")
 				->onUpdate("no action");
-			$table->string("key");
-			$table->longText("value");
+			$table->string("key")->unique();
+			$table->string("group");
+			$table->string("label");
+			$table->longText("value")->nullable();
 			$table
 				->enum("type", [
 					"string",
@@ -30,8 +32,16 @@ return new class extends Migration {
 					"json",
 					"file",
 					"blob",
+					"tristate",
+					"multiselect",
+					"select",
+					"checkbox",
+					"radio",
+					"chips",
 				])
 				->default("string");
+			$table->boolean("is_required")->default(true);
+			$table->boolean("is_sensitive")->default(false);
 			$table->timestamps();
 			$table->index("plugin_id");
 			$table->unique(["plugin_id", "key"]);

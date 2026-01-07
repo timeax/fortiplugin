@@ -41,7 +41,7 @@ final readonly class ProviderValidationSection
      * @param string $pluginName Unique plugin name (namespace segment)
      * @param string $psr4Root Host PSR-4 root (e.g., "Plugins")
      * @param list<string> $providers Values from fortiplugin.json ("providers" array)
-     * @param callable|null $emit Optional emitter: fn(array $payload): void
+     * @param callable $emit Emitter: fn(array $payload): void (non-null; persisted by installer emitter)
      *
      * @return array{status:'ok'|'fail', missing?:list<string>}
      *
@@ -53,7 +53,7 @@ final readonly class ProviderValidationSection
         string    $pluginName,
         string    $psr4Root,
         array     $providers,
-        ?callable $emit = null
+        callable  $emit
     ): array
     {
         $pluginDir = rtrim($pluginDir, "\\/");
@@ -72,8 +72,7 @@ final readonly class ProviderValidationSection
                 'staging' => $pluginDir,
             ],
         ];
-        $emit && $emit($start);
-        $this->log->appendInstallerEmit($start);
+        $emit($start);
 
         // Quick exit if no providers declared
         if ($providers === []) {
@@ -88,8 +87,7 @@ final readonly class ProviderValidationSection
                 'description' => 'No providers declared',
                 'meta' => ['declared' => 0],
             ];
-            $emit && $emit($ok);
-            $this->log->appendInstallerEmit($ok);
+            $emit($ok);
             return ['status' => 'ok'];
         }
 
@@ -142,8 +140,7 @@ final readonly class ProviderValidationSection
                 'description' => 'One or more providers missing',
                 'meta' => ['missing' => $missing],
             ];
-            $emit && $emit($fail);
-            $this->log->appendInstallerEmit($fail);
+            $emit($fail);
             return ['status' => 'fail', 'missing' => $missing];
         }
 
@@ -152,8 +149,7 @@ final readonly class ProviderValidationSection
             'description' => 'All providers present in staged plugin',
             'meta' => ['count' => count($providers)],
         ];
-        $emit && $emit($ok);
-        $this->log->appendInstallerEmit($ok);
+        $emit($ok);
 
         return ['status' => 'ok'];
     }

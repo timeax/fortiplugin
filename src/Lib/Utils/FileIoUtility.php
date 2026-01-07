@@ -97,11 +97,11 @@ class FileIoUtility
      * Replace it with your own Gate/Policy or service call.
      * @noinspection PhpUnusedParameterInspection
      */
-    protected function hasExplicitFilePermission(string $absPath, string $disk): array
+    protected function hasExplicitFilePermission(string $absPath, string $disk): bool
     {
         // Example (pseudocode):
         // return app(FileAccessGateService::class)->allows($absPath, $disk);
         $config = $this->getPluginConfigClass();
-        return $config::getPermission('file', $absPath, ['read']);
+        return $config::hasPermission('file', 'read', ['path' => $absPath]);
     }
 }

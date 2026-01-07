@@ -61,15 +61,21 @@ final class LocalFilesystem implements Filesystem
         return $raw;
     }
 
-    /**
-     * @throws JsonException
-     */
     public function readJson(string $path): array
     {
         $raw = $this->readFile($path);
-        $data = json_decode($raw, true, 512, JSON_THROW_ON_ERROR);
+        if (trim($raw) === '') {
+            return [];
+        }
+
+        try {
+            $data = json_decode($raw, true, 512, JSON_THROW_ON_ERROR);
+        } catch (JsonException $e) {
+            throw new RuntimeException("Invalid JSON in $path: " . $e->getMessage(), 0, $e);
+        }
+
         if (!is_array($data)) {
-            throw new RuntimeException("Invalid JSON in $path");
+            throw new RuntimeException("Invalid JSON in $path: structure is not an array");
         }
         return $data;
     }

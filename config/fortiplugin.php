@@ -2,11 +2,32 @@
 
 return [
 
+
+
+    'ui' => [
+        'embed' => [
+            'public_base' => env('FORTIPLUGIN_UI_EMBED_PUBLIC_BASE', '/vendor/fortiplugin/{alias}'),
+            'asset_origin' => env('FORTIPLUGIN_UI_EMBED_ASSET_ORIGIN', null),
+            'cache_ttl' => env('FORTIPLUGIN_UI_EMBED_CACHE_TTL', 3600),
+        ],
+    ],
+
+
+    /*
+  * Enable or disable autoloading of plugins.
+  */
+    'autoload_enabled' => env('FORTIPLUGIN_AUTOLOAD_ENABLED', true),
+    // Relative path only
+    'autoload_registry' => env('FORTIPLUGIN_AUTOLOAD_REGISTRY', 'bootstrap/fortiplugin.autoload_psr4.php'),
+
+
     /*
      * PSR-4 root namespace and folder for plugins.
      */
     'psr4_root' => env('FORTIPLUGIN_PSR4_ROOT', 'Plugins'),
-    'directory' => env('FORTIPLUGIN_PSR4_ROOT', 'apps'),
+    'dev_directory' => env('FORTIPLUGIN_DEV_DIRECTORY', 'Plugins'),
+    'install_directory' => env('FORTIPLUGIN_INSTALL_DIRECTORY', 'modules'),
+
     /*
     |--------------------------------------------------------------------------
     | Authorization / Gates
@@ -181,11 +202,12 @@ return [
 
     // Installations module configuration (phase 2)
     'installations' => [
+
         'repositories' => [
             // Zip repository driver: 'inmemory' (default) or 'eloquent'
-            'zip' => env('FORTIPLUGIN_INSTALL_ZIP_REPO', 'inmemory'),
+            'zip' => env('FORTIPLUGIN_INSTALL_ZIP_REPO', 'eloquent'),
             // Plugin repository driver: 'inmemory' (default) or 'eloquent'
-            'plugin' => env('FORTIPLUGIN_INSTALL_PLUGIN_REPO', 'inmemory'),
+            'plugin' => env('FORTIPLUGIN_INSTALL_PLUGIN_REPO', 'eloquent'),
         ],
 
         'tokens' => [
@@ -202,8 +224,8 @@ return [
             // Security file scan (content/token/AST). Default: OFF
             'file_scan' => (bool)env('FORTIPLUGIN_FILE_SCAN', false),
 
-            // Vendor mode: 'STRIP_BUNDLED_VENDOR' or 'ALLOW_BUNDLED_VENDOR'
-            'vendor_mode' => env('FORTIPLUGIN_VENDOR_MODE', 'STRIP_BUNDLED_VENDOR'),
+            // Vendor mode: 'strip_bundled_vendor'|'allow_bundled_vendor'
+            'vendor_mode' => env('FORTIPLUGIN_VENDOR_MODE', 'strip_bundled_vendor'),
 
             // Token TTLs (seconds)
             'token_ttl' => [
