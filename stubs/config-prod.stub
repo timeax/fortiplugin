@@ -546,12 +546,59 @@ final class Config implements ConfigInterface
             ->where('plugin_id', $pluginId)
             ->get();
 
-        $out = [];
-        foreach ($rows as $row) {
-            $out[$row->key] = self::decodeHostSetting($row, null);
+        // If no group exists at all, keep the old flat shape for backward-compat.
+        $hasAnyGroup = false;
+        foreach ($rows as $r) {
+            if (!empty($r->group)) {
+                $hasAnyGroup = true;
+                break;
+            }
         }
 
-        return $out;
+        $flat = [];
+        foreach ($rows as $row) {
+            $flat[$row->key] = self::decodeHostSetting($row, null);
+        }
+
+        if (!$hasAnyGroup) {
+            return $flat;
+        }
+
+        /**
+         * Grouped shape:
+         * [
+         *   "_ungrouped" => [ "key" => value, ... ],
+         *   "UI" => [ "ui.theme" => value, ... ],
+         *   "UI / Sidebar" => [ "ui.sidebar.sections" => value, ... ],
+         *   ...
+         * ]
+         */
+        $grouped = [
+            '_ungrouped' => [],
+        ];
+
+        foreach ($rows as $row) {
+            $value = $flat[$row->key];
+
+            $group = is_string($row->group) ? trim($row->group) : '';
+            if ($group === '') {
+                $grouped['_ungrouped'][$row->key] = $value;
+                continue;
+            }
+
+            if (!array_key_exists($group, $grouped)) {
+                $grouped[$group] = [];
+            }
+
+            $grouped[$group][$row->key] = $value;
+        }
+
+        // Remove _ungrouped if empty (optional)
+        if ($grouped['_ungrouped'] === []) {
+            unset($grouped['_ungrouped']);
+        }
+
+        return $grouped;
     }
 
     /* -----------------------------------------------

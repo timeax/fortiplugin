@@ -154,7 +154,7 @@ model PluginSetting {
   key          String                 @unique
   group        String
   label        String
-  value        String                 @db.LongText
+  value        String?                @db.LongText
   type         PluginSettingValueType @default(string)
   is_required  Boolean                @default(true)
   is_sensitive Boolean                @default(false)

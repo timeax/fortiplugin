@@ -11,7 +11,7 @@ use Illuminate\Database\Eloquent\Model;
  * @property string $key
  * @property string $group
  * @property string $label
- * @property string $value
+ * @property string|null $value
  * @property PluginSettingValueType::class $type
  * @property bool $is_required
  * @property bool $is_sensitive

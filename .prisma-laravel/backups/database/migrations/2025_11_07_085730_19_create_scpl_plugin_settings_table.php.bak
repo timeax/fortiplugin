@@ -23,7 +23,7 @@ return new class extends Migration {
 			$table->string("key")->unique();
 			$table->string("group");
 			$table->string("label");
-			$table->longText("value");
+			$table->longText("value")->nullable();
 			$table
 				->enum("type", [
 					"string",
