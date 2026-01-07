@@ -97,7 +97,7 @@ class PackPlugin extends Command
 //            $this->runNpmBuild($tempPath);
 
             // 4) Collect files honoring both local and host excludes
-            $excludeList = $excludeFromHost; // server-provided extra excludes
+            $excludeList = [...$excludeFromHost, '/\/vendor($|\/)/', '/\/.internal($|\/)/']; // server-provided extra excludes
             $files = $this->collectPluginFiles($tempPath, $excludeList);
 
             // 5) Determine version and allow bump if desired (optional, local only)
@@ -468,7 +468,8 @@ class PackPlugin extends Command
     protected function getDefaultIgnores(): array
     {
         return [
-            // '/\/vendor($|\/)/',
+            '/\/vendor($|\/)/',
+            '/\/.internal($|\/)/',
             '/\/node_modules($|\/)/',
             '/\/tests($|\/)/',
             '/\/\.git($|\/)/',
