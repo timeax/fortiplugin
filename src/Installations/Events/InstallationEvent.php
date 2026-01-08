@@ -3,7 +3,6 @@ declare(strict_types=1);
 
 namespace Timeax\FortiPlugin\Installations\Events;
 
-use Illuminate\Broadcasting\InteractsWithSockets;
 use Illuminate\Foundation\Events\Dispatchable;
 use Illuminate\Queue\SerializesModels;
 
@@ -18,7 +17,7 @@ use Illuminate\Queue\SerializesModels;
  */
 final class InstallationEvent
 {
-    use Dispatchable, InteractsWithSockets, SerializesModels;
+    use Dispatchable, SerializesModels;
 
     /**
      * @param array $payload Full unified emit payload
