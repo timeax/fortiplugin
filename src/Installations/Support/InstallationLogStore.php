@@ -209,24 +209,4 @@ final class InstallationLogStore
         $this->atomFs->writeJsonAtomic($this->installationJsonPath, $this->doc, true);
     }
 
-    // InstallationLogStore.php
-
-    public function makeInstallerEmitter(?callable $forward = null, ?callable $tee = null): callable
-    {
-        return function (array $payload) use ($forward, $tee): void {
-            // 1) Always persist
-            $this->appendInstallerEmit($payload);
-
-            // 2) Optional CLI tee
-            if ($tee) {
-                $tee($payload);
-            }
-
-            // 3) Optional external forward (UI, etc.)
-            if ($forward) {
-                $forward($payload);
-            }
-        };
-    }
-
 }
