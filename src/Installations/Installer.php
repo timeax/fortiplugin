@@ -194,11 +194,8 @@ final readonly class Installer
 
                 // Delegate to ZipValidationGate to finalize the gate decision on resume
                 $gate = $this->zipGate->run(
-                    pluginDir: $pluginDir,
-                    zipId: $zipId,
-                    actor: $actor,
+                    meta: $meta,
                     runId: $runId,
-                    validatorConfigHash: $validatorConfigHash,
                     installerToken: $installerToken,
                     emit: $emitInstaller,
                 );
@@ -364,10 +361,7 @@ final readonly class Installer
                     ]);
                 }
 
-                DB::commit();
-
                 // Write .internal/Config.php into STAGING so InstallFiles copies it to INSTALL.
-
                 $cfg = $this->internalConfig->run(
                     meta: $meta,
                     stagingPluginRoot: $pluginDir,
@@ -378,43 +372,43 @@ final readonly class Installer
                     throw new RuntimeException('Internal config write failed');
                 }
 
+                // ─────────────────────────────────────────────────────────────
+                // 5) INSTALL FILES (move staged → installed; includes staged routes)
+                // ─────────────────────────────────────────────────────────────
+                $file_result = $this->installFiles->run(
+                    meta: $meta,
+                    stagingPluginRoot: $pluginDir,
+                    emit: $emitInstaller
+                );
+                if (($file_result['status'] ?? 'fail') !== 'ok') {
+                    throw new RuntimeException('Install files failed: ' . ($file_result['reason'] ?? 'unknown'));
+                }
+
+                // ─────────────────────────────────────────────────────────────
+                // 6) PUBLISH UI ASSETS (copy installed public/ → host public/)
+                // ─────────────────────────────────────────────────────────────
+                $pub = $this->publishBuildAssets->run(
+                    meta: $meta,
+                    pluginId: (int)$pluginId,
+                    emit: $emitInstaller
+                );
+                if (($pub['status'] ?? 'fail') === 'fail') {
+                    throw new RuntimeException('Publish assets failed: ' . ($pub['reason'] ?? 'unknown'));
+                }
+
+                $this->dbPersist->plugins->setPluginRoot($pluginId, $file_result['dest']);
+
+                DB::commit();
 
             } catch (Throwable $e) {
                 DB::rollBack();
                 $emitInstaller([
                     'title' => 'DB_TRANSACTION_ROLLBACK',
-                    'description' => 'Persistence or route write failed; rolled back',
+                    'description' => 'Persistence or filesystem write failed; rolled back',
                     'meta' => ['exception' => $e->getMessage()],
                 ]);
-                return $this->terminate(InstallEvents::RUN_FAIL, new InstallerResult('fail', $summary, ['exception' => $e->getMessage()]), $emitInstaller, $runId, $actor, $zipId);
+                return $this->terminate(InstallEvents::RUN_FAIL, new InstallerResult('fail', $summary, ['exception' => $e->getMessage()], (int)$pluginId, $pluginVersionId), $emitInstaller, $runId, $actor, $zipId);
             }
-
-            // ─────────────────────────────────────────────────────────────
-            // 5) INSTALL FILES (move staged → installed; includes staged routes)
-            // ─────────────────────────────────────────────────────────────
-            $file_result = $this->installFiles->run(
-                meta: $meta,
-                stagingPluginRoot: $pluginDir,
-                emit: $emitInstaller
-            );
-            if (($file_result['status'] ?? 'fail') !== 'ok') {
-                return $this->terminate(InstallEvents::RUN_FAIL, new InstallerResult('fail', $summary, ['reason' => 'install_files_failed'], (int)$pluginId, $pluginVersionId), $emitInstaller, $runId, $actor, $zipId);
-            }
-
-            // ─────────────────────────────────────────────────────────────
-            // 6) PUBLISH UI ASSETS (copy installed public/ → host public/)
-            // ─────────────────────────────────────────────────────────────
-            $pub = $this->publishBuildAssets->run(
-                meta: $meta,
-                pluginId: (int)$pluginId,
-                emit: $emitInstaller
-            );
-
-            if (($pub['status'] ?? 'fail') === 'fail') {
-                return $this->terminate(InstallEvents::RUN_FAIL, new InstallerResult('fail', $summary, ['reason' => 'publish_assets_failed'], (int)$pluginId, $pluginVersionId), $emitInstaller, $runId, $actor, $zipId);
-            }
-
-            $this->dbPersist->plugins->setPluginRoot($pluginId, $file_result['dest']);
 
             // ─────────────────────────────────────────────────────────────
             // 7) FINISH
