@@ -25,6 +25,7 @@ use Timeax\FortiPlugin\Installations\Sections\VendorPolicySection;
 use Timeax\FortiPlugin\Installations\Sections\VerificationSection;
 use Timeax\FortiPlugin\Installations\Sections\ZipValidationGate;
 use Timeax\FortiPlugin\Installations\Support\AtomicFilesystem;
+use Timeax\FortiPlugin\Installations\Support\EmitterMux;
 use Timeax\FortiPlugin\Installations\Support\Events;
 use Timeax\FortiPlugin\Installations\Support\InstallationLogStore;
 use Timeax\FortiPlugin\Installations\Support\InstallEvents;
@@ -66,6 +67,9 @@ final readonly class Installer
      * Full install pipeline after validation phases (which are handled by ValidatorBridge),
      * with support for resuming via installer override tokens.
      *
+     * All installation emits flow through EmitterMux; Laravel events are dispatched
+     * only for emits with an explicit event key.
+     *
      * @param InstallMeta $meta
      * @param int|string $zipId
      * @param ValidatorService $validator
@@ -74,7 +78,6 @@ final readonly class Installer
      * @param string $versionTag
      * @param string $actor
      * @param string $runId
-     * @param callable|null $emit fn(array $payload): void
      * @param callable|null $onValidationEnd forwarded to ValidatorBridge only
      * @param callable|null $onFileScanError forwarded to ValidatorBridge only
      * @param callable|null $onFinish called once when installation completes successfully (status 'ok')
@@ -93,40 +96,12 @@ final readonly class Installer
         string           $versionTag,
         string           $actor,
         string           $runId,
-        ?callable        $emit = null,
         ?callable        $onValidationEnd = null,
         ?callable        $onFileScanError = null,
         ?callable        $onFinish = null,
         ?string          $installerToken = null,
     ): InstallerResult
     {
-        $cliTee = app()->runningInConsole()
-            ? static function (array $p): void {
-                $title = $p['title'] ?? 'EVENT';
-                $desc = $p['description'] ?? '';
-                fwrite(STDOUT, "[$title] $desc\n");
-            }
-            : null;
-
-        // 1) installer emitter: persist + tee + forward
-        $emitInstaller = $this->logStore->makeInstallerEmitter(
-            forward: $emit,     // original caller emitter
-            tee: $cliTee
-        );
-
-        $emitInstaller([
-            'event' => InstallEvents::RUN_START,
-            'title' => Events::INSTALLER_START,
-            'description' => 'Starting installation run',
-            'meta' => ['zip_id' => (string)$zipId, 'run_id' => $runId, 'actor' => $actor],
-        ]);
-
-        // 2) validation emitter: tee + forward only (NO persistence here)
-        $emitValidation = function (array $p) use ($emit, $cliTee): void {
-            if ($cliTee) $cliTee($p);
-            if ($emit) $emit($p);
-        };
-
         $pluginDir = (string)($meta->paths['staging'] ?? '');
         if ($pluginDir === '') {
             throw new RuntimeException('InstallMeta.paths.staging is required.');
@@ -145,6 +120,23 @@ final readonly class Installer
 
         // Must happen BEFORE resume-token read() and before sections append emits
         $this->logStore->openOrInit($meta, $installationJsonPath);
+
+        // ─────────────────────────────────────────────────────────────
+        // EmitterMux: Single gate for all installer and validation emits
+        // ─────────────────────────────────────────────────────────────
+        $emitterMux = new EmitterMux($this->logStore);
+        $emitInstaller = $emitterMux->installerCallable();
+        $emitValidation = $emitterMux->validationCallable();
+
+        // Wire sections that use EmitsEvents trait
+        $this->verification->setEmitterMux($emitterMux);
+
+        $emitInstaller([
+            'event' => InstallEvents::RUN_START,
+            'title' => Events::INSTALLER_START,
+            'description' => 'Starting installation run',
+            'meta' => ['zip_id' => (string)$zipId, 'run_id' => $runId, 'actor' => $actor],
+        ]);
 
 
         // ─────────────────────────────────────────────────────────────
