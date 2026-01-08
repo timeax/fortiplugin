@@ -26,6 +26,7 @@ final readonly class EmitterMux
      * Emit an installer event.
      *
      * @param array $payload
+     * @throws \JsonException
      */
     public function emitInstaller(array $payload): void
     {
@@ -40,6 +41,7 @@ final readonly class EmitterMux
      * Emit a validation event.
      *
      * @param array $payload
+     * @throws \JsonException
      */
     public function emitValidation(array $payload): void
     {

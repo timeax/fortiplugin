@@ -102,7 +102,10 @@ trait EmitPayload
     {
         $payload['title']       = (string)($payload['title'] ?? '');
         $payload['description'] = $payload['description'] ?? null;
-        $payload['event']       = (string)($payload['event'] ?? $payload['title']);
+        $payload['event']       = isset($payload['event']) ? (string)$payload['event'] : null;
+        if ($payload['event'] === '') {
+            $payload['event'] = null;
+        }
 
         if (!isset($payload['stats']) || !is_array($payload['stats'])) {
             $payload['stats'] = ['filePath' => null, 'size' => null];

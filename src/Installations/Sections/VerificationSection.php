@@ -122,8 +122,7 @@ final class VerificationSection
             ]);
             $this->emitOkEvent(InstallEvents::SUMMARY_PERSIST_END, Events::SUMMARY_PERSISTED, 'Verification summary persisted', ['path' => $this->log->path()]);
         } catch (Throwable $e) {
-            $this->emitFailEvent(
-                InstallEvents::RUN_FAIL,
+            $this->emitFail(
                 Events::SUMMARY_PERSISTED,
                 ErrorCodes::FILESYSTEM_WRITE_FAILED,
                 'Failed to persist verification summary',
