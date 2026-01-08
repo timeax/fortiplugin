@@ -304,7 +304,7 @@ TS
         // package.json (bare)
         $this->files->put(
             "$pluginPath/package.json",
-            $this->renderStub("package", ["package_name" => $this->argument('name')])
+            $this->renderStub("package.json", ["package_name" => $this->argument('name')])
         );
     }
 

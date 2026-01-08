@@ -25,7 +25,9 @@ use Timeax\FortiPlugin\Installations\Sections\VendorPolicySection;
 use Timeax\FortiPlugin\Installations\Sections\VerificationSection;
 use Timeax\FortiPlugin\Installations\Sections\ZipValidationGate;
 use Timeax\FortiPlugin\Installations\Support\AtomicFilesystem;
+use Timeax\FortiPlugin\Installations\Support\Events;
 use Timeax\FortiPlugin\Installations\Support\InstallationLogStore;
+use Timeax\FortiPlugin\Installations\Support\InstallEvents;
 use Timeax\FortiPlugin\Installations\Support\InstallerTokenManager;
 use Timeax\FortiPlugin\Installations\Support\RouteUiBridge;
 use Timeax\FortiPlugin\Installations\Support\ValidatorBridge;
@@ -112,6 +114,13 @@ final readonly class Installer
             tee: $cliTee
         );
 
+        $emitInstaller([
+            'event' => InstallEvents::RUN_START,
+            'title' => Events::INSTALLER_START,
+            'description' => 'Starting installation run',
+            'meta' => ['zip_id' => (string)$zipId, 'run_id' => $runId, 'actor' => $actor],
+        ]);
+
         // 2) validation emitter: tee + forward only (NO persistence here)
         $emitValidation = function (array $p) use ($emit, $cliTee): void {
             if ($cliTee) $cliTee($p);
@@ -145,9 +154,16 @@ final readonly class Installer
             $claims = null;
             try {
                 $claims = $this->tokens->validate($installerToken);
+                $emitInstaller([
+                    'event' => InstallEvents::TOKEN_VALID,
+                    'title' => Events::TOKEN_VALID,
+                    'description' => 'Installer override token validated',
+                    'meta' => ['zip_id' => (string)$zipId, 'run_id' => $claims->run_id ?? null],
+                ]);
             } catch (Throwable $e) {
                 $emitInstaller([
-                    'title' => 'INSTALLER_TOKEN_INVALID',
+                    'event' => InstallEvents::TOKEN_INVALID,
+                    'title' => Events::TOKEN_INVALID,
                     'description' => 'Installer override token invalid or expired',
                     'meta' => ['zip_id' => (string)$zipId, 'reason' => $e->getMessage()],
                 ]);
@@ -391,7 +407,11 @@ final readonly class Installer
             emit: $emitInstaller
         );
         if (($file_result['status'] ?? 'fail') !== 'ok') {
-            $emitInstaller(['title' => 'INSTALL_FILES_FAIL', 'description' => 'Failed moving staged files into place']);
+            $emitInstaller([
+                'event' => InstallEvents::RUN_FAIL,
+                'title' => 'INSTALL_FILES_FAIL',
+                'description' => 'Failed moving staged files into place'
+            ]);
             return InstallerResult::fromArray([
                 'status' => 'fail',
                 'summary' => $summary,
@@ -411,6 +431,7 @@ final readonly class Installer
 
         if (($pub['status'] ?? 'fail') === 'fail') {
             $emitInstaller([
+                'event' => InstallEvents::RUN_FAIL,
                 'title' => 'UI_BUILD_PUBLISH_FAIL',
                 'description' => 'Failed publishing embed UI public assets',
                 'meta' => ['plugin_id' => (int)$pluginId],
@@ -425,6 +446,13 @@ final readonly class Installer
         }
 
         $this->dbPersist->plugins->setPluginRoot($pluginId, $file_result['dest']);
+
+        $emitInstaller([
+            'event' => InstallEvents::RUN_END,
+            'title' => Events::INSTALLER_END,
+            'description' => 'Installation run completed successfully',
+            'meta' => ['plugin_id' => (int)$pluginId],
+        ]);
 
         // ─────────────────────────────────────────────────────────────
         // 7) FINISH
@@ -476,6 +504,7 @@ final readonly class Installer
     private function emitAsk(callable $emit, ?InstallSummary $summary, array $meta): InstallerResult
     {
         $payload = [
+            'event' => InstallEvents::DECISION_ASK,
             'title' => 'INSTALLATION_ASK',
             'description' => 'Installation paused for host decision',
             'meta' => $meta,
@@ -492,6 +521,7 @@ final readonly class Installer
     private function emitBreak(callable $emit, ?InstallSummary $summary, array $meta): InstallerResult
     {
         $payload = [
+            'event' => InstallEvents::DECISION_BREAK,
             'title' => 'INSTALLATION_BREAK',
             'description' => 'Installation halted by policy',
             'meta' => $meta,

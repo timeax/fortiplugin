@@ -8,6 +8,7 @@ use Throwable;
 use Timeax\FortiPlugin\Installations\Enums\Install;
 use Timeax\FortiPlugin\Installations\Enums\ZipValidationStatus;
 use Timeax\FortiPlugin\Installations\Support\AtomicFilesystem;
+use Timeax\FortiPlugin\Installations\Support\InstallEvents;
 use Timeax\FortiPlugin\Installations\Support\InstallerTokenManager;
 use Timeax\FortiPlugin\Installations\InstallerPolicy;
 use Timeax\FortiPlugin\Installations\Contracts\ZipRepository;
@@ -87,7 +88,12 @@ final readonly class ZipValidationGate
     {
         $this->persistGate($pluginDir, 'verified');
         $this->persistDecision($pluginDir, Install::INSTALL, 'zip_verified');
-        $emit(['title' => 'INSTALL_DECISION', 'description' => 'INSTALL: zip verified', 'meta' => ['zip_id' => (string)$zipId]]);
+        $emit([
+            'event' => InstallEvents::DECISION_INSTALL,
+            'title' => 'INSTALL_DECISION',
+            'description' => 'INSTALL: zip verified',
+            'meta' => ['zip_id' => (string)$zipId]
+        ]);
         return ['decision' => Install::INSTALL, 'meta' => []];
     }
 
@@ -109,11 +115,24 @@ final readonly class ZipValidationGate
 
         $ttl   = $this->policy->getBackgroundScanTtl();
         $token = $this->tokens->issueBackgroundScanToken($zipId, $validatorConfigHash, $actor, $runId, $ttl);
+
+        $emit([
+            'event' => InstallEvents::TOKEN_ISSUED,
+            'title' => 'TOKEN_ISSUED',
+            'description' => 'Background scan token issued',
+            'meta' => ['zip_id' => (string)$zipId, 'ttl' => $ttl]
+        ]);
+
         $summary = $this->tokens->summarize('background_scan', time() + $ttl);
 
         $this->persistGate($pluginDir, 'pending', $summary);
         $this->persistDecision($pluginDir, Install::ASK, 'background_scans_pending', $summary);
-        $emit(['title' => 'INSTALL_DECISION', 'description' => 'ASK: waiting on background scans', 'meta' => ['zip_id' => (string)$zipId]]);
+        $emit([
+            'event' => InstallEvents::DECISION_ASK,
+            'title' => 'INSTALL_DECISION',
+            'description' => 'ASK: waiting on background scans',
+            'meta' => ['zip_id' => (string)$zipId]
+        ]);
 
         return ['decision' => Install::ASK, 'meta' => ['token' => $token, 'token_summary' => $summary]];
     }
@@ -125,7 +144,12 @@ final readonly class ZipValidationGate
     {
         $this->persistGate($pluginDir, $reason === 'zip_validation_failed' ? 'failed' : 'unknown');
         $this->persistDecision($pluginDir, Install::BREAK, $reason);
-        $emit(['title' => 'INSTALL_DECISION', 'description' => 'BREAK: zip not eligible', 'meta' => ['zip_id' => (string)$zipId, 'reason' => $reason]]);
+        $emit([
+            'event' => InstallEvents::DECISION_BREAK,
+            'title' => 'INSTALL_DECISION',
+            'description' => 'BREAK: zip not eligible',
+            'meta' => ['zip_id' => (string)$zipId, 'reason' => $reason]
+        ]);
         return ['decision' => Install::BREAK, 'meta' => []];
     }
 

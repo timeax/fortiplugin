@@ -10,6 +10,7 @@ use Timeax\FortiPlugin\Installations\Support\EmitsEvents;
 use Timeax\FortiPlugin\Installations\Support\ErrorCodes;
 use Timeax\FortiPlugin\Installations\Support\Events;
 use Timeax\FortiPlugin\Installations\Support\InstallationLogStore;
+use Timeax\FortiPlugin\Installations\Support\InstallEvents;
 use Timeax\FortiPlugin\Installations\Support\Psr4Checker;
 use Timeax\FortiPlugin\Services\ValidatorService;
 
@@ -106,9 +107,9 @@ final class VerificationSection
             if ($emitValidation) $emitValidation($payload);
         };
 
-        $this->emitOk(Events::VALIDATION_START, 'Running headline validators');
+        $this->emitOkEvent(InstallEvents::VALIDATION_START, Events::VALIDATION_START, 'Running headline validators');
         $summary = $validator->run($pluginDir, $forward);
-        $this->emitOk(Events::VALIDATION_END, 'Headline validators completed', [
+        $this->emitOkEvent(InstallEvents::VALIDATION_END, Events::VALIDATION_END, 'Headline validators completed', [
             'total_issues' => $summary['total_issues'] ?? null,
             'files_scanned' => $summary['files_scanned'] ?? null,
         ]);
@@ -119,9 +120,10 @@ final class VerificationSection
                 'summary' => $summary,
                 'run_id' => $run_id,
             ]);
-            $this->emitOk(Events::SUMMARY_PERSISTED, 'Verification summary persisted', ['path' => $this->log->path()]);
+            $this->emitOkEvent(InstallEvents::SUMMARY_PERSIST_END, Events::SUMMARY_PERSISTED, 'Verification summary persisted', ['path' => $this->log->path()]);
         } catch (Throwable $e) {
-            $this->emitFail(
+            $this->emitFailEvent(
+                InstallEvents::RUN_FAIL,
                 Events::SUMMARY_PERSISTED,
                 ErrorCodes::FILESYSTEM_WRITE_FAILED,
                 'Failed to persist verification summary',

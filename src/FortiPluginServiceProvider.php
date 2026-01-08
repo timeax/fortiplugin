@@ -65,7 +65,7 @@ use Timeax\FortiPlugin\Permissions\Contracts\PermissionServiceInterface;
 use Timeax\FortiPlugin\Permissions\Evaluation\PermissionService;
 use Timeax\FortiPlugin\Services\HostKeyService;
 use Timeax\FortiPlugin\Services\Plugin\PluginService;
-use Timeax\FortiPlugin\Services\Plugin\PluginZipService;
+use Timeax\FortiPlugin\Services\Plugins\PluginZipService;
 use Timeax\FortiPlugin\Services\PolicyService;
 use Timeax\FortiPlugin\Services\ValidatorService;
 use Timeax\FortiPlugin\Support\FortiGateRegistrar;

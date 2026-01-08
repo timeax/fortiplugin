@@ -9,6 +9,7 @@ use Timeax\FortiPlugin\Installations\DTO\DecisionResult;
 use Timeax\FortiPlugin\Installations\Enums\Install;
 use Timeax\FortiPlugin\Installations\InstallerPolicy;
 use Timeax\FortiPlugin\Installations\Support\InstallationLogStore;
+use Timeax\FortiPlugin\Installations\Support\InstallEvents;
 use Timeax\FortiPlugin\Installations\Support\InstallerTokenManager;
 use Timeax\FortiPlugin\Services\ValidatorService;
 use function count;
@@ -60,6 +61,7 @@ final readonly class FileScanSection
     ): array
     {
         $this->emit && ($this->emit)([
+            'event' => InstallEvents::FILE_SCAN_START,
             'title' => 'FILE_SCAN_START',
             'description' => 'Starting file scan',
             'meta' => ['zip_id' => (string)$zipId, 'run_id' => $runId],
@@ -77,6 +79,13 @@ final readonly class FileScanSection
 
         // Run scanner only
         $validator->runFileScan($pluginDir, $forward);
+
+        $this->emit && ($this->emit)([
+            'event' => InstallEvents::FILE_SCAN_END,
+            'title' => 'FILE_SCAN_END',
+            'description' => 'File scan completed',
+            'meta' => ['zip_id' => (string)$zipId, 'run_id' => $runId],
+        ]);
 
         $shouldFail = $validator->shouldFail();
         $logTuples = $validator->getLog();
@@ -138,6 +147,14 @@ final readonly class FileScanSection
                 runId: $runId,
                 ttlSeconds: $ttl
             );
+
+            $this->emit && ($this->emit)([
+                'event' => InstallEvents::TOKEN_ISSUED,
+                'title' => 'TOKEN_ISSUED',
+                'description' => 'Install override token issued',
+                'meta' => ['zip_id' => (string)$zipId, 'ttl' => $ttl]
+            ]);
+
             $tokenMeta = $this->tokens->summarize('install_override', time() + $ttl);
 
             $hostDecision = $onFileScanError($summaryArray, $tokenOpaque);
@@ -206,10 +223,25 @@ final readonly class FileScanSection
     /** neutral scan-level decision event (Installer handles high-level events) */
     private function emitDecision(string $status, array $meta = []): void
     {
-        $this->emit && ($this->emit)([
-            'title' => 'FILE_SCAN_DECISION',
+        if (!$this->emit) return;
+
+        $event = match ($status) {
+            'INSTALL' => InstallEvents::DECISION_INSTALL,
+            'ASK'     => InstallEvents::DECISION_ASK,
+            'BREAK'   => InstallEvents::DECISION_BREAK,
+            default   => null,
+        };
+
+        $payload = [
+            'title'       => 'FILE_SCAN_DECISION',
             'description' => $status,
-            'meta' => $meta,
-        ]);
+            'meta'        => $meta,
+        ];
+
+        if ($event) {
+            $payload['event'] = $event;
+        }
+
+        ($this->emit)($payload);
     }
 }

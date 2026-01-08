@@ -3,7 +3,7 @@ import react from '@vitejs/plugin-react';
 import tailwindcss from '@tailwindcss/vite';
 import {resolve} from 'node:path';
 
-const inertiaEntry = 'resources/inertia/ts/app.tsx';
+const inertiaEntry = 'resources/inertia/app.tsx';
 
 export default defineConfig({
     appType: 'custom',

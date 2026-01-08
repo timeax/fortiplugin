@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace Timeax\FortiPlugin\Services\Plugin;
+namespace Timeax\FortiPlugin\Services\Plugins;
 
 use Illuminate\Support\Collection;
 use Illuminate\Support\Str;

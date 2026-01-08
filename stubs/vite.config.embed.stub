@@ -6,7 +6,7 @@ import tailwindcss from "@tailwindcss/vite";
 import fortiPrep, {discoverEntrypoints} from "fortiplugin-bundle-adapter"; // ← your new adapter package name
 import {resolve} from "node:path";
 
-const integrations = discoverEntrypoints("resources/embed/ts");
+const integrations = discoverEntrypoints("resources/embed");
 
 export default defineConfig({
     appType: "custom",

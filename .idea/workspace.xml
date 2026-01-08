@@ -5,7 +5,21 @@
   </component>
   <component name="ChangeListManager">
     <list default="true" id="eaf4cbc6-d298-4694-b042-183ced7c77f7" name="Changes" comment="">
-      <change beforePath="$PROJECT_DIR$/README.md" beforeDir="false" afterPath="$PROJECT_DIR$/README.md" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/Console/Commands/MakePlugin.php" beforeDir="false" afterPath="$PROJECT_DIR$/src/Console/Commands/MakePlugin.php" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/Facades/PluginZip.php" beforeDir="false" afterPath="$PROJECT_DIR$/src/Facades/PluginZip.php" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/FortiPluginServiceProvider.php" beforeDir="false" afterPath="$PROJECT_DIR$/src/FortiPluginServiceProvider.php" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/Installations/Installer.php" beforeDir="false" afterPath="$PROJECT_DIR$/src/Installations/Installer.php" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/Installations/Sections/FileScanSection.php" beforeDir="false" afterPath="$PROJECT_DIR$/src/Installations/Sections/FileScanSection.php" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/Installations/Sections/PublishBuildAssetsSection.php" beforeDir="false" afterPath="$PROJECT_DIR$/src/Installations/Sections/PublishBuildAssetsSection.php" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/Installations/Sections/VerificationSection.php" beforeDir="false" afterPath="$PROJECT_DIR$/src/Installations/Sections/VerificationSection.php" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/Installations/Sections/ZipValidationGate.php" beforeDir="false" afterPath="$PROJECT_DIR$/src/Installations/Sections/ZipValidationGate.php" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/Installations/Support/EmitPayload.php" beforeDir="false" afterPath="$PROJECT_DIR$/src/Installations/Support/EmitPayload.php" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/Installations/Support/EmitsEvents.php" beforeDir="false" afterPath="$PROJECT_DIR$/src/Installations/Support/EmitsEvents.php" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/Runtime/PluginPermissions.php" beforeDir="false" afterPath="$PROJECT_DIR$/src/Runtime/PluginPermissions.php" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/Services/Plugins/PluginZipService.php" beforeDir="false" afterPath="$PROJECT_DIR$/src/Services/Plugins/PluginZipService.php" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/stubs/vite.config.embed.stub" beforeDir="false" afterPath="$PROJECT_DIR$/stubs/vite.config.embed.stub" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/stubs/vite.config.spa.stub" beforeDir="false" afterPath="$PROJECT_DIR$/stubs/vite.config.spa.stub" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -19,7 +33,7 @@
     </execution>
   </component>
   <component name="EmbeddingIndexingInfo">
-    <option name="cachedIndexableFilesCount" value="9330" />
+    <option name="cachedIndexableFilesCount" value="9342" />
     <option name="fileBasedEmbeddingIndicesEnabled" value="true" />
   </component>
   <component name="FileTemplateManagerImpl">
@@ -236,7 +250,7 @@
     "Shell Script.s.sh.executor": "Run",
     "com.intellij.ml.llm.matterhorn.ej.ui.settings.DefaultAutoModeForALLUsers.v1": "true",
     "com.intellij.ml.llm.matterhorn.ej.ui.settings.DefaultModelSelectionForGA.v1": "true",
-    "git-widget-placeholder": "preview",
+    "git-widget-placeholder": "zeki",
     "ignore.virus.scanning.warn.message": "true",
     "junie.onboarding.icon.badge.shown": "true",
     "laravel_idea.dialogs.code_generation:createConsoleCommand.width": "416",
@@ -261,7 +275,7 @@
     "php.override.implement.member.chooser.php.doc": "NONE",
     "prettierjs.PrettierConfiguration.Package": "C:\\Users\\USER\\GitHub\\timex\\fortiplugin\\node_modules\\prettier",
     "run.code.analysis.last.selected.profile": "pProject Default",
-    "settings.editor.selected.configurable": "preferences.keymap",
+    "settings.editor.selected.configurable": "preferences.pluginManager",
     "to.speed.mode.migration.done": "true",
     "vue.rearranger.settings.migration": "true"
   }
@@ -314,7 +328,6 @@
     </list>
     <recent_temporary>
       <list>
-        <item itemvalue="PHPUnit.LegacyJsonRouteCompilerTest.test_http_variants_any_and_match_and_action_expr_variants" />
         <item itemvalue="PHPUnit.PluginSecurityScannerTest.testBlocklistClassMethodAllowlist" />
         <item itemvalue="PHPUnit.PluginSecurityScannerTest" />
         <item itemvalue="PHPUnit.PluginInstallFlowTest" />
@@ -325,6 +338,7 @@
   <component name="SharedIndexes">
     <attachedChunks>
       <set>
+        <option value="bundled-js-predefined-d6986cc7102b-9b0f141eb926-JavaScript-PS-253.29346.151" />
         <option value="bundled-php-predefined-a98d8de5180a-0e0d91225499-com.jetbrains.php.sharedIndexes-PS-253.29346.151" />
       </set>
     </attachedChunks>
@@ -388,7 +402,7 @@
         </line-breakpoint>
         <line-breakpoint enabled="true" type="php">
           <url>file://$PROJECT_DIR$/src/Installations/Sections/VerificationSection.php</url>
-          <line>58</line>
+          <line>59</line>
           <option name="timeStamp" value="6" />
         </line-breakpoint>
       </breakpoints>

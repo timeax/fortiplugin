@@ -42,15 +42,7 @@ final readonly class PluginPermissions
      */
     public function revoke(PermissionType|string $type, int $permissionId): bool
     {
-        if ($permissionId <= 0) {
-            throw new InvalidArgumentException('revoke() requires a positive permissionId.');
-        }
-
-        $typeEnum = $type instanceof PermissionType
-            ? $type
-            : PermissionType::from((string)$type);
         return false;
-//        return $this->service->deactivatePluginPermission($this->pluginId, $typeEnum, $permissionId);
     }
 
     public function pluginId(): int
