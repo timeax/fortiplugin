@@ -12,3 +12,5 @@ composer.phar
 /.prodex
 /.prisma-laravel
 /node_modules
+.idea/workspace.xml
+/.idea

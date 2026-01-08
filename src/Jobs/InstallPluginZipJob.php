@@ -106,7 +106,6 @@ final class InstallPluginZipJob implements ShouldQueue
             versionTag: $this->versionTag,
             actor: $this->actor,
             runId: $this->runId,
-            emit: null,
             onFinish: null,
             installerToken: $this->installerToken,
         );

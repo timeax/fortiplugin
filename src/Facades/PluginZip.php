@@ -6,7 +6,7 @@ namespace Timeax\FortiPlugin\Facades;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Facade;
 use Timeax\FortiPlugin\Models\PluginZip as PluginZipModel;
-use Timeax\FortiPlugin\Services\Plugin\PluginZipService;
+use Timeax\FortiPlugin\Services\Plugins\PluginZipService;
 
 /**
  * @method static Collection list(int $limit = 100)

@@ -65,7 +65,7 @@ use Timeax\FortiPlugin\Permissions\Contracts\PermissionServiceInterface;
 use Timeax\FortiPlugin\Permissions\Evaluation\PermissionService;
 use Timeax\FortiPlugin\Services\HostKeyService;
 use Timeax\FortiPlugin\Services\Plugin\PluginService;
-use Timeax\FortiPlugin\Services\Plugin\PluginZipService;
+use Timeax\FortiPlugin\Services\Plugins\PluginZipService;
 use Timeax\FortiPlugin\Services\PolicyService;
 use Timeax\FortiPlugin\Services\ValidatorService;
 use Timeax\FortiPlugin\Support\FortiGateRegistrar;
@@ -309,12 +309,12 @@ class FortiPluginServiceProvider extends ServiceProvider
         ));
 
         // ── ZIP gate (scoped: uses run logs/tokens) ────────────────────────────
-        // FIX #2: match ZipValidationGate::__construct(policy, tokens, zips, afs, emit?)
+        // FIX #2: match ZipValidationGate::__construct(policy, tokens, zips, logStore)
         $this->app->scoped(ZipValidationGate::class, fn($app) => new ZipValidationGate(
             $app->make(InstallerPolicy::class),
             $app->make(InstallerTokenManager::class),
             $app->make(ZipRepository::class),
-            $app->make(AtomicFilesystem::class),
+            $app->make(InstallationLogStore::class),
         ));
 
         // ── Installer (scoped: must share the same scoped log store + sections) ─

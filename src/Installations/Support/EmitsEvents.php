@@ -36,6 +36,21 @@ trait EmitsEvents
     }
 
     /**
+     * Emit a **success/info** event on the installer channel with a machine key.
+     *
+     * @param string           $event   One of InstallEvents::*
+     * @param non-empty-string $title   Human-facing title (Events::*)
+     * @param string|null      $description
+     * @param array            $meta
+     */
+    protected function emitOkEvent(string $event, string $title, ?string $description = null, array $meta = []): void
+    {
+        if (!$this->emitterMux) return;
+        $payload = $this->finalize($this->makePayload($title, $description, $meta, $event));
+        $this->emitterMux->emitInstaller($payload);
+    }
+
+    /**
      * Emit an **error** event (with standardized error block) on the installer channel.
      *
      * @param non-empty-string $title
@@ -70,6 +85,42 @@ trait EmitsEvents
     }
 
     /**
+     * Emit an **error** event on the installer channel with a machine key.
+     *
+     * @param string           $event   One of InstallEvents::*
+     * @param non-empty-string $title
+     * @param non-empty-string $code
+     * @param non-empty-string $message
+     * @param array            $extra
+     * @param string|null      $filePath
+     * @param int|null         $size
+     * @param array            $meta
+     */
+    protected function emitFailEvent(
+        string $event,
+        string $title,
+        string $code,
+        string $message,
+        array $extra = [],
+        ?string $filePath = null,
+        ?int $size = null,
+        array $meta = []
+    ): void {
+        if (!$this->emitterMux) return;
+
+        $payload = $this->merge(
+            $this->makePayload($title, $message, $meta, $event),
+            ['error' => $this->error($code, $message, $extra)]
+        );
+
+        if ($filePath !== null || $size !== null) {
+            $payload['stats'] = $this->stats($filePath, $size);
+        }
+
+        $this->emitterMux->emitInstaller($this->finalize($payload));
+    }
+
+    /**
      * Emit a **validation-side** event (rarely needed—validators emit directly).
      * Use only when the installer must mirror something into the validation stream.
      *
@@ -88,6 +139,32 @@ trait EmitsEvents
     ): void {
         if (!$this->emitterMux) return;
         $payload = $this->makePayload($title, $description, $meta);
+        if ($filePath !== null || $size !== null) {
+            $payload['stats'] = $this->stats($filePath, $size);
+        }
+        $this->emitterMux->emitValidation($this->finalize($payload));
+    }
+
+    /**
+     * Emit a **validation-side** event with a machine key.
+     *
+     * @param string           $event
+     * @param non-empty-string $title
+     * @param string|null      $description
+     * @param array            $meta
+     * @param string|null      $filePath
+     * @param int|null         $size
+     */
+    protected function emitValidationEvent(
+        string $event,
+        string $title,
+        ?string $description = null,
+        array $meta = [],
+        ?string $filePath = null,
+        ?int $size = null
+    ): void {
+        if (!$this->emitterMux) return;
+        $payload = $this->makePayload($title, $description, $meta, $event);
         if ($filePath !== null || $size !== null) {
             $payload['stats'] = $this->stats($filePath, $size);
         }

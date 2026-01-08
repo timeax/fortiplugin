@@ -9,6 +9,7 @@ use Throwable;
 use Timeax\FortiPlugin\Installations\DTO\InstallMeta;
 use Timeax\FortiPlugin\Installations\Support\AtomicFilesystem;
 use Timeax\FortiPlugin\Installations\Support\InstallationLogStore;
+use Timeax\FortiPlugin\Installations\Support\InstallEvents;
 use Timeax\FortiPlugin\Models\Plugin;
 
 use function Illuminate\Filesystem\join_paths;
@@ -32,6 +33,7 @@ final readonly class PublishBuildAssetsSection
         $installedRoot = rtrim((string)($meta->paths['install'] ?? ''), "\\/");
 
         $emit([
+            'event' => InstallEvents::UI_ASSETS_START,
             'title' => 'UI_BUILD_PUBLISH_START',
             'description' => 'Publishing embed UI public assets to host public folder',
             'meta' => ['plugin_id' => $pluginId, 'installed_root' => $installedRoot],
@@ -93,6 +95,7 @@ final readonly class PublishBuildAssetsSection
             ]);
 
             $emit([
+                'event' => InstallEvents::UI_ASSETS_END,
                 'title' => 'UI_BUILD_PUBLISH_OK',
                 'description' => 'Embed UI public assets published to host public folder',
                 'meta' => ['alias' => $alias, 'from' => $sourcePublicDir, 'to' => $destDir, 'base_url_path' => $baseUrlPath],

@@ -30,11 +30,15 @@ trait EmitPayload
      * @param non-empty-string $title
      * @param string|null      $description
      * @param array            $meta
-     * @return array{title:string,description?:string,meta?:array}
+     * @param string|null      $event
+     * @return array{title:string,description?:string,meta?:array,event?:string}
      */
-    protected function makePayload(string $title, ?string $description = null, array $meta = []): array
+    protected function makePayload(string $title, ?string $description = null, array $meta = [], ?string $event = null): array
     {
         $out = ['title' => $title, 'description' => $description];
+        if ($event !== null && $event !== '') {
+            $out['event'] = $event;
+        }
         if ($meta !== []) {
             $out['meta'] = $meta; // NEVER mutate caller meta
         }
@@ -98,6 +102,10 @@ trait EmitPayload
     {
         $payload['title']       = (string)($payload['title'] ?? '');
         $payload['description'] = $payload['description'] ?? null;
+        $payload['event']       = isset($payload['event']) ? (string)$payload['event'] : null;
+        if ($payload['event'] === '') {
+            $payload['event'] = null;
+        }
 
         if (!isset($payload['stats']) || !is_array($payload['stats'])) {
             $payload['stats'] = ['filePath' => null, 'size' => null];

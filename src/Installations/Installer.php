@@ -25,7 +25,10 @@ use Timeax\FortiPlugin\Installations\Sections\VendorPolicySection;
 use Timeax\FortiPlugin\Installations\Sections\VerificationSection;
 use Timeax\FortiPlugin\Installations\Sections\ZipValidationGate;
 use Timeax\FortiPlugin\Installations\Support\AtomicFilesystem;
+use Timeax\FortiPlugin\Installations\Support\EmitterMux;
+use Timeax\FortiPlugin\Installations\Support\Events;
 use Timeax\FortiPlugin\Installations\Support\InstallationLogStore;
+use Timeax\FortiPlugin\Installations\Support\InstallEvents;
 use Timeax\FortiPlugin\Installations\Support\InstallerTokenManager;
 use Timeax\FortiPlugin\Installations\Support\RouteUiBridge;
 use Timeax\FortiPlugin\Installations\Support\ValidatorBridge;
@@ -64,6 +67,9 @@ final readonly class Installer
      * Full install pipeline after validation phases (which are handled by ValidatorBridge),
      * with support for resuming via installer override tokens.
      *
+     * All installation emits flow through EmitterMux; Laravel events are dispatched
+     * only for emits with an explicit event key.
+     *
      * @param InstallMeta $meta
      * @param int|string $zipId
      * @param ValidatorService $validator
@@ -72,7 +78,6 @@ final readonly class Installer
      * @param string $versionTag
      * @param string $actor
      * @param string $runId
-     * @param callable|null $emit fn(array $payload): void
      * @param callable|null $onValidationEnd forwarded to ValidatorBridge only
      * @param callable|null $onFileScanError forwarded to ValidatorBridge only
      * @param callable|null $onFinish called once when installation completes successfully (status 'ok')
@@ -91,33 +96,12 @@ final readonly class Installer
         string           $versionTag,
         string           $actor,
         string           $runId,
-        ?callable        $emit = null,
         ?callable        $onValidationEnd = null,
         ?callable        $onFileScanError = null,
         ?callable        $onFinish = null,
         ?string          $installerToken = null,
     ): InstallerResult
     {
-        $cliTee = app()->runningInConsole()
-            ? static function (array $p): void {
-                $title = $p['title'] ?? 'EVENT';
-                $desc = $p['description'] ?? '';
-                fwrite(STDOUT, "[$title] $desc\n");
-            }
-            : null;
-
-        // 1) installer emitter: persist + tee + forward
-        $emitInstaller = $this->logStore->makeInstallerEmitter(
-            forward: $emit,     // original caller emitter
-            tee: $cliTee
-        );
-
-        // 2) validation emitter: tee + forward only (NO persistence here)
-        $emitValidation = function (array $p) use ($emit, $cliTee): void {
-            if ($cliTee) $cliTee($p);
-            if ($emit) $emit($p);
-        };
-
         $pluginDir = (string)($meta->paths['staging'] ?? '');
         if ($pluginDir === '') {
             throw new RuntimeException('InstallMeta.paths.staging is required.');
@@ -137,313 +121,312 @@ final readonly class Installer
         // Must happen BEFORE resume-token read() and before sections append emits
         $this->logStore->openOrInit($meta, $installationJsonPath);
 
-
         // ─────────────────────────────────────────────────────────────
-        // 0) PREFLIGHT: resume path via installer override token
+        // EmitterMux: Single gate for all installer and validation emits
         // ─────────────────────────────────────────────────────────────
-        if (is_string($installerToken) && $installerToken !== '') {
-            $claims = null;
-            try {
-                $claims = $this->tokens->validate($installerToken);
-            } catch (Throwable $e) {
-                $emitInstaller([
-                    'title' => 'INSTALLER_TOKEN_INVALID',
-                    'description' => 'Installer override token invalid or expired',
-                    'meta' => ['zip_id' => (string)$zipId, 'reason' => $e->getMessage()],
-                ]);
-                // Treat as ASK (UI should re-request confirmation or new token)
-                return $this->emitAsk($emitInstaller, null, ['reason' => 'token_invalid']);
-            }
+        $emitterMux = new EmitterMux($this->logStore);
+        $emitInstaller = $emitterMux->installerCallable();
+        $emitValidation = $emitterMux->validationCallable();
 
-            // Purpose & run parity
-            if (($claims->purpose ?? null) !== 'install_override' || ($claims->run_id ?? null) !== $runId) {
-                $emitInstaller([
-                    'title' => 'INSTALLER_TOKEN_MISMATCH',
-                    'description' => 'Token purpose or run_id mismatch',
-                    'meta' => ['expected_run' => $runId, 'token_run' => $claims->run_id ?? null, 'purpose' => $claims->purpose ?? null],
-                ]);
-                return $this->emitAsk($emitInstaller, null, ['reason' => 'token_mismatch']);
-            }
+        // Wire sections that use EmitsEvents trait
+        $this->verification->setEmitterMux($emitterMux);
 
-            // Ensure prior validators ran and produced ASK for this run
-            $doc = $this->logStore->read();
-            $hasVerificationOk = $this->verificationOk($doc);
-            $hasFileScanAsk = $this->hasDecisionAskForRun($doc, $runId);
+        $emitInstaller([
+            'event' => InstallEvents::RUN_START,
+            'title' => Events::INSTALLER_START,
+            'description' => 'Starting installation run',
+            'meta' => ['zip_id' => (string)$zipId, 'run_id' => $runId, 'actor' => $actor],
+        ]);
 
-            if (!$hasVerificationOk || !$hasFileScanAsk) {
-                $emitInstaller([
-                    'title' => 'RESUME_PRECHECK_FAILED',
-                    'description' => 'Logs do not confirm prior verification OK and ASK decision for this run',
-                    'meta' => ['verification_ok' => $hasVerificationOk, 'ask_for_run' => $hasFileScanAsk, 'run_id' => $runId],
-                ]);
-                return $this->emitAsk($emitInstaller, null, ['reason' => 'precheck_failed']);
-            }
 
-            // Delegate to ZipValidationGate to finalize the gate decision on resume
-            $gate = $this->zipGate->run(
-                pluginDir: $pluginDir,
-                zipId: $zipId,
-                actor: $actor,
-                runId: $runId,
-                validatorConfigHash: $validatorConfigHash,
-                installerToken: $installerToken,
-                emit: $emitInstaller,
-            );
-            $gateDecision = $gate['decision'] ?? null;
-            $gateMeta = $gate['meta'] ?? [];
-
-            if ($gateDecision === Install::ASK) {
-                return $this->emitAsk($emitInstaller, null, $gateMeta);
-            }
-            if ($gateDecision === Install::BREAK) {
-                return $this->emitBreak($emitInstaller, null, ['reason' => 'zip_gate_break'] + $gateMeta);
-            }
-
-            // If ZIP gate says INSTALL, we skip ValidatorBridge and continue below at Provider Validation (step 2).
-            $summary = new InstallSummary(
-                verification: ['status' => 'ok'],
-                file_scan: ['enabled' => true, 'status' => 'ask-resumed', 'errors' => []],
-                zip_validation: null,
-                vendor_policy: null,
-                composer_plan: null,
-                packages: null
-            );
-        } else {
-            // ─────────────────────────────────────────────────────────
-            // 1) VALIDATION (Verification + optional FileScan) via ValidatorBridge
-            //    Bridge will call onValidationEnd($summary) exactly once.
-            // ─────────────────────────────────────────────────────────
-            $vb = $this->validatorBridge->run(
-                pluginDir: $pluginDir,
-                pluginName: $pluginName,
-                zipId: $zipId,
-                validator: $validator,
-                validatorConfig: $validatorConfig,
-                validatorConfigHash: $validatorConfigHash,
-                actor: $actor,
-                runId: $runId,
-                emit: $emitValidation,
-                onValidationEnd: $onValidationEnd,
-                onFileScanError: $onFileScanError
-            );
-
-            $summary = $vb['summary'];
-            $gateDecision = $vb['decision'] ?? null;
-            $gateMeta = $vb['meta'] ?? null;
-
-            if ($gateDecision instanceof Install) {
-                if ($gateDecision === Install::ASK) {
-                    return $this->emitAsk($emitInstaller, $summary, is_array($gateMeta) ? $gateMeta : []);
-                }
-                if ($gateDecision === Install::BREAK) {
-                    return $this->emitBreak($emitInstaller, $summary, []);
-                }
-                // INSTALL → continue
-            }
-        }
-
-        // ─────────────────────────────────────────────────────────────
-        // 2) PROVIDER VALIDATION (simple existence check in staged tree)
-        // ─────────────────────────────────────────────────────────────
-        $providers = [];
-        try {
-            $cfg = $this->afs->fs()->readJson($pluginDir . DIRECTORY_SEPARATOR . 'fortiplugin.json');
-            $providers = array_values(array_filter((array)($cfg['providers'] ?? []), 'is_string'));
-        } catch (Throwable $_) {
-        }
-
-        $prov = $this->providerValidation->run(
-            pluginDir: $pluginDir,
-            pluginName: $pluginName,
-            psr4Root: $psr4Root,
-            providers: $providers,
-            emit: $emitInstaller
-        );
-        if (($prov['status'] ?? 'ok') !== 'ok') {
-            return InstallerResult::fromArray(['status' => 'fail', 'summary' => $summary]);
-        }
-
-        // ─────────────────────────────────────────────────────────────
-        // 3) VENDOR POLICY + COMPOSER PLAN (advisory; host lock is REQUIRED)
-        // ─────────────────────────────────────────────────────────────
-        $hostComposerLock = (string)(
-        config('fortiplugin.installations.host_composer_lock')
-            ?: base_path('composer.lock')
-        );
-
-        if (!$this->afs->fs()->exists($hostComposerLock)) {
-            throw new RuntimeException("Host composer.lock not found at: $hostComposerLock");
-        }
-
-        $vendor = $this->vendorPolicy->run(
-            pluginDir: $pluginDir,
-            hostComposerLock: $hostComposerLock,
-            emit: $emitInstaller
-        );
-
-        $plan = $this->composerPlan->run(
-            pluginDir: $pluginDir,
-            hostComposerLock: $hostComposerLock,
-            emit: $emitInstaller
-        );
-
-        $packagesForDb = $plan['packages_dto'] ?? $vendor['packages_dto'] ?? null;
-
-        // Refresh summary with advisory info
-        $summary = new InstallSummary(
-            verification: $summary->verification,
-            file_scan: $summary->file_scan,
-            zip_validation: null,
-            vendor_policy: $vendor['vendor_policy'] ?? null,
-            composer_plan: $plan['plan'] ?? null,
-            packages: $plan['packages'] ?? null
-        );
-
-        // ─────────────────────────────────────────────────────────────
-        // 4) DB PERSIST + ROUTE WRITE (to STAGING) — TRANSACTION
-        // ─────────────────────────────────────────────────────────────
+        $summary = null;
         $pluginId = null;
         $pluginVersionId = null;
 
-        DB::beginTransaction();
         try {
-            $persist = $this->dbPersist->run(
-                meta: $meta,
-                versionTag: $versionTag,
-                zipId: $zipId,
-                emit: $emitInstaller,
-                packages: $packagesForDb
-            );
-            if (($persist['status'] ?? 'fail') !== 'ok') {
-                throw new RuntimeException('DB persist failed');
-            }
-            $pluginId = $persist['plugin_id'] ?? null;
-            $pluginVersionId = $persist['plugin_version_id'] ?? null;
-            if (!$pluginId) {
-                throw new RuntimeException('DB persist did not return plugin_id');
-            }
-
-            // Routes: discover + compile JSON, then write PHP into STAGING
-            $bundle = $this->routeUiBridge->discoverAndCompile($pluginDir, $emitInstaller);
-            $compiled = $bundle['compiled'] ?? [];
-
-            if (!empty($compiled)) {
-                $plugin = Plugin::query()->findOrFail($pluginId);
-                $write = $this->routeWriterSection->run(
-                    plugin: $plugin,
-                    compiled: $compiled,
-                    emit: $emitInstaller
-                );
-                if (($write['status'] ?? 'fail') !== 'ok') {
-                    throw new RuntimeException('Route write failed: ' . ($write['reason'] ?? 'unknown'));
+            // ─────────────────────────────────────────────────────────────
+            // 0) PREFLIGHT: resume path via installer override token
+            // ─────────────────────────────────────────────────────────────
+            if (is_string($installerToken) && $installerToken !== '') {
+                $claims = null;
+                try {
+                    $claims = $this->tokens->validate($installerToken);
+                    $emitInstaller([
+                        'event' => InstallEvents::TOKEN_VALID,
+                        'title' => Events::TOKEN_VALID,
+                        'description' => 'Installer override token validated',
+                        'meta' => ['zip_id' => (string)$zipId, 'run_id' => $claims->run_id ?? null],
+                    ]);
+                } catch (Throwable $e) {
+                    $emitInstaller([
+                        'event' => InstallEvents::TOKEN_INVALID,
+                        'title' => Events::TOKEN_INVALID,
+                        'description' => 'Installer override token invalid or expired',
+                        'meta' => ['zip_id' => (string)$zipId, 'reason' => $e->getMessage()],
+                    ]);
+                    // Treat as ASK (UI should re-request confirmation or new token)
+                    return $this->emitAsk($emitInstaller, null, ['reason' => 'token_invalid'], $runId, $actor, $zipId);
                 }
 
-                // UI config validation (advisory; logs errors/warnings)
-                $hostScheme = (array)config('fortipluginui', []);
-                $this->uiConfigValidation->run(
+                // Purpose & run parity
+                if (($claims->purpose ?? null) !== 'install_override' || ($claims->run_id ?? null) !== $runId) {
+                    $emitInstaller([
+                        'title' => 'INSTALLER_TOKEN_MISMATCH',
+                        'description' => 'Token purpose or run_id mismatch',
+                        'meta' => ['expected_run' => $runId, 'token_run' => $claims->run_id ?? null, 'purpose' => $claims->purpose ?? null],
+                    ]);
+                    return $this->emitAsk($emitInstaller, null, ['reason' => 'token_mismatch'], $runId, $actor, $zipId);
+                }
+
+                // Ensure prior validators ran and produced ASK for this run
+                $doc = $this->logStore->read();
+                $hasVerificationOk = $this->verificationOk($doc);
+                $hasFileScanAsk = $this->hasDecisionAskForRun($doc, $runId);
+
+                if (!$hasVerificationOk || !$hasFileScanAsk) {
+                    $emitInstaller([
+                        'title' => 'RESUME_PRECHECK_FAILED',
+                        'description' => 'Logs do not confirm prior verification OK and ASK decision for this run',
+                        'meta' => ['verification_ok' => $hasVerificationOk, 'ask_for_run' => $hasFileScanAsk, 'run_id' => $runId],
+                    ]);
+                    return $this->emitAsk($emitInstaller, null, ['reason' => 'precheck_failed'], $runId, $actor, $zipId);
+                }
+
+                // Delegate to ZipValidationGate to finalize the gate decision on resume
+                $gate = $this->zipGate->run(
                     meta: $meta,
-                    knownRouteIds: $bundle['route_ids'] ?? [],
-                    hostScheme: $hostScheme,
-                    emit: $emitInstaller
+                    runId: $runId,
+                    installerToken: $installerToken,
+                    emit: $emitInstaller,
+                );
+                $gateDecision = $gate['decision'] ?? null;
+                $gateMeta = $gate['meta'] ?? [];
+
+                if ($gateDecision === Install::ASK) {
+                    return $this->emitAsk($emitInstaller, null, $gateMeta, $runId, $actor, $zipId);
+                }
+                if ($gateDecision === Install::BREAK) {
+                    return $this->emitBreak($emitInstaller, null, ['reason' => 'zip_gate_break'] + $gateMeta, $runId, $actor, $zipId);
+                }
+
+                // If ZIP gate says INSTALL, we skip ValidatorBridge and continue below at Provider Validation (step 2).
+                $summary = new InstallSummary(
+                    verification: ['status' => 'ok'],
+                    file_scan: ['enabled' => true, 'status' => 'ask-resumed', 'errors' => []],
+                    zip_validation: null,
+                    vendor_policy: null,
+                    composer_plan: null,
+                    packages: null
                 );
             } else {
-                $emitInstaller([
-                    'title' => 'ROUTES_NONE_DISCOVERED',
-                    'description' => 'No route files discovered or compiled',
-                    'meta' => ['plugin_dir' => $pluginDir],
-                ]);
+                // ─────────────────────────────────────────────────────────
+                // 1) VALIDATION (Verification + optional FileScan) via ValidatorBridge
+                //    Bridge will call onValidationEnd($summary) exactly once.
+                // ─────────────────────────────────────────────────────────
+                $vb = $this->validatorBridge->run(
+                    pluginDir: $pluginDir,
+                    pluginName: $pluginName,
+                    zipId: $zipId,
+                    validator: $validator,
+                    validatorConfig: $validatorConfig,
+                    validatorConfigHash: $validatorConfigHash,
+                    actor: $actor,
+                    runId: $runId,
+                    emit: $emitValidation,
+                    onValidationEnd: $onValidationEnd,
+                    onFileScanError: $onFileScanError
+                );
+
+                $summary = $vb['summary'];
+                $gateDecision = $vb['decision'] ?? null;
+                $gateMeta = $vb['meta'] ?? null;
+
+                if ($gateDecision instanceof Install) {
+                    if ($gateDecision === Install::ASK) {
+                        return $this->emitAsk($emitInstaller, $summary, is_array($gateMeta) ? $gateMeta : [], $runId, $actor, $zipId);
+                    }
+                    if ($gateDecision === Install::BREAK) {
+                        return $this->emitBreak($emitInstaller, $summary, [], $runId, $actor, $zipId);
+                    }
+                    // INSTALL → continue
+                }
             }
 
-            DB::commit();
-
-            // Write .internal/Config.php into STAGING so InstallFiles copies it to INSTALL.
-
-            $cfg = $this->internalConfig->run(
-                meta: $meta,
-                stagingPluginRoot: $pluginDir,
-                pluginId: (int)$pluginId,
-                emit: $emitInstaller
-            );
-            if (($cfg['status'] ?? 'fail') !== 'ok') {
-                throw new RuntimeException('Internal config write failed');
-            }
-
-
-        } catch (Throwable $e) {
-            DB::rollBack();
-            $emitInstaller([
-                'title' => 'DB_TRANSACTION_ROLLBACK',
-                'description' => 'Persistence or route write failed; rolled back',
-                'meta' => ['exception' => $e->getMessage()],
-            ]);
-            return InstallerResult::fromArray([
-                'status' => 'fail',
-                'summary' => $summary,
-            ]);
-        }
-
-        // ─────────────────────────────────────────────────────────────
-        // 5) INSTALL FILES (move staged → installed; includes staged routes)
-        // ─────────────────────────────────────────────────────────────
-        $file_result = $this->installFiles->run(
-            meta: $meta,
-            stagingPluginRoot: $pluginDir,
-            emit: $emitInstaller
-        );
-        if (($file_result['status'] ?? 'fail') !== 'ok') {
-            $emitInstaller(['title' => 'INSTALL_FILES_FAIL', 'description' => 'Failed moving staged files into place']);
-            return InstallerResult::fromArray([
-                'status' => 'fail',
-                'summary' => $summary,
-                'plugin_id' => (int)$pluginId,
-                'plugin_version_id' => $pluginVersionId,
-            ]);
-        }
-
-        // ─────────────────────────────────────────────────────────────
-        // 6) PUBLISH UI ASSETS (copy installed public/ → host public/)
-        // ─────────────────────────────────────────────────────────────
-        $pub = $this->publishBuildAssets->run(
-            meta: $meta,
-            pluginId: (int)$pluginId,
-            emit: $emitInstaller
-        );
-
-        if (($pub['status'] ?? 'fail') === 'fail') {
-            $emitInstaller([
-                'title' => 'UI_BUILD_PUBLISH_FAIL',
-                'description' => 'Failed publishing embed UI public assets',
-                'meta' => ['plugin_id' => (int)$pluginId],
-            ]);
-
-            return InstallerResult::fromArray([
-                'status' => 'fail',
-                'summary' => $summary,
-                'plugin_id' => (int)$pluginId,
-                'plugin_version_id' => $pluginVersionId,
-            ]);
-        }
-
-        $this->dbPersist->plugins->setPluginRoot($pluginId, $file_result['dest']);
-
-        // ─────────────────────────────────────────────────────────────
-        // 7) FINISH
-        // ─────────────────────────────────────────────────────────────
-        $result = InstallerResult::fromArray([
-            'status' => 'ok',
-            'summary' => $summary,
-            'plugin_id' => (int)$pluginId,
-            'plugin_version_id' => $pluginVersionId,
-        ]);
-
-        if (is_callable($onFinish)) {
+            // ─────────────────────────────────────────────────────────────
+            // 2) PROVIDER VALIDATION (simple existence check in staged tree)
+            // ─────────────────────────────────────────────────────────────
+            $providers = [];
             try {
-                $onFinish($result);
+                $cfg = $this->afs->fs()->readJson($pluginDir . DIRECTORY_SEPARATOR . 'fortiplugin.json');
+                $providers = array_values(array_filter((array)($cfg['providers'] ?? []), 'is_string'));
             } catch (Throwable $_) {
             }
-        }
 
-        return $result;
+            $prov = $this->providerValidation->run(
+                pluginDir: $pluginDir,
+                pluginName: $pluginName,
+                psr4Root: $psr4Root,
+                providers: $providers,
+                emit: $emitInstaller
+            );
+            if (($prov['status'] ?? 'ok') !== 'ok') {
+                return $this->terminate(InstallEvents::RUN_FAIL, new InstallerResult('fail', $summary, ['reason' => 'provider_validation_failed']), $emitInstaller, $runId, $actor, $zipId);
+            }
+
+            // ─────────────────────────────────────────────────────────────
+            // 3) VENDOR POLICY + COMPOSER PLAN (advisory; host lock is REQUIRED)
+            // ─────────────────────────────────────────────────────────────
+            $hostComposerLock = (string)(
+            config('fortiplugin.installations.host_composer_lock')
+                ?: base_path('composer.lock')
+            );
+
+            if (!$this->afs->fs()->exists($hostComposerLock)) {
+                throw new RuntimeException("Host composer.lock not found at: $hostComposerLock");
+            }
+
+            $vendor = $this->vendorPolicy->run(
+                pluginDir: $pluginDir,
+                hostComposerLock: $hostComposerLock,
+                emit: $emitInstaller
+            );
+
+            $plan = $this->composerPlan->run(
+                pluginDir: $pluginDir,
+                hostComposerLock: $hostComposerLock,
+                emit: $emitInstaller
+            );
+
+            $packagesForDb = $plan['packages_dto'] ?? $vendor['packages_dto'] ?? null;
+
+            // Refresh summary with advisory info
+            $summary = new InstallSummary(
+                verification: $summary->verification,
+                file_scan: $summary->file_scan,
+                zip_validation: null,
+                vendor_policy: $vendor['vendor_policy'] ?? null,
+                composer_plan: $plan['plan'] ?? null,
+                packages: $plan['packages'] ?? null
+            );
+
+            // ─────────────────────────────────────────────────────────────
+            // 4) DB PERSIST + ROUTE WRITE (to STAGING) — TRANSACTION
+            // ─────────────────────────────────────────────────────────────
+            DB::beginTransaction();
+            try {
+                $persist = $this->dbPersist->run(
+                    meta: $meta,
+                    versionTag: $versionTag,
+                    zipId: $zipId,
+                    emit: $emitInstaller,
+                    packages: $packagesForDb
+                );
+                if (($persist['status'] ?? 'fail') !== 'ok') {
+                    throw new RuntimeException('DB persist failed');
+                }
+                $pluginId = $persist['plugin_id'] ?? null;
+                $pluginVersionId = $persist['plugin_version_id'] ?? null;
+                if (!$pluginId) {
+                    throw new RuntimeException('DB persist did not return plugin_id');
+                }
+
+                // Routes: discover + compile JSON, then write PHP into STAGING
+                $bundle = $this->routeUiBridge->discoverAndCompile($pluginDir, $emitInstaller);
+                $compiled = $bundle['compiled'] ?? [];
+
+                if (!empty($compiled)) {
+                    $plugin = Plugin::query()->findOrFail($pluginId);
+                    $write = $this->routeWriterSection->run(
+                        plugin: $plugin,
+                        compiled: $compiled,
+                        emit: $emitInstaller
+                    );
+                    if (($write['status'] ?? 'fail') !== 'ok') {
+                        throw new RuntimeException('Route write failed: ' . ($write['reason'] ?? 'unknown'));
+                    }
+
+                    // UI config validation (advisory; logs errors/warnings)
+                    $hostScheme = (array)config('fortipluginui', []);
+                    $this->uiConfigValidation->run(
+                        meta: $meta,
+                        knownRouteIds: $bundle['route_ids'] ?? [],
+                        hostScheme: $hostScheme,
+                        emit: $emitInstaller
+                    );
+                } else {
+                    $emitInstaller([
+                        'title' => 'ROUTES_NONE_DISCOVERED',
+                        'description' => 'No route files discovered or compiled',
+                        'meta' => ['plugin_dir' => $pluginDir],
+                    ]);
+                }
+
+                // Write .internal/Config.php into STAGING so InstallFiles copies it to INSTALL.
+                $cfg = $this->internalConfig->run(
+                    meta: $meta,
+                    stagingPluginRoot: $pluginDir,
+                    pluginId: (int)$pluginId,
+                    emit: $emitInstaller
+                );
+                if (($cfg['status'] ?? 'fail') !== 'ok') {
+                    throw new RuntimeException('Internal config write failed');
+                }
+
+                // ─────────────────────────────────────────────────────────────
+                // 5) INSTALL FILES (move staged → installed; includes staged routes)
+                // ─────────────────────────────────────────────────────────────
+                $file_result = $this->installFiles->run(
+                    meta: $meta,
+                    stagingPluginRoot: $pluginDir,
+                    emit: $emitInstaller
+                );
+                if (($file_result['status'] ?? 'fail') !== 'ok') {
+                    throw new RuntimeException('Install files failed: ' . ($file_result['reason'] ?? 'unknown'));
+                }
+
+                // ─────────────────────────────────────────────────────────────
+                // 6) PUBLISH UI ASSETS (copy installed public/ → host public/)
+                // ─────────────────────────────────────────────────────────────
+                $pub = $this->publishBuildAssets->run(
+                    meta: $meta,
+                    pluginId: (int)$pluginId,
+                    emit: $emitInstaller
+                );
+                if (($pub['status'] ?? 'fail') === 'fail') {
+                    throw new RuntimeException('Publish assets failed: ' . ($pub['reason'] ?? 'unknown'));
+                }
+
+                $this->dbPersist->plugins->setPluginRoot($pluginId, $file_result['dest']);
+
+                DB::commit();
+
+            } catch (Throwable $e) {
+                DB::rollBack();
+                $emitInstaller([
+                    'title' => 'DB_TRANSACTION_ROLLBACK',
+                    'description' => 'Persistence or filesystem write failed; rolled back',
+                    'meta' => ['exception' => $e->getMessage()],
+                ]);
+                return $this->terminate(InstallEvents::RUN_FAIL, new InstallerResult('fail', $summary, ['exception' => $e->getMessage()], (int)$pluginId, $pluginVersionId), $emitInstaller, $runId, $actor, $zipId);
+            }
+
+            // ─────────────────────────────────────────────────────────────
+            // 7) FINISH
+            // ─────────────────────────────────────────────────────────────
+            $result = new InstallerResult('ok', $summary, null, (int)$pluginId, $pluginVersionId);
+
+            if (is_callable($onFinish)) {
+                try {
+                    $onFinish($result);
+                } catch (Throwable $_) {
+                }
+            }
+
+            return $this->terminate(InstallEvents::RUN_END, $result, $emitInstaller, $runId, $actor, $zipId);
+
+        } catch (Throwable $e) {
+            return $this->terminate(InstallEvents::RUN_FAIL, new InstallerResult('fail', $summary, ['exception' => $e->getMessage()], (int)$pluginId, $pluginVersionId), $emitInstaller, $runId, $actor, $zipId);
+        }
     }
 
     /* ───────────────────────────── helpers ───────────────────────────── */
@@ -473,35 +456,77 @@ final readonly class Installer
         return false;
     }
 
-    private function emitAsk(callable $emit, ?InstallSummary $summary, array $meta): InstallerResult
+    private function emitAsk(callable $emit, ?InstallSummary $summary, array $meta, string $runId, string $actor, int|string $zipId): InstallerResult
     {
         $payload = [
+            'event' => InstallEvents::DECISION_ASK,
             'title' => 'INSTALLATION_ASK',
             'description' => 'Installation paused for host decision',
             'meta' => $meta,
         ];
         $emit($payload);
 
-        return InstallerResult::fromArray([
-            'status' => 'ask',
-            'summary' => $summary,
-            'meta' => $meta,
-        ]);
+        $result = InstallerResult::ask($summary, $meta);
+        return $this->terminate(InstallEvents::RUN_FAIL, $result, $emit, $runId, $actor, $zipId);
     }
 
-    private function emitBreak(callable $emit, ?InstallSummary $summary, array $meta): InstallerResult
+    private function emitBreak(callable $emit, ?InstallSummary $summary, array $meta, string $runId, string $actor, int|string $zipId): InstallerResult
     {
         $payload = [
+            'event' => InstallEvents::DECISION_BREAK,
             'title' => 'INSTALLATION_BREAK',
             'description' => 'Installation halted by policy',
             'meta' => $meta,
         ];
         $emit($payload);
 
-        return InstallerResult::fromArray([
-            'status' => 'break',
-            'summary' => $summary,
+        $result = InstallerResult::break($summary, $meta);
+        return $this->terminate(InstallEvents::RUN_FAIL, $result, $emit, $runId, $actor, $zipId);
+    }
+
+    /**
+     * Terminate the run by persisting the result and emitting the final lifecycle event.
+     * Ensure exactly ONE terminal event is emitted.
+     */
+    private function terminate(
+        string           $event,
+        InstallerResult  $result,
+        callable         $emit,
+        ?string          $runId = null,
+        ?string          $actor = null,
+        int|string|null  $zipId = null,
+    ): InstallerResult
+    {
+        // 1) Persist structured final result section once and only once
+        try {
+            $data = $result->toArray();
+            $data['run_id'] = $runId;
+            $data['zip_id'] = $zipId;
+            $data['actor'] = $actor;
+            $this->logStore->writeSection('result', $data);
+        } catch (Throwable) {
+            // Best effort persistence
+        }
+
+        // 2) Emit terminal event with meta summary
+        $meta = $result->meta ?? [];
+        $meta['run_id'] = $runId;
+        $meta['zip_id'] = $zipId;
+        $meta['actor'] = $actor;
+        $meta['status'] = $result->status;
+        if ($result->plugin_id) {
+            $meta['plugin_id'] = $result->plugin_id;
+        }
+
+        $emit([
+            'event' => $event,
+            'title' => $event === InstallEvents::RUN_END ? Events::INSTALLER_END : 'INSTALLATION_FAILED',
+            'description' => $event === InstallEvents::RUN_END
+                ? 'Installation run completed successfully'
+                : 'Installation run failed or was interrupted (Status: ' . $result->status . ')',
             'meta' => $meta,
         ]);
+
+        return $result;
     }
 }
