@@ -27,10 +27,10 @@ final class ActivatePluginVersionJob implements ShouldQueue
     public int $timeout = 1800;
 
     public function __construct(
-        public readonly int    $pluginVersionId,
-        public readonly int    $zipPlaceholderId,
-        public readonly string $runId,
-        public readonly string $actor,
+        public readonly int        $pluginVersionId,
+        public readonly int        $zipPlaceholderId,
+        public readonly string     $runId,
+        public readonly int|string $actor,
     )
     {
     }
@@ -55,12 +55,6 @@ final class ActivatePluginVersionJob implements ShouldQueue
         $installRoot = (string)config('fortiplugin.install_directory', 'apps');
         $installDir = base_path($installRoot . DIRECTORY_SEPARATOR . $plugin->slug);
 
-        $process = PluginProcess::create([
-            'source_id' => $plugin->id,
-            'type' => ProcessType::installer,
-            'status' => ProcessStatus::pending,
-            'run_id' => $this->runId,
-        ]);
 
         $result = $activator->run(
             plugin: $plugin,
@@ -70,6 +64,8 @@ final class ActivatePluginVersionJob implements ShouldQueue
             runId: $this->runId,
             emit: null,
         );
+
+        $process = PluginProcess::where('runId', $this->runId)->firstOrFail();
 
         if ($result->isOk()) {
             $process->status = ProcessStatus::success;

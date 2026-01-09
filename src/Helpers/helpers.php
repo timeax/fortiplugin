@@ -1,5 +1,7 @@
 <?php
 
+use Timeax\FortiPlugin\Models\PluginProcess;
+
 if (!function_exists('stripComments')) {
     /**
      * Removes both single-line (//) and multi-line (/* *​/) comments from a JSON string.
@@ -60,5 +62,77 @@ if (!function_exists('plugin_path')) {
         return $path ? $basePath . DIRECTORY_SEPARATOR . ltrim($path, DIRECTORY_SEPARATOR) : $basePath;
     }
 }
+
+if (!function_exists('forti_installation_log_path')) {
+    function forti_installation_log_path(int $zipId, string $runId): string
+    {
+        // staging dir format (based on your sample): "{zip_id}-{run_id}"
+        $runDir = storage_path("app/fortiplugin/staging/{$zipId}-{$runId}");
+
+        // The installer persists here (per your meta.paths.logs)
+        return $runDir . DIRECTORY_SEPARATOR . '.internal' . DIRECTORY_SEPARATOR . 'logs' . DIRECTORY_SEPARATOR . 'installation.json';
+    }
+}
+
+if (!function_exists('read_forti_process_log')) {
+    /**
+     * Read a single PluginProcess + its installation log (decoded array or null).
+     *
+     * @return array{process: array<string,mixed>, log: array<string,mixed>|null, log_path: string|null, log_mtime: int|null}
+     * @throws JsonException
+     */
+    function read_forti_process_log(int $processId): array
+    {
+        /** @var PluginProcess|null $process */
+        $process = PluginProcess::query()->find($processId);
+
+        if (!$process) {
+            return [
+                'process' => [],
+                'log' => null,
+                'log_path' => null,
+                'log_mtime' => null,
+            ];
+        }
+
+        $zipId = (int)$process->zip_id;
+        $runId = (string)$process->run_id;
+
+        $path = forti_installation_log_path($zipId, $runId);
+
+        $log = null;
+        $mtime = null;
+
+        if (is_file($path)) {
+            $mtime = @filemtime($path) ?: null;
+
+            $raw = file_get_contents($path);
+            if (is_string($raw) && $raw !== '') {
+                $decoded = json_decode($raw, true, 512, JSON_THROW_ON_ERROR);
+                if (is_array($decoded) && json_last_error() === JSON_ERROR_NONE) {
+                    $log = $decoded;
+                } else {
+                    // If it’s corrupted mid-write, keep null; UI will re-fetch on next emit.
+                    $log = null;
+                }
+            }
+        }
+
+        return [
+            'process' => [
+                'id' => $process->id,
+                'zip_id' => $process->zip_id,
+                'run_id' => $process->run_id,
+                'status' => $process->status,
+                'created_at' => $process->created_at?->toISOString(),
+                'updated_at' => $process->updated_at?->toISOString(),
+            ],
+            'log' => $log,
+            'log_path' => is_file($path) ? $path : null,
+            'log_mtime' => $mtime,
+        ];
+    }
+}
+
 
 require_once __DIR__ . '/ui-helpers.php';

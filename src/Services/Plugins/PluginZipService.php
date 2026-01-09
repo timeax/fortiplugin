@@ -7,13 +7,18 @@ namespace Timeax\FortiPlugin\Services\Plugins;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Str;
 use RuntimeException;
+use Timeax\FortiPlugin\Enums\ProcessStatus;
+use Timeax\FortiPlugin\Enums\ProcessType;
 use Timeax\FortiPlugin\Installations\Support\AtomicFilesystem;
 use Timeax\FortiPlugin\Jobs\InstallPluginZipJob;
+use Timeax\FortiPlugin\Models\PluginProcess;
 use Timeax\FortiPlugin\Models\PluginZip;
 
 final readonly class PluginZipService
 {
-    public function __construct(private AtomicFilesystem $afs) {}
+    public function __construct(private AtomicFilesystem $afs)
+    {
+    }
 
     public function list(int $limit = 100): Collection
     {
@@ -26,16 +31,17 @@ final readonly class PluginZipService
     /**
      */
     public function install(
-        int $zipId,
+        int     $zipId,
         ?string $installerToken = null,
         ?string $runId = null,
         ?string $actor = null,
-        string $dispatchMode = 'auto' // 'auto' | 'sync' | 'queue'
-    ): array {
+        string  $dispatchMode = 'queue' // 'auto' | 'sync' | 'queue'
+    ): array
+    {
         $zip = PluginZip::query()->with('placeholder')->find($zipId);
 
         if (!$zip) {
-            throw new RuntimeException("PluginZip #{$zipId} not found");
+            throw new RuntimeException("PluginZip #$zipId not found");
         }
 
         $fs = $this->afs->fs();
@@ -45,8 +51,8 @@ final readonly class PluginZipService
             throw new RuntimeException('ZIP_NOT_FOUND');
         }
 
-        $metaData  = is_array($zip->meta ?? null) ? $zip->meta : [];
-        $manifest  = is_array($metaData['manifest'] ?? null) ? $metaData['manifest'] : [];
+        $metaData = is_array($zip->meta ?? null) ? $zip->meta : [];
+        $manifest = is_array($metaData['manifest'] ?? null) ? $metaData['manifest'] : [];
         $pluginMan = is_array($manifest['plugin'] ?? null) ? $manifest['plugin'] : [];
 
         $placeholderId = $zip->placeholder_id;
@@ -78,8 +84,16 @@ final readonly class PluginZipService
             ? $metaData['validator_config']
             : [];
 
-        $runId = $runId ?: (string) Str::uuid();
+        $runId = $runId ?: (string)Str::uuid();
         $actor = $actor ?: 'system';
+
+        $process = PluginProcess::create([
+            'source_id' => $zipId,
+            'type' => ProcessType::installer,
+            'status' => ProcessStatus::pending,
+            'run_id' => $runId,
+        ]);
+
 
         if ($this->shouldDispatchSync($dispatchMode)) {
             InstallPluginZipJob::dispatchSync(
@@ -101,6 +115,7 @@ final readonly class PluginZipService
                 'queued' => false,
                 'run_id' => $runId,
                 'zip_id' => $zip->id,
+                'process_id' => $process->id,
                 'placeholder_name' => $placeholderName,
                 'placeholder_slug' => $placeholderSlug,
                 'version_tag' => $versionTag,
@@ -125,6 +140,7 @@ final readonly class PluginZipService
             'ok' => true,
             'queued' => true,
             'run_id' => $runId,
+            'process_id' => $process->id,
             'zip_id' => $zip->id,
             'placeholder_name' => $placeholderName,
             'placeholder_slug' => $placeholderSlug,
@@ -150,7 +166,7 @@ final readonly class PluginZipService
         // staging dirs are created like: storage/app/fortiplugin/staging/{zipId}-{runId}
         // we’ll best-effort delete any matching directories
         $stagingDeleted = 0;
-        foreach ((array) glob(storage_path("app/fortiplugin/staging/{$zipId}-*")) as $candidate) {
+        foreach ((array)glob(storage_path("app/fortiplugin/staging/$zipId-*")) as $candidate) {
             if ($candidate && $fs->exists($candidate) && $fs->isDirectory($candidate)) {
                 $fs->delete($candidate); // recursive by contract
                 $stagingDeleted++;
@@ -172,7 +188,7 @@ final readonly class PluginZipService
         $zip = PluginZip::query()->find($zipId);
 
         if (!$zip) {
-            throw new RuntimeException("PluginZip #{$zipId} not found");
+            throw new RuntimeException("PluginZip #$zipId not found");
         }
 
         return $zip;

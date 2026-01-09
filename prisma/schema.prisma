@@ -400,6 +400,6 @@ model PluginProcess {
   created_at DateTime      @default(now())
   updated_at DateTime?
 
-  @@unique([type, source_id])
+  @@unique([type, source_id, run_id])
   @@map("plugin_process")
 }

@@ -11,9 +11,11 @@ use RuntimeException;
 use Timeax\FortiPlugin\Contracts\ConfigInterface;
 use Timeax\FortiPlugin\Enums\PluginSettingValueType;
 use Timeax\FortiPlugin\Enums\PluginStatus;
-use Timeax\FortiPlugin\Installations\Activation\Activator;
+use Timeax\FortiPlugin\Enums\ProcessStatus;
+use Timeax\FortiPlugin\Enums\ProcessType;
 use Timeax\FortiPlugin\Jobs\ActivatePluginVersionJob;
 use Timeax\FortiPlugin\Models\Plugin;
+use Timeax\FortiPlugin\Models\PluginProcess;
 use Timeax\FortiPlugin\Permissions\Contracts\PermissionServiceInterface;
 use Timeax\FortiPlugin\Services\PluginSettingsWriter;
 use Timeax\FortiPlugin\Support\LoadedExportInfo;
@@ -185,14 +187,23 @@ final readonly class InstalledPlugin
         $this->plugin->save();
     }
 
-    public function activate(int $id): void
+    public function activate(int $id): int
     {
+        $process = PluginProcess::create([
+            'source_id' => $this->plugin->id,
+            'type' => ProcessType::installer,
+            'status' => ProcessStatus::pending,
+            'run_id' => Str::uuid()->toString(),
+        ]);
+
         ActivatePluginVersionJob::dispatch(
             pluginVersionId: $this->plugin->active_version_id,
             zipPlaceholderId: $this->plugin->plugin_placeholder_id,
-            runId: Str::uuid(),
+            runId: $process->run_id,
             actor: $id
         );
+
+        return $process->id;
     }
 
     /**

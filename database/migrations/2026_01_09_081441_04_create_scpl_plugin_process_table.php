@@ -20,7 +20,7 @@ return new class extends Migration {
 			$table->enum("status", ["success", "failed", "pending"]);
 			$table->string("run_id")->unique();
 			$table->timestamps();
-			$table->unique(["type", "source_id"]);
+			$table->unique(["type", "source_id", "run_id"]);
 		});
 	}
 

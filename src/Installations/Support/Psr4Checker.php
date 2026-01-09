@@ -3,6 +3,7 @@ declare(strict_types=1);
 
 namespace Timeax\FortiPlugin\Installations\Support;
 
+use JsonException;
 use RuntimeException;
 
 /**
@@ -17,6 +18,9 @@ final readonly class Psr4Checker
     {
     }
 
+    /**
+     * @throws JsonException
+     */
     public function assertMapping(string $composerJsonPath, string $psr4Root, string $placeholderName): void
     {
         [$ns, $expectedDirs] = $this->expected($psr4Root, $placeholderName);
@@ -26,21 +30,21 @@ final readonly class Psr4Checker
         $found = $autoload[$ns] ?? null;
 
         if (!is_array($found)) {
-            throw new RuntimeException("PSR-4 mapping missing or not an array for {$ns} → expected " . json_encode($expectedDirs));
+            throw new RuntimeException("PSR-4 mapping missing or not an array for $ns → expected " . json_encode($expectedDirs, JSON_THROW_ON_ERROR));
         }
 
         $foundDirs = [];
         foreach ($found as $v) {
             if (!is_string($v) || trim($v) === '') {
-                throw new RuntimeException("PSR-4 mapping for {$ns} contains invalid path entries.");
+                throw new RuntimeException("PSR-4 mapping for $ns contains invalid path entries.");
             }
             $foundDirs[] = rtrim($v, "/\\");
         }
 
-        $expectedDirs = array_map(fn($v) => rtrim($v, "/\\"), $expectedDirs);
+        $expectedDirs = array_map(static fn($v) => rtrim($v, "/\\"), $expectedDirs);
 
         if ($foundDirs !== $expectedDirs) {
-            throw new RuntimeException("PSR-4 mapping mismatched for {$ns} → expected " . json_encode($expectedDirs));
+            throw new RuntimeException("PSR-4 mapping mismatched for $ns → expected " . json_encode($expectedDirs, JSON_THROW_ON_ERROR) .  "found " . json_encode($foundDirs, JSON_THROW_ON_ERROR));
         }
     }
 

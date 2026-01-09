@@ -102,12 +102,6 @@ final class InstallPluginZipJob implements ShouldQueue
             validator_config_hash: $validatorConfigHash,
         );
 
-        $process = PluginProcess::create([
-            'source_id' => $this->zipId,
-            'type' => ProcessType::installer,
-            'status' => ProcessStatus::pending,
-            'run_id' => $this->runId,
-        ]);
 
         $result = $installer->run(
             meta: $meta,
@@ -118,9 +112,10 @@ final class InstallPluginZipJob implements ShouldQueue
             versionTag: $this->versionTag,
             actor: $this->actor,
             runId: $this->runId,
-            onFinish: null,
             installerToken: $this->installerToken,
         );
+
+        $process = PluginProcess::where('runId', $this->runId)->firstOrFail();
 
         if ($result->passed()) {
             $process->status = ProcessStatus::success;
