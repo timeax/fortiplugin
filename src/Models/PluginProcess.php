@@ -17,7 +17,7 @@ use Illuminate\Database\Eloquent\Model;
  */
 class PluginProcess extends Model
 {
-	protected $table = "scpl_PluginProcess";
+	protected $table = "scpl_plugin_process";
 
 	protected $guarded = [];
 

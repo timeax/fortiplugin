@@ -38,4 +38,5 @@ final class InstallEvents
 
     // — Cleanup
     public const CLEANUP_END           = 'installation.cleanup.end';
+
 }

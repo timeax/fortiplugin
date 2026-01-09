@@ -399,4 +399,7 @@ model PluginProcess {
   run_id     String        @unique
   created_at DateTime      @default(now())
   updated_at DateTime?
+
+  @@unique([type, source_id])
+  @@map("plugin_process")
 }
