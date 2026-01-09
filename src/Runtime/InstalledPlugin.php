@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Timeax\FortiPlugin\Runtime;
 
+use Illuminate\Support\Str;
 use InvalidArgumentException;
 use JsonException;
 use RuntimeException;
@@ -11,6 +12,7 @@ use Timeax\FortiPlugin\Contracts\ConfigInterface;
 use Timeax\FortiPlugin\Enums\PluginSettingValueType;
 use Timeax\FortiPlugin\Enums\PluginStatus;
 use Timeax\FortiPlugin\Installations\Activation\Activator;
+use Timeax\FortiPlugin\Jobs\ActivatePluginVersionJob;
 use Timeax\FortiPlugin\Models\Plugin;
 use Timeax\FortiPlugin\Permissions\Contracts\PermissionServiceInterface;
 use Timeax\FortiPlugin\Services\PluginSettingsWriter;
@@ -20,6 +22,7 @@ use Timeax\FortiPlugin\Traits\PluginSettingsLoader;
 final readonly class InstalledPlugin
 {
     use PluginSettingsLoader;
+
     /**
      * @param class-string $configClass
      */
@@ -29,7 +32,8 @@ final readonly class InstalledPlugin
         private string                     $configClass,
         private PluginSettingsWriter       $settingsWriter,
         private PermissionServiceInterface $permissionService,
-    ) {
+    )
+    {
         if (!is_subclass_of($configClass, ConfigInterface::class)) {
             throw new InvalidArgumentException("Config class must implement ConfigInterface");
         }
@@ -99,7 +103,7 @@ final readonly class InstalledPlugin
 
     private function getPersistedMain(): ?LoadedExportInfo
     {
-        $cfg = (array) ($this->plugin->config ?? []);
+        $cfg = (array)($this->plugin->config ?? []);
         $raw = $cfg['resolved']['files']['main'] ?? null;
 
         return is_array($raw) ? LoadedExportInfo::fromArray($raw) : null;
@@ -107,7 +111,7 @@ final readonly class InstalledPlugin
 
     private function getPersistedExport(string $key): ?LoadedExportInfo
     {
-        $cfg = (array) ($this->plugin->config ?? []);
+        $cfg = (array)($this->plugin->config ?? []);
         $raw = $cfg['resolved']['files']['exports'][$key] ?? null;
 
         return is_array($raw) ? LoadedExportInfo::fromArray($raw) : null;
@@ -115,7 +119,7 @@ final readonly class InstalledPlugin
 
     private function persistMain(LoadedExportInfo $info): void
     {
-        $cfg = (array) ($this->plugin->config ?? []);
+        $cfg = (array)($this->plugin->config ?? []);
 
         // Do not overwrite if already present
         if (isset($cfg['resolved']['files']['main'])) {
@@ -130,7 +134,7 @@ final readonly class InstalledPlugin
 
     private function persistExport(string $key, LoadedExportInfo $info): void
     {
-        $cfg = (array) ($this->plugin->config ?? []);
+        $cfg = (array)($this->plugin->config ?? []);
 
         // Do not overwrite if already present
         if (isset($cfg['resolved']['files']['exports'][$key])) {
@@ -181,12 +185,14 @@ final readonly class InstalledPlugin
         $this->plugin->save();
     }
 
-    public function activate(): void
+    public function activate(int $id): void
     {
-//        Activator::run();
-        //----
-        $this->plugin->status = PluginStatus::active;
-        $this->plugin->save();
+        ActivatePluginVersionJob::dispatch(
+            pluginVersionId: $this->plugin->active_version_id,
+            zipPlaceholderId: $this->plugin->plugin_placeholder_id,
+            runId: Str::uuid(),
+            actor: $id
+        );
     }
 
     /**
@@ -194,6 +200,6 @@ final readonly class InstalledPlugin
      */
     public function initSettings(): void
     {
-      $this->installHostConfig($this->id(), $this->getConfigClass()::getHostConfig());
+        $this->installHostConfig($this->id(), $this->getConfigClass()::getHostConfig());
     }
 }

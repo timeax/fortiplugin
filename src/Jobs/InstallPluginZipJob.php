@@ -13,9 +13,12 @@ use JsonException;
 use Random\RandomException;
 use RuntimeException;
 use Throwable;
+use Timeax\FortiPlugin\Enums\ProcessStatus;
+use Timeax\FortiPlugin\Enums\ProcessType;
 use Timeax\FortiPlugin\Installations\DTO\InstallMeta;
 use Timeax\FortiPlugin\Installations\Installer;
 use Timeax\FortiPlugin\Installations\InstallerPolicy;
+use Timeax\FortiPlugin\Models\PluginProcess;
 use Timeax\FortiPlugin\Services\ValidatorService;
 use ZipArchive;
 
@@ -31,18 +34,20 @@ final class InstallPluginZipJob implements ShouldQueue
      * @param array<string,mixed> $validatorConfig
      */
     public function __construct(
-        public readonly int $zipId,
-        public readonly string $zipPath,
-        public readonly int $placeholderId,
-        public readonly array $zipMeta,
-        public readonly string $placeholderSlug,
-        public readonly string $placeholderName,
-        public readonly string $versionTag,
-        public readonly array $validatorConfig,
-        public readonly string $runId,
-        public readonly string $actor,
+        public readonly int     $zipId,
+        public readonly string  $zipPath,
+        public readonly int     $placeholderId,
+        public readonly array   $zipMeta,
+        public readonly string  $placeholderSlug,
+        public readonly string  $placeholderName,
+        public readonly string  $versionTag,
+        public readonly array   $validatorConfig,
+        public readonly string  $runId,
+        public readonly string  $actor,
         public readonly ?string $installerToken = null,
-    ) {}
+    )
+    {
+    }
 
 
     /**
@@ -51,14 +56,14 @@ final class InstallPluginZipJob implements ShouldQueue
      * @throws JsonException
      */
     public function handle(
-        Installer $installer,
-        InstallerPolicy $policy,
+        Installer        $installer,
+        InstallerPolicy  $policy,
         ValidatorService $validator,
-    ): void {
+    ): void
+    {
         if (!is_file($this->zipPath)) {
             throw new RuntimeException('ZIP_NOT_FOUND');
         }
-
 
 
         $stagingBase = storage_path("app/fortiplugin/staging/$this->zipId-$this->runId");
@@ -74,8 +79,8 @@ final class InstallPluginZipJob implements ShouldQueue
         $logsDir = rtrim($pluginDir, "\\/") . DIRECTORY_SEPARATOR . $policy->getLogsDirName();
         $this->ensureDir($logsDir);
 
-        $installRoot = (string) config('fortiplugin.install_directory', 'apps');
-        $installDir  = base_path($installRoot . DIRECTORY_SEPARATOR . $this->placeholderName);
+        $installRoot = (string)config('fortiplugin.install_directory', 'apps');
+        $installDir = base_path($installRoot . DIRECTORY_SEPARATOR . $this->placeholderName);
 
         $validatorConfigHash = $this->stableSha256($this->validatorConfig);
 
@@ -89,13 +94,20 @@ final class InstallPluginZipJob implements ShouldQueue
             paths: [
                 'staging' => $pluginDir,
                 'install' => $installDir,
-                'logs'    => $logsDir,
+                'logs' => $logsDir,
             ],
             started_at: now()->toIso8601String(),
             updated_at: now()->toIso8601String(),
             fingerprint: hash_file('sha256', $this->zipPath) ?: '',
             validator_config_hash: $validatorConfigHash,
         );
+
+        $process = PluginProcess::create([
+            'source_id' => $this->zipId,
+            'type' => ProcessType::installer,
+            'status' => ProcessStatus::pending,
+            'run_id' => $this->runId,
+        ]);
 
         $result = $installer->run(
             meta: $meta,
@@ -109,6 +121,14 @@ final class InstallPluginZipJob implements ShouldQueue
             onFinish: null,
             installerToken: $this->installerToken,
         );
+
+        if ($result->passed()) {
+            $process->status = ProcessStatus::success;
+        } else if ($result->failed()) {
+            $process->status = ProcessStatus::failed;
+        }
+
+        if ($process->isDirty()) $process->save();
 
         cache()->put(
             "fortiplugin:install:$this->runId",
@@ -203,7 +223,7 @@ final class InstallPluginZipJob implements ShouldQueue
     {
         if (is_array($result)) return $result;
         if (is_object($result) && method_exists($result, 'toArray')) {
-            return (array) $result->toArray();
+            return (array)$result->toArray();
         }
         return is_object($result) ? get_object_vars($result) : ['value' => $result];
     }

@@ -13,7 +13,10 @@ use JsonException;
 use Random\RandomException;
 use RuntimeException;
 use Throwable;
+use Timeax\FortiPlugin\Enums\ProcessStatus;
+use Timeax\FortiPlugin\Enums\ProcessType;
 use Timeax\FortiPlugin\Installations\Activation\Activator;
+use Timeax\FortiPlugin\Models\PluginProcess;
 use Timeax\FortiPlugin\Models\PluginVersion;
 
 final class ActivatePluginVersionJob implements ShouldQueue
@@ -24,11 +27,13 @@ final class ActivatePluginVersionJob implements ShouldQueue
     public int $timeout = 1800;
 
     public function __construct(
-        public readonly int $pluginVersionId,
-        public readonly int $zipPlaceholderId,
+        public readonly int    $pluginVersionId,
+        public readonly int    $zipPlaceholderId,
         public readonly string $runId,
         public readonly string $actor,
-    ) {}
+    )
+    {
+    }
 
     /**
      * @throws Throwable
@@ -43,12 +48,19 @@ final class ActivatePluginVersionJob implements ShouldQueue
 
         $plugin = $version->plugin;
 
-        if ((int) $plugin->plugin_placeholder_id !== (int) $this->zipPlaceholderId) {
+        if ((int)$plugin->plugin_placeholder_id !== (int)$this->zipPlaceholderId) {
             throw new RuntimeException('ZIP_PLUGIN_MISMATCH');
         }
 
-        $installRoot = (string) config('fortiplugin.install_directory', 'apps');
-        $installDir  = base_path($installRoot . DIRECTORY_SEPARATOR . $plugin->slug);
+        $installRoot = (string)config('fortiplugin.install_directory', 'apps');
+        $installDir = base_path($installRoot . DIRECTORY_SEPARATOR . $plugin->slug);
+
+        $process = PluginProcess::create([
+            'source_id' => $plugin->id,
+            'type' => ProcessType::installer,
+            'status' => ProcessStatus::pending,
+            'run_id' => $this->runId,
+        ]);
 
         $result = $activator->run(
             plugin: $plugin,
@@ -58,6 +70,14 @@ final class ActivatePluginVersionJob implements ShouldQueue
             runId: $this->runId,
             emit: null,
         );
+
+        if ($result->isOk()) {
+            $process->status = ProcessStatus::success;
+        } elseif ($result->isFail()) {
+            $process->status = ProcessStatus::failed;
+        }
+
+        if ($process->isDirty()) $process->save();
 
         cache()->put(
             "fortiplugin:activate:{$this->runId}",
@@ -70,7 +90,7 @@ final class ActivatePluginVersionJob implements ShouldQueue
     {
         if (is_array($result)) return $result;
         if (is_object($result) && method_exists($result, 'toArray')) {
-            return (array) $result->toArray();
+            return (array)$result->toArray();
         }
         return is_object($result) ? get_object_vars($result) : ['value' => $result];
     }

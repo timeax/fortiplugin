@@ -378,3 +378,25 @@ model HostKey {
 
   @@map("host_keys")
 }
+
+enum ProcessType {
+  installer
+  activator
+}
+
+enum ProcessStatus {
+  success
+  failed
+  pending
+}
+
+///@guarded
+model PluginProcess {
+  id         BigInt        @id @default(autoincrement())
+  source_id  BigInt
+  type       ProcessType
+  status     ProcessStatus
+  run_id     String        @unique
+  created_at DateTime      @default(now())
+  updated_at DateTime?
+}
