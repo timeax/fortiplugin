@@ -66,7 +66,7 @@ final class PackagerController extends Controller
                 'email' => $author?->email,
                 'website' => $author?->website,
             ],
-            hostDomain: parse_url(config('app.url'), PHP_URL_HOST),
+            hostDomain: parse_url(config('app.url'), PHP_URL_HOST) ?? '',
             policy: $snapshot,
             pluginInfo: [
                 'name' => null,
