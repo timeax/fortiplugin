@@ -82,7 +82,13 @@ final readonly class Activator
                 'description' => 'Failed to acquire activation mutex',
                 'meta' => ['lock' => $lockPath],
             ]);
-            return ActivationResult::fail(['reason' => 'activation_lock_failed']);
+            return $this->terminate(
+                ActivationEvents::RUN_FAIL,
+                ActivationResult::fail(['reason' => 'activation_lock_failed']),
+                $plugin,
+                $runId,
+                $actor
+            );
         }
 
         try {
@@ -91,12 +97,18 @@ final readonly class Activator
             $version = PluginVersion::query()->where('id', $versionId)->where('plugin_id', $plugin->id)->first();
             if (!$version) {
                 $this->emit([
-                    'event' => ActivationEvents::RUN_FAIL,
+                    'event' => ActivationEvents::VALIDATION_PRECHECK_FAIL,
                     'title' => 'ACTIVATION_FAIL',
                     'description' => 'Version not found for plugin',
                     'meta' => ['version_id' => (string)$versionId, 'plugin_id' => $plugin->id],
                 ]);
-                return ActivationResult::fail(['reason' => 'version_not_found', 'version_id' => $versionId]);
+                return $this->terminate(
+                    ActivationEvents::RUN_FAIL,
+                    ActivationResult::fail(['reason' => 'version_not_found', 'version_id' => $versionId]),
+                    $plugin,
+                    $runId,
+                    $actor
+                );
             }
 
             //TODO: MUST UNCOMMENT
@@ -108,12 +120,18 @@ final readonly class Activator
                     'title' => 'ACTIVATION_NOOP',
                     'description' => 'Version already active'
                 ]);
-                return ActivationResult::ok([
-                    'plugin_id' => $plugin->id,
-                    'version_id' => $version->id,
-                    'changed' => false,
-                    'reason' => 'already_active',
-                ]);
+                return $this->terminate(
+                    ActivationEvents::RUN_END,
+                    ActivationResult::ok([
+                        'plugin_id' => $plugin->id,
+                        'version_id' => $version->id,
+                        'changed' => false,
+                        'reason' => 'already_active',
+                    ]),
+                    $plugin,
+                    $runId,
+                    $actor
+                );
             }
 
             // 1) Read install log and verify prior validators for this run
@@ -134,7 +152,13 @@ final readonly class Activator
                     'description' => 'installation.json not found',
                     'meta' => ['path' => $logPath]
                 ]);
-                return ActivationResult::fail(['reason' => 'installation_log_missing']);
+                return $this->terminate(
+                    ActivationEvents::RUN_FAIL,
+                    ActivationResult::fail(['reason' => 'installation_log_missing']),
+                    $plugin,
+                    $runId,
+                    $actor
+                );
             }
             $doc = $fs->readJson($logPath);
             $this->emit([
@@ -150,7 +174,13 @@ final readonly class Activator
                     'title' => 'VALIDATION_PRECHECK_FAIL',
                     'description' => 'Verification block missing in installation logs'
                 ]);
-                return ActivationResult::fail(['reason' => 'verification_missing']);
+                return $this->terminate(
+                    ActivationEvents::RUN_FAIL,
+                    ActivationResult::fail(['reason' => 'verification_missing']),
+                    $plugin,
+                    $runId,
+                    $actor
+                );
             }
             if (!empty($doc['verification']['summary']['should_fail'] ?? false)
                 && $this->policy->shouldBreakOnVerificationErrors()) {
@@ -159,7 +189,13 @@ final readonly class Activator
                     'title' => 'VALIDATION_PRECHECK_FAIL',
                     'description' => 'Verification indicates failure and policy requires break'
                 ]);
-                return ActivationResult::fail(['reason' => 'verification_failed']);
+                return $this->terminate(
+                    ActivationEvents::RUN_FAIL,
+                    ActivationResult::fail(['reason' => 'verification_failed']),
+                    $plugin,
+                    $runId,
+                    $actor
+                );
             }
 
             // Verify file_scan decision acceptable for activation
@@ -190,7 +226,13 @@ final readonly class Activator
                         'title' => 'VALIDATION_PRECHECK_FAIL',
                         'description' => 'UI config not accepted (no placements)'
                     ]);
-                    return ActivationResult::fail(['reason' => 'ui_not_accepted']);
+                    return $this->terminate(
+                        ActivationEvents::RUN_FAIL,
+                        ActivationResult::fail(['reason' => 'ui_not_accepted']),
+                        $plugin,
+                        $runId,
+                        $actor
+                    );
                 }
             }
 
@@ -304,10 +346,16 @@ final readonly class Activator
                 }
 
 
-                return ActivationResult::fail([
-                    'reason' => 'activation_tx_failed',
-                    'exception' => $e->getMessage(),
-                ]);
+                return $this->terminate(
+                    ActivationEvents::RUN_FAIL,
+                    ActivationResult::fail([
+                        'reason' => 'activation_tx_failed',
+                        'exception' => $e->getMessage(),
+                    ]),
+                    $plugin,
+                    $runId,
+                    $actor
+                );
             }
 
             // 5) Optionally clear caches per policy (minimal nudges)
@@ -344,31 +392,22 @@ final readonly class Activator
                 }
             }
 
-            $this->emit([
-                'event' => ActivationEvents::RUN_END,
-                'title' => 'ACTIVATION_OK',
-                'description' => 'Plugin version activated',
-                'meta' => [
+            return $this->terminate(
+                ActivationEvents::RUN_END,
+                ActivationResult::ok([
                     'plugin_id' => $plugin->id,
                     'version_id' => $version->id,
+                    'changed' => true,
                     'routes' => $routes['meta'] ?? [],
                     'providers' => $providers['meta'] ?? [],
                     'ui' => $uiReg['meta'] ?? [],
                     'psr4' => $psr4['meta'] ?? [],
 
-                ],
-            ]);
-
-            return ActivationResult::ok([
-                'plugin_id' => $plugin->id,
-                'version_id' => $version->id,
-                'changed' => true,
-                'routes' => $routes['meta'] ?? [],
-                'providers' => $providers['meta'] ?? [],
-                'ui' => $uiReg['meta'] ?? [],
-                'psr4' => $psr4['meta'] ?? [],
-
-            ]);
+                ]),
+                $plugin,
+                $runId,
+                $actor
+            );
         } finally {
             @flock($lock, LOCK_UN);
             @fclose($lock);
@@ -397,6 +436,44 @@ final readonly class Activator
             return $last;
         }
         return null;
+    }
+
+    /**
+     * Terminate the activation run by emitting the final lifecycle event.
+     * Ensures exactly ONE terminal event is emitted (RUN_END or RUN_FAIL).
+     *
+     * @param string $event The terminal event key (RUN_END or RUN_FAIL)
+     * @param ActivationResult $result The result to return
+     * @param Plugin $plugin The plugin being activated
+     * @param string $runId The run ID
+     * @param string $actor The actor performing activation
+     * @return ActivationResult
+     */
+    private function terminate(
+        string           $event,
+        ActivationResult $result,
+        Plugin           $plugin,
+        string           $runId,
+        string           $actor
+    ): ActivationResult
+    {
+        // Emit terminal event with meta summary
+        $meta = $result->data;
+        $meta['run_id'] = $runId;
+        $meta['actor'] = $actor;
+        $meta['plugin_id'] = $plugin->id;
+        $meta['status'] = $result->status;
+
+        $this->emit([
+            'event' => $event,
+            'title' => $event === ActivationEvents::RUN_END ? 'ACTIVATION_END' : 'ACTIVATION_FAILED',
+            'description' => $event === ActivationEvents::RUN_END
+                ? 'Activation run completed successfully'
+                : 'Activation run failed (Status: ' . $result->status . ')',
+            'meta' => $meta,
+        ]);
+
+        return $result;
     }
 
     /**
