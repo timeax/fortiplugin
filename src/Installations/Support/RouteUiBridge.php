@@ -34,16 +34,18 @@ use Timeax\FortiPlugin\Core\Install\JsonRouteCompiler;
 final readonly class RouteUiBridge
 {
     public function __construct(
-        private AtomicFilesystem  $afs,
-        private JsonRouteCompiler $compiler,
+        private AtomicFilesystem   $afs,
+        private JsonRouteCompiler  $compiler,
         private RouteRegistryStore $registryStore,
-    ) {}
+    )
+    {
+    }
 
     /**
      * Discover and compile all route JSON files for a staged plugin.
      *
-     * @param string   $stagingRoot Absolute path to staged plugin root (directory containing fortiplugin.json)
-     * @param callable $emit        Installer-level emitter: fn(array $payload): void (non-null)
+     * @param string $stagingRoot Absolute path to staged plugin root (directory containing fortiplugin.json)
+     * @param callable $emit Installer-level emitter: fn(array $payload): void (non-null)
      * @return array{compiled:array,registry:array,route_ids:array,files:array,root:string,pattern:string}
      * @throws JsonException
      */
@@ -62,14 +64,28 @@ final readonly class RouteUiBridge
         $routesCfg = (array)($cfg['routes'] ?? []);
         $dirRel = (string)($routesCfg['dir'] ?? '');
         if ($dirRel === '') {
-            throw new RuntimeException("fortiplugin.json: routes.dir is required");
+            return [
+                'compiled' => [],
+                'registry' => [],
+                'route_ids' => [],
+                'files' => [],
+                'root' => '',
+                'pattern' => '',
+            ];
         }
 
         $glob = (string)($routesCfg['glob'] ?? '**/*.routes.json');
         $root = $stagingRoot . DIRECTORY_SEPARATOR . ltrim(str_replace(['\\'], '/', $dirRel), '/');
 
         if (!$fs->exists($root) || !$fs->isDirectory($root)) {
-            throw new RuntimeException("Routes directory not found: $root");
+            return [
+                'compiled' => [],
+                'registry' => [],
+                'route_ids' => [],
+                'files' => [],
+                'root' => '',
+                'pattern' => '',
+            ];
         }
 
         $emit([
@@ -88,12 +104,12 @@ final readonly class RouteUiBridge
 
         if ($files === []) {
             return [
-                'compiled'  => [],
-                'registry'  => [],
+                'compiled' => [],
+                'registry' => [],
                 'route_ids' => [],
-                'files'     => [],
-                'root'      => $root,
-                'pattern'   => $glob,
+                'files' => [],
+                'root' => $root,
+                'pattern' => $glob,
             ];
         }
 
@@ -131,12 +147,12 @@ final readonly class RouteUiBridge
         ]);
 
         return [
-            'compiled'  => $compiled,
-            'registry'  => $registryEntries,
+            'compiled' => $compiled,
+            'registry' => $registryEntries,
             'route_ids' => $routeIds,
-            'files'     => $files,
-            'root'      => $root,
-            'pattern'   => $glob,
+            'files' => $files,
+            'root' => $root,
+            'pattern' => $glob,
         ];
     }
 

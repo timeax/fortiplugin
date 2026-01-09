@@ -64,8 +64,8 @@ use Timeax\FortiPlugin\Permissions\Bootstrap\FortiPermissions;
 use Timeax\FortiPlugin\Permissions\Contracts\PermissionServiceInterface;
 use Timeax\FortiPlugin\Permissions\Evaluation\PermissionService;
 use Timeax\FortiPlugin\Services\HostKeyService;
-use Timeax\FortiPlugin\Services\Plugin\PluginService;
 use Timeax\FortiPlugin\Services\Plugins\PluginZipService;
+use Timeax\FortiPlugin\Services\PluginService;
 use Timeax\FortiPlugin\Services\PolicyService;
 use Timeax\FortiPlugin\Services\ValidatorService;
 use Timeax\FortiPlugin\Support\FortiGateRegistrar;
@@ -79,7 +79,7 @@ class FortiPluginServiceProvider extends ServiceProvider
 {
     public function register(): void
     {
-
+        $this->app->register(EventServiceProvider::class);
         $this->mergeConfigFrom(__DIR__ . '/../config/fortiplugin.php', 'fortiplugin');
 
         // Autoload must be ready as early as possible (before anything might touch plugin classes)
@@ -88,8 +88,8 @@ class FortiPluginServiceProvider extends ServiceProvider
         FortiPermissions::register($this->app);
         $this->registerSecurityServices();
         $this->registerInstallationModules();
-    }
 
+    }
 
 
     public function boot(): void
@@ -352,13 +352,12 @@ class FortiPluginServiceProvider extends ServiceProvider
     }
 
 
-
     private function registerPluginAutoload(): void
     {
-        $this->app->singleton(ComposerLoaderResolver::class, fn () => new ComposerLoaderResolver());
-        $this->app->singleton(Psr4RegistryStore::class, fn () => new Psr4RegistryStore());
+        $this->app->singleton(ComposerLoaderResolver::class, fn() => new ComposerLoaderResolver());
+        $this->app->singleton(Psr4RegistryStore::class, fn() => new Psr4RegistryStore());
 
-        $this->app->singleton(PluginAutoloadMapBuilder::class, fn () => new PluginAutoloadMapBuilder());
+        $this->app->singleton(PluginAutoloadMapBuilder::class, fn() => new PluginAutoloadMapBuilder());
 
         $this->app->singleton(Psr4RegistryWriter::class, function ($app) {
             return new Psr4RegistryWriter(

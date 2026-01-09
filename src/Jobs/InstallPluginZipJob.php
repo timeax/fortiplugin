@@ -115,7 +115,7 @@ final class InstallPluginZipJob implements ShouldQueue
             installerToken: $this->installerToken,
         );
 
-        $process = PluginProcess::where('runId', $this->runId)->firstOrFail();
+        $process = PluginProcess::where('run_id', $this->runId)->firstOrFail();
 
         if ($result->passed()) {
             $process->status = ProcessStatus::success;
