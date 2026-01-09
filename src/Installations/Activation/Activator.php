@@ -401,8 +401,7 @@ final readonly class Activator
                     'routes' => $routes['meta'] ?? [],
                     'providers' => $providers['meta'] ?? [],
                     'ui' => $uiReg['meta'] ?? [],
-                    'psr4' => $psr4['meta'] ?? [],
-
+                    'psr4' => $psr4['meta'] ?? []
                 ]),
                 $plugin,
                 $runId,
@@ -458,11 +457,12 @@ final readonly class Activator
     ): ActivationResult
     {
         // Emit terminal event with meta summary
-        $meta = $result->data;
-        $meta['run_id'] = $runId;
-        $meta['actor'] = $actor;
-        $meta['plugin_id'] = $plugin->id;
-        $meta['status'] = $result->status;
+        $meta = array_merge($result->data, [
+            'run_id' => $runId,
+            'actor' => $actor,
+            'plugin_id' => $plugin->id,
+            'status' => $result->status,
+        ]);
 
         $this->emit([
             'event' => $event,
