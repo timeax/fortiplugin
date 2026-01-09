@@ -15,11 +15,9 @@ final class ActivationEvents
     public const RUN_FAIL              = 'activation.run.fail';
 
     // — Lock
-    public const LOCK_ACQUIRED         = 'activation.lock.acquired';
     public const LOCK_FAIL             = 'activation.lock.fail';
 
     // — Validation
-    public const VALIDATION_PRECHECK_START = 'activation.validation.precheck_start';
     public const VALIDATION_PRECHECK_OK    = 'activation.validation.precheck_ok';
     public const VALIDATION_PRECHECK_FAIL  = 'activation.validation.precheck_fail';
 
