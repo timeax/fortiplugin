@@ -11,6 +11,7 @@ use Illuminate\Http\UploadedFile;
 use Illuminate\Routing\Controller;
 use Illuminate\Support\Arr;
 use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
@@ -122,6 +123,7 @@ final class PackagerController extends Controller
         if (!preg_match('/^[a-z0-9][a-z0-9._-]{0,100}$/i', $name)) {
             throw new RuntimeException('INVALID_PLACEHOLDER_NAME');
         }
+
         $placeholder = PluginPlaceholder::create([
             'slug' => $slug,
             'name' => $name,
@@ -431,7 +433,6 @@ final class PackagerController extends Controller
         );
 
         $zipPath = Storage::disk($disk)->path($stored);
-
 
 
         /**
