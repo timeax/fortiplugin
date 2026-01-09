@@ -61,8 +61,7 @@ final class ActivatePluginVersionJob implements ShouldQueue
             versionId: $version->id,
             installedPluginRoot: $installDir,
             actor: $this->actor,
-            runId: $this->runId,
-            emit: null,
+            runId: $this->runId
         );
 
         $process = PluginProcess::where('runId', $this->runId)->firstOrFail();
