@@ -10,6 +10,7 @@ use Random\RandomException;
 use Throwable;
 use Timeax\FortiPlugin\Autoload\Psr4RegistryWriter;
 use Timeax\FortiPlugin\Enums\PluginStatus;
+use Timeax\FortiPlugin\Installations\Events\ActivationEvent;
 use Timeax\FortiPlugin\Installations\Activation\Writers\ProvidersRegistryWriter;
 use Timeax\FortiPlugin\Installations\Activation\Writers\RoutesRegistryWriter;
 use Timeax\FortiPlugin\Installations\Activation\Writers\UiRegistryWriter;
@@ -43,7 +44,6 @@ final readonly class Activator
      * @param string $installedPluginRoot Absolute path to the plugin's installed root
      * @param string $actor
      * @param string $runId Correlates with the original installation run
-     * @param callable|null $emit Domain emitter: fn(array $payload): void (non-null; CLI tee-only fallback can be provided by caller)
      * @return ActivationResult
      * @throws Throwable
      * @throws JsonException
@@ -54,23 +54,12 @@ final readonly class Activator
         int|string $versionId,
         string     $installedPluginRoot,
         string     $actor,
-        string     $runId,
-        callable|null   $emit
+        string     $runId
     ): ActivationResult
     {
-        // Normalize to a non-null emitter and tee to CLI if running in console
-        $emit = $emit ?? (app()->runningInConsole()
-            ? static function (array $p): void {
-                $title = $p['title'] ?? 'EVENT';
-                $desc = $p['description'] ?? '';
-                fwrite(STDOUT, "[{$title}] {$desc}\n");
-            }
-            : function (array $_): void {
-            }
-        );
-
         // Activation start
-        $emit([
+        $this->emit([
+            'event' => ActivationEvents::RUN_START,
             'title' => 'ACTIVATION_START',
             'description' => 'Starting activation flow',
             'meta' => [
@@ -87,7 +76,8 @@ final readonly class Activator
         $this->afs->ensureParentDirectory($lockPath);
         $lock = @fopen($lockPath, 'cb+');
         if (!$lock || !@flock($lock, LOCK_EX)) {
-            $emit([
+            $this->emit([
+                'event' => ActivationEvents::LOCK_FAIL,
                 'title' => 'ACTIVATION_LOCK_FAIL',
                 'description' => 'Failed to acquire activation mutex',
                 'meta' => ['lock' => $lockPath],
@@ -100,7 +90,8 @@ final readonly class Activator
             /** @var PluginVersion|null $version */
             $version = PluginVersion::query()->where('id', $versionId)->where('plugin_id', $plugin->id)->first();
             if (!$version) {
-                $emit([
+                $this->emit([
+                    'event' => ActivationEvents::RUN_FAIL,
                     'title' => 'ACTIVATION_FAIL',
                     'description' => 'Version not found for plugin',
                     'meta' => ['version_id' => (string)$versionId, 'plugin_id' => $plugin->id],
@@ -112,7 +103,11 @@ final readonly class Activator
 
             // Already active? no-op
             if ((int)($plugin->active_version_id ?? 0) === $version->id) {
-                $emit(['title' => 'ACTIVATION_NOOP', 'description' => 'Version already active']);
+                $this->emit([
+                    'event' => ActivationEvents::NOOP,
+                    'title' => 'ACTIVATION_NOOP',
+                    'description' => 'Version already active'
+                ]);
                 return ActivationResult::ok([
                     'plugin_id' => $plugin->id,
                     'version_id' => $version->id,
@@ -126,22 +121,44 @@ final readonly class Activator
                 . trim($this->policy->getLogsDirName(), "\\/") . DIRECTORY_SEPARATOR
                 . $this->policy->getInstallationLogFilename();
 
-            $emit(['title' => 'INSTALL_LOG_READ_START', 'description' => 'Reading installation log', 'meta' => ['path' => $logPath]]);
+            $this->emit([
+                'event' => ActivationEvents::INSTALL_LOG_READ_START,
+                'title' => 'INSTALL_LOG_READ_START',
+                'description' => 'Reading installation log',
+                'meta' => ['path' => $logPath]
+            ]);
             if (!$fs->exists($logPath)) {
-                $emit(['title' => 'INSTALL_LOG_READ_FAIL', 'description' => 'installation.json not found', 'meta' => ['path' => $logPath]]);
+                $this->emit([
+                    'event' => ActivationEvents::INSTALL_LOG_READ_FAIL,
+                    'title' => 'INSTALL_LOG_READ_FAIL',
+                    'description' => 'installation.json not found',
+                    'meta' => ['path' => $logPath]
+                ]);
                 return ActivationResult::fail(['reason' => 'installation_log_missing']);
             }
             $doc = $fs->readJson($logPath);
-            $emit(['title' => 'INSTALL_LOG_READ_OK', 'description' => 'installation.json loaded']);
+            $this->emit([
+                'event' => ActivationEvents::INSTALL_LOG_READ_OK,
+                'title' => 'INSTALL_LOG_READ_OK',
+                'description' => 'installation.json loaded'
+            ]);
 
             // Verify that verification & provider checks existed
             if (!isset($doc['verification'])) {
-                $emit(['title' => 'VALIDATION_PRECHECK_FAIL', 'description' => 'Verification block missing in installation logs']);
+                $this->emit([
+                    'event' => ActivationEvents::VALIDATION_PRECHECK_FAIL,
+                    'title' => 'VALIDATION_PRECHECK_FAIL',
+                    'description' => 'Verification block missing in installation logs'
+                ]);
                 return ActivationResult::fail(['reason' => 'verification_missing']);
             }
             if (!empty($doc['verification']['summary']['should_fail'] ?? false)
                 && $this->policy->shouldBreakOnVerificationErrors()) {
-                $emit(['title' => 'VALIDATION_PRECHECK_FAIL', 'description' => 'Verification indicates failure and policy requires break']);
+                $this->emit([
+                    'event' => ActivationEvents::VALIDATION_PRECHECK_FAIL,
+                    'title' => 'VALIDATION_PRECHECK_FAIL',
+                    'description' => 'Verification indicates failure and policy requires break'
+                ]);
                 return ActivationResult::fail(['reason' => 'verification_failed']);
             }
 
@@ -150,10 +167,14 @@ final readonly class Activator
 //            $decisions = (array)($doc['decisions'] ?? []);
 //            $okDecision = $this->extractOkDecisionForRun($decisions, $runId);
 //            if ($okDecision === null) {
-//                $emit(['title' => 'VALIDATION_PRECHECK_FAIL', 'description' => 'No accepted file_scan decision for this run', 'meta' => ['run_id' => $runId]]);
+//                $this->emit(['title' => 'VALIDATION_PRECHECK_FAIL', 'description' => 'No accepted file_scan decision for this run', 'meta' => ['run_id' => $runId]]);
 //                return ActivationResult::fail(['reason' => 'scan_decision_missing_or_not_accepted', 'run_id' => $runId]);
 //            }
-            $emit(['title' => 'VALIDATION_PRECHECK_OK', 'description' => 'Validation prechecks passed']);
+            $this->emit([
+                'event' => ActivationEvents::VALIDATION_PRECHECK_OK,
+                'title' => 'VALIDATION_PRECHECK_OK',
+                'description' => 'Validation prechecks passed'
+            ]);
 
             // UI config validation (optional but recommended)
             $ui = $doc['ui_validation'] ?? $doc['ui_config'] ?? null;
@@ -164,29 +185,46 @@ final readonly class Activator
                 // FIX: Only fail if items are declared BUT NOT accepted.
                 // If declared is 0 (backend-only plugin), we skip this check and pass.
                 if ($declared > 0 && $accepted <= 0) {
-                    $emit(['title' => 'VALIDATION_PRECHECK_FAIL', 'description' => 'UI config not accepted (no placements)']);
+                    $this->emit([
+                        'event' => ActivationEvents::VALIDATION_PRECHECK_FAIL,
+                        'title' => 'VALIDATION_PRECHECK_FAIL',
+                        'description' => 'UI config not accepted (no placements)'
+                    ]);
                     return ActivationResult::fail(['reason' => 'ui_not_accepted']);
                 }
             }
 
             // 3) Stage registry writes
-            $emit(['title' => 'STAGE_REGISTRIES_START', 'description' => 'Staging registry writes']);
+            $this->emit([
+                'event' => ActivationEvents::REGISTRIES_STAGE_START,
+                'title' => 'STAGE_REGISTRIES_START',
+                'description' => 'Staging registry writes'
+            ]);
 
             $routes = $this->routesWriter->stage($plugin, $version->id, $installedPluginRoot);
             $providers = $this->providersWriter->stage($plugin, $version->id, $installedPluginRoot);
             $uiReg = $this->uiWriter->stage($plugin, $version->id, $installedPluginRoot);
             $psr4 = $this->psr4Writer->stage($plugin, $version->id, $installedPluginRoot);
 
-            $emit(['title' => 'STAGE_REGISTRIES_OK', 'description' => 'Registries staged', 'meta' => [
-                'routes' => $routes['meta'] ?? [],
-                'providers' => $providers['meta'] ?? [],
-                'ui' => $uiReg['meta'] ?? [],
-                'psr4' => $psr4['meta'] ?? [],
-            ]]);
+            $this->emit([
+                'event' => ActivationEvents::REGISTRIES_STAGE_OK,
+                'title' => 'STAGE_REGISTRIES_OK',
+                'description' => 'Registries staged',
+                'meta' => [
+                    'routes' => $routes['meta'] ?? [],
+                    'providers' => $providers['meta'] ?? [],
+                    'ui' => $uiReg['meta'] ?? [],
+                    'psr4' => $psr4['meta'] ?? [],
+                ]
+            ]);
 
             // 4) Transaction: flip active version + publish registries
             DB::beginTransaction();
-            $emit(['title' => 'DB_TX_START', 'description' => 'Starting activation DB transaction']);
+            $this->emit([
+                'event' => ActivationEvents::DB_TX_START,
+                'title' => 'DB_TX_START',
+                'description' => 'Starting activation DB transaction'
+            ]);
             try {
                 // flip active
                 $plugin->active_version_id = $version->id;
@@ -196,38 +234,71 @@ final readonly class Activator
                 $plugin->save();
 
                 // commit staged registries
-                $emit(['title' => 'REGISTRIES_COMMIT_START', 'description' => 'Committing staged registries']);
+                $this->emit([
+                    'event' => ActivationEvents::REGISTRIES_COMMIT_START,
+                    'title' => 'REGISTRIES_COMMIT_START',
+                    'description' => 'Committing staged registries'
+                ]);
 
                 ($routes['commit'])();
                 ($providers['commit'])();
                 ($uiReg['commit'])();
                 ($psr4['commit'])();
 
-                $emit(['title' => 'REGISTRIES_COMMIT_OK', 'description' => 'Staged registries committed']);
+                $this->emit([
+                    'event' => ActivationEvents::REGISTRIES_COMMIT_OK,
+                    'title' => 'REGISTRIES_COMMIT_OK',
+                    'description' => 'Staged registries committed'
+                ]);
 
                 DB::commit();
-                $emit(['title' => 'DB_TX_COMMIT_OK', 'description' => 'Activation DB transaction committed']);
+                $this->emit([
+                    'event' => ActivationEvents::DB_TX_COMMIT_OK,
+                    'title' => 'DB_TX_COMMIT_OK',
+                    'description' => 'Activation DB transaction committed'
+                ]);
             } catch (Throwable $e) {
                 DB::rollBack();
-                $emit(['title' => 'DB_TX_ROLLBACK', 'description' => 'Activation transaction rolled back', 'meta' => ['exception' => $e->getMessage()]]);
+                $this->emit([
+                    'event' => ActivationEvents::DB_TX_ROLLBACK,
+                    'title' => 'DB_TX_ROLLBACK',
+                    'description' => 'Activation transaction rolled back',
+                    'meta' => ['exception' => $e->getMessage()]
+                ]);
                 // best-effort rollback staged files
                 try {
-                    $emit(['title' => 'REGISTRY_ROLLBACK_ATTEMPT', 'description' => 'Rolling back routes staging']);
+                    $this->emit([
+                        'event' => ActivationEvents::REGISTRIES_ROLLBACK,
+                        'title' => 'REGISTRY_ROLLBACK_ATTEMPT',
+                        'description' => 'Rolling back routes staging'
+                    ]);
                     ($routes['rollback'])();
                 } catch (Throwable $_) {
                 }
                 try {
-                    $emit(['title' => 'REGISTRY_ROLLBACK_ATTEMPT', 'description' => 'Rolling back providers staging']);
+                    $this->emit([
+                        'event' => ActivationEvents::REGISTRIES_ROLLBACK,
+                        'title' => 'REGISTRY_ROLLBACK_ATTEMPT',
+                        'description' => 'Rolling back providers staging'
+                    ]);
                     ($providers['rollback'])();
                 } catch (Throwable $_) {
                 }
                 try {
-                    $emit(['title' => 'REGISTRY_ROLLBACK_ATTEMPT', 'description' => 'Rolling back UI staging']);
+                    $this->emit([
+                        'event' => ActivationEvents::REGISTRIES_ROLLBACK,
+                        'title' => 'REGISTRY_ROLLBACK_ATTEMPT',
+                        'description' => 'Rolling back UI staging'
+                    ]);
                     ($uiReg['rollback'])();
                 } catch (Throwable $_) {
                 }
                 try {
-                    $emit(['title' => 'REGISTRY_ROLLBACK_ATTEMPT', 'description' => 'Rolling back PSR-4 staging']);
+                    $this->emit([
+                        'event' => ActivationEvents::REGISTRIES_ROLLBACK,
+                        'title' => 'REGISTRY_ROLLBACK_ATTEMPT',
+                        'description' => 'Rolling back PSR-4 staging'
+                    ]);
                     ($psr4['rollback'])();
                 } catch (Throwable $_) {
                 }
@@ -242,22 +313,39 @@ final readonly class Activator
             // 5) Optionally clear caches per policy (minimal nudges)
             if (config('fortiplugin.activation.clear_route_cache', false)) {
                 try {
-                    $emit(['title' => 'CACHE_CLEAR_START', 'description' => 'Clearing route cache']);
+                    $this->emit([
+                        'event' => ActivationEvents::CACHE_CLEAR_START,
+                        'title' => 'CACHE_CLEAR_START',
+                        'description' => 'Clearing route cache'
+                    ]);
                     Artisan::call('route:clear');
-                    $emit(['title' => 'CACHE_CLEAR_DONE', 'description' => 'Route cache cleared']);
+                    $this->emit([
+                        'event' => ActivationEvents::CACHE_CLEAR_DONE,
+                        'title' => 'CACHE_CLEAR_DONE',
+                        'description' => 'Route cache cleared'
+                    ]);
                 } catch (Throwable $_) {
                 }
             }
             if (config('fortiplugin.activation.clear_config_cache', false)) {
                 try {
-                    $emit(['title' => 'CACHE_CLEAR_START', 'description' => 'Clearing config cache']);
+                    $this->emit([
+                        'event' => ActivationEvents::CACHE_CLEAR_START,
+                        'title' => 'CACHE_CLEAR_START',
+                        'description' => 'Clearing config cache'
+                    ]);
                     Artisan::call('config:clear');
-                    $emit(['title' => 'CACHE_CLEAR_DONE', 'description' => 'Config cache cleared']);
+                    $this->emit([
+                        'event' => ActivationEvents::CACHE_CLEAR_DONE,
+                        'title' => 'CACHE_CLEAR_DONE',
+                        'description' => 'Config cache cleared'
+                    ]);
                 } catch (Throwable $_) {
                 }
             }
 
-            $emit([
+            $this->emit([
+                'event' => ActivationEvents::RUN_END,
                 'title' => 'ACTIVATION_OK',
                 'description' => 'Plugin version activated',
                 'meta' => [
@@ -309,5 +397,29 @@ final readonly class Activator
             return $last;
         }
         return null;
+    }
+
+    /**
+     * Emit an activation event.
+     * 
+     * Dispatches ActivationEvent (Laravel event) only when payload['event'] is a non-empty string.
+     * Best-effort: swallows all exceptions to ensure activation never fails due to event listeners.
+     *
+     * @param array $payload
+     */
+    private function emit(array $payload): void
+    {
+        // Only dispatch if payload has an explicit 'event' key
+        $eventKey = $payload['event'] ?? null;
+        if (!is_string($eventKey) || $eventKey === '') {
+            return;
+        }
+
+        // Best-effort dispatch - swallow ALL exceptions
+        try {
+            event(new ActivationEvent(payload: $payload));
+        } catch (Throwable $e) {
+            // Swallow - event dispatch failure MUST NOT break activation
+        }
     }
 }
