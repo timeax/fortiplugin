@@ -1,0 +1,25 @@
+{
+  "$schema": "https://github.com/timeax/fortiplugin/blob/main/schema/manifest.schema.json",
+  "required_permissions": [
+    {
+      "type": "db",
+      "target": {
+        "table": "users",
+        "columns": ["id", "name", "email"]
+      },
+      "actions": ["select"],
+      "justification": "Read user profiles for display."
+    }
+  ],
+  "optional_permissions": [
+    {
+      "type": "network",
+      "target": {
+        "hosts": ["api.example.com"],
+        "methods": ["GET"]
+      },
+      "actions": ["request"],
+      "justification": "Fetch external data if enabled."
+    }
+  ]
+}

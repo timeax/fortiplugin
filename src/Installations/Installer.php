@@ -33,6 +33,7 @@ use Timeax\FortiPlugin\Installations\Support\InstallerTokenManager;
 use Timeax\FortiPlugin\Installations\Support\RouteUiBridge;
 use Timeax\FortiPlugin\Installations\Support\ValidatorBridge;
 use Timeax\FortiPlugin\Models\Plugin;
+use Timeax\FortiPlugin\Permissions\Evaluation\PermissionService;
 use Timeax\FortiPlugin\Services\ValidatorService;
 
 // Sections (for DI completeness)
@@ -59,6 +60,7 @@ final readonly class Installer
         private InstallerTokenManager      $tokens,
         private InstallationLogStore       $logStore,
         private ZipValidationGate          $zipGate,
+        private PermissionService          $permissionService,
     )
     {
     }
@@ -256,8 +258,39 @@ final readonly class Installer
             // 2) PROVIDER VALIDATION (simple existence check in staged tree)
             // ─────────────────────────────────────────────────────────────
             $providers = [];
+            $permission_manifest = [];
             try {
                 $cfg = $this->afs->fs()->readJson($pluginDir . DIRECTORY_SEPARATOR . 'fortiplugin.json');
+                $permission_manifest_path = $cfg['permission_manifest'] ?? null;
+                if (is_string($permission_manifest_path) && !empty($permission_manifest_path)) {
+                    try {
+                        $permission_manifest = $this->afs->fs()->readJson($pluginDir . DIRECTORY_SEPARATOR . $permission_manifest_path);
+                        $emitInstaller([
+                            'title' => "READING"
+                        ]);
+
+                        try {
+                            $res = $this->permissionService->validateManifest($permission_manifest);
+                            $errors = $res['errors'];
+                            $emitInstaller([
+                                'title' => "MANIFEST_VALIDATION_RESULT",
+
+                            ]);
+
+                            if (!$res['ok']) {
+                                return $this->terminate(
+                                    InstallEvents::RUN_FAIL,
+                                    new InstallerResult('fail', $summary, ['reason' => 'permission_manifest_validation_failed']),
+                                    $emitInstaller, $runId, $actor, $zipId);
+                            }
+                        } catch (Throwable $throwable) {
+
+                        }
+                    } catch (Throwable $throwable) {
+
+                    }
+                }
+
                 $providers = array_values(array_filter((array)($cfg['providers'] ?? []), 'is_string'));
             } catch (Throwable $_) {
             }
@@ -489,12 +522,12 @@ final readonly class Installer
      * Ensure exactly ONE terminal event is emitted.
      */
     private function terminate(
-        string           $event,
-        InstallerResult  $result,
-        callable         $emit,
-        ?string          $runId = null,
-        ?string          $actor = null,
-        int|string|null  $zipId = null,
+        string          $event,
+        InstallerResult $result,
+        callable        $emit,
+        ?string         $runId = null,
+        ?string         $actor = null,
+        int|string|null $zipId = null,
     ): InstallerResult
     {
         // 1) Persist structured final result section once and only once

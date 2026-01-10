@@ -171,6 +171,12 @@ class MakePlugin extends Command
             $this->files->ensureDirectoryExists($dir);
         }
 
+        // 9b) Create default permissions.json
+        $this->files->put(
+            "$path/permissions.json",
+            json_encode([], JSON_THROW_ON_ERROR | JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES)
+        );
+
         // 10) Optional TS/Vite scaffold
         if ($this->option('view')) {
             $this->scaffoldViewAssets($path);
@@ -221,6 +227,8 @@ class MakePlugin extends Command
 
             // Array<HostConfig>
             'hostConfig' => [],
+
+            'permission_manifest' => 'permissions.json',
 
             // { items: UiItem[] }
             'uiConfig' => [

@@ -51,6 +51,11 @@
         }
       ]
     },
+    "permission_manifest": {
+      "type": "string",
+      "pattern": "^(?!/)(?!.*\\.\\.)[A-Za-z0-9._/@-]+\\.json$",
+      "description": "Relative path to the permissions JSON file."
+    },
     "uiConfig": {
       "type": "object",
       "properties": {

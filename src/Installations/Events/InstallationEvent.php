@@ -3,6 +3,7 @@ declare(strict_types=1);
 
 namespace Timeax\FortiPlugin\Installations\Events;
 
+use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Events\Dispatchable;
 use Illuminate\Queue\SerializesModels;
 
@@ -15,7 +16,7 @@ use Illuminate\Queue\SerializesModels;
  * All installation emits flow through EmitterMux; Laravel events are dispatched
  * only for emits with an explicit event key.
  */
-final class InstallationEvent
+final class InstallationEvent implements ShouldQueue
 {
     use Dispatchable, SerializesModels;
 
