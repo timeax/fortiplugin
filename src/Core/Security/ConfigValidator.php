@@ -97,7 +97,7 @@ class ConfigValidator
 
             // Also register common aliases so your schema can $ref either form
             $resolver?->registerFile('fortiplugin://schemas/fortiplugin.host-config.schema.json', $hostSchemaPath);
-            $resolver?->registerFile('urn:fortiplugin:host-config', $hostSchemaPath);
+            $resolver?->registerFile("https://github.com/timeax/fortiplugin/blob/main/schema/fortiplugin.host-config.schema.json", $hostSchemaPath);
         }
 
         // Validate fortiplugin.json against main schema

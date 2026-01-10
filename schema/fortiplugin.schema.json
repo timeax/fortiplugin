@@ -1,6 +1,6 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
-  "$id": "https://yourdomain.com/schemas/fortiplugin.schema.json",
+  "$id": "https://github.com/timeax/fortiplugin/blob/main/schema/fortiplugin.schema.json",
   "title": "FortiPluginConfig",
   "type": "object",
   "properties": {
@@ -118,7 +118,7 @@
       "description": "Relative path to a JSON file inside the plugin (no leading '/', no '..'). Example: 'host/host-config.json'."
     },
     "HostConfigInline": {
-      "$ref": "fortiplugin://schemas/fortiplugin.host-config.schema.json"
+      "$ref": "https://github.com/timeax/fortiplugin/blob/main/schema/fortiplugin.host-config.schema.json"
     },
     "UiItem": {
       "type": "object",

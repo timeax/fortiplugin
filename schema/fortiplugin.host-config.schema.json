@@ -1,6 +1,6 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
-  "$id": "https://yourdomain.com/schemas/fortiplugin.host-config.schema.json",
+  "$id": "https://github.com/timeax/fortiplugin/blob/main/schema/fortiplugin.host-config.schema.json",
   "title": "FortiPluginHostConfig",
   "type": "object",
   "properties": {
