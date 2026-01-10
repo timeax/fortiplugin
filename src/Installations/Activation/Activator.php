@@ -114,7 +114,7 @@ final readonly class Activator
             //TODO: MUST UNCOMMENT
 
             // Already active? no-op
-            if ((int)($plugin->active_version_id ?? 0) === $version->id) {
+            if (($plugin->active_version_id ?? 0) === $version->id) {
                 $this->emit([
                     'event' => ActivationEvents::NOOP,
                     'title' => 'ACTIVATION_NOOP',

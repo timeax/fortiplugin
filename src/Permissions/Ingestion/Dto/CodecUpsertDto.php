@@ -13,9 +13,15 @@ final class CodecUpsertDto extends AbstractUpsertDto
         public readonly string $module,  // "codec"
         /** @var array{methods?:string[]|string,groups?:string[],options?:array}|null */
         public readonly ?array $allowed,
-        public readonly bool   $access
+        public readonly bool   $access,
+        public readonly ?string $natural_key = null
     )
     {
+    }
+
+    public function previous(): ?string
+    {
+        return $this->natural_key;
     }
 
     /** @noinspection NestedTernaryOperatorInspection */

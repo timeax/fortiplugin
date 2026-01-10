@@ -11,6 +11,12 @@ interface UpsertDtoInterface
     /** Concrete permission type (db|file|notification|module|network|codec). */
     public function type(): PermissionType;
 
+    /**
+     * Previous natural key
+     * @return string|null
+     */
+    public function previous(): ?string;
+
     /** Natural key built from identity-defining attributes (stable, deterministic). */
     public function naturalKey(): string;
 

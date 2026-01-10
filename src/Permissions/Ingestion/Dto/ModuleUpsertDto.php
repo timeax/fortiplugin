@@ -9,12 +9,19 @@ use Timeax\FortiPlugin\Models\ModulePermission;
 
 final class ModuleUpsertDto extends AbstractUpsertDto
 {
+
     public function __construct(
         public readonly string $module, // alias or FQCN (already normalized by validator if host map known)
         /** @var string[] */
         public readonly array  $apis,
-        public readonly bool   $access // action "call" is represented as access=true/false
+        public readonly bool   $access, // action "call" is represented as access=true/false
+        public readonly ?string $natural_key = null
     ) {}
+
+    public function previous(): ?string
+    {
+        return $this->natural_key;
+    }
 
     public static function fromNormalized(array $rule): self
     {

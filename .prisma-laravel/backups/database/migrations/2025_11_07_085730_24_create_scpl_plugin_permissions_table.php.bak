@@ -35,6 +35,7 @@ return new class extends Migration {
 			$table->string("limit_value")->nullable();
 			$table->json("constraints")->nullable();
 			$table->json("audit")->nullable();
+			$table->string("justification")->nullable();
 			$table->timestamps();
 			$table->index("plugin_id");
 			$table->unique(

@@ -54,10 +54,20 @@ final class EloquentPermissionRepository implements PermissionRepositoryInterfac
                 'active' => (bool)$r->active,
                 'window' => $this->windowObj($r->limited, $r->limit_type, $r->limit_value),
                 'constraints' => $r->constraints,                 // assignment-level (direct)
+                'justification' => $r->justification,
                 'audit' => $r->audit,                       // assignment-level (direct)
             ];
         }
         return $out;
+    }
+
+    public function findConcreteByNaturalKey(string $type, string $naturalKey): ?array
+    {
+        $model = $this->modelForType($type);
+        if ($model === null) return null;
+
+        $row = $model::query()->where('natural_key', $naturalKey)->first();
+        return $row ? $row->toArray() : null;
     }
 
     /* ================================================================
@@ -191,31 +201,124 @@ final class EloquentPermissionRepository implements PermissionRepositoryInterfac
     {
         $enum = $dto->type();
         $naturalKey = $dto->naturalKey();
+        $previousKey = $dto->previous(); // NEW: nullable string
         $attrs = $dto->attributes();
-        $identityFields = $dto->identityFields();
-        $mutableFields = $dto->mutableFields();
+        $identity = $dto->identityFields();
+        $mutable = $dto->mutableFields();
         $modelClass = $dto->concreteModelClass();
 
-        return DB::transaction(function () use ($pluginId, $enum, $naturalKey, $attrs, $identityFields, $mutableFields, $modelClass, $meta) {
-            $concrete = $modelClass::query()->where('natural_key', $naturalKey)->first();
+        return DB::transaction(function () use (
+            $pluginId,
+            $enum,
+            $naturalKey,
+            $previousKey,
+            $attrs,
+            $identity,
+            $mutable,
+            $modelClass,
+            $meta
+        ) {
+            /** @var Model|null $concrete */
+            $concrete = $modelClass::query()
+                ->where('natural_key', $naturalKey)
+                ->lockForUpdate()
+                ->first();
 
             $created = false;
             $warning = null;
+
+            $usedPrevious = false;
+            $previousConcreteId = null;
+
+            if (
+                !$concrete
+                && is_string($previousKey)
+                && $previousKey !== ''
+                && $previousKey !== $naturalKey
+            ) {
+                /** @var Model|null $prev */
+                $prev = $modelClass::query()
+                    ->where('natural_key', $previousKey)
+                    ->lockForUpdate()
+                    ->first();
+
+                if ($prev) {
+                    $concrete = $prev;
+                    $usedPrevious = true;
+                    $previousConcreteId = (int)$prev->getKey();
+                }
+            }
 
             if (!$concrete) {
                 /** @var Model $concrete */
                 $concrete = new $modelClass();
                 $concrete->setAttribute('natural_key', $naturalKey);
 
-                // First insert: identity + allowed mutables are supplied by DTO
+                // First insert: identity + allowed mutables supplied by DTO
                 $concrete->fill($attrs);
                 $concrete->save();
                 $created = true;
+            } else if ($usedPrevious) {
+                // If we matched by previous(), we treat this as a "rename/update identity" operation.
+                // If a row already exists for the NEW natural key, migrate the plugin assignment to it.
+                /** @var Model|null $existsNew */
+                $existsNew = $modelClass::query()
+                    ->where('natural_key', $naturalKey)
+                    ->lockForUpdate()
+                    ->first();
+
+                if ($existsNew && (int)$existsNew->getKey() !== (int)$concrete->getKey()) {
+                    $warning = 'previous_key_mapped_to_existing_new_key';
+
+                    $fromId = (int)$concrete->getKey();
+                    $toId = (int)$existsNew->getKey();
+
+                    // Update the "new key" row with the incoming attrs (acts like an update)
+                    $existsNew->fill($attrs);
+                    $existsNew->save();
+
+                    // Migrate/merge assignment: prefer moving old assignment to new concrete id
+                    $oldAssign = PluginPermission::query()
+                        ->where('plugin_id', $pluginId)
+                        ->where('permission_type', $enum)
+                        ->where('permission_id', $fromId)
+                        ->lockForUpdate()
+                        ->first();
+
+                    $newAssign = PluginPermission::query()
+                        ->where('plugin_id', $pluginId)
+                        ->where('permission_type', $enum)
+                        ->where('permission_id', $toId)
+                        ->lockForUpdate()
+                        ->first();
+
+                    if ($oldAssign && !$newAssign) {
+                        // Move the existing assignment to the new concrete row
+                        $oldAssign->permission_id = $toId;
+                        $oldAssign->save();
+                    } elseif ($oldAssign && $newAssign) {
+                        // Avoid two active assignments for the same conceptual permission
+                        $oldAssign->active = false;
+                        $oldAssign->save();
+                    }
+
+                    // Continue the rest of the flow using the new-key concrete row
+                    $concrete = $existsNew;
+                } else {
+                    // Rename (previous -> new) in-place (same concrete row)
+                    $concrete->setAttribute('natural_key', $naturalKey);
+
+                    // Update full attrs (identity + mutables) since we are intentionally changing identity
+                    $concrete->fill($attrs);
+                    $concrete->save();
+
+                    $warning = $warning ? ($warning . ';updated_from_previous_key') : 'updated_from_previous_key';
+                }
             } else {
-                // Verify identity fields
+                // Normal path: matched by current natural key, so identity is expected to match.
                 $mismatches = [];
-                foreach ($identityFields as $k) {
-                    if (!array_key_exists($k, $attrs)) continue; // DTO may omit non-applicable identity fields
+                foreach ($identity as $k) {
+                    if (!array_key_exists($k, $attrs)) continue;
                     $new = $this->canonForCompare($attrs[$k]);
                     $old = $this->canonForCompare($concrete->getAttribute($k));
                     if ($new !== $old) $mismatches[] = $k;
@@ -224,9 +327,8 @@ final class EloquentPermissionRepository implements PermissionRepositoryInterfac
                     $warning = 'attribute_mismatch_for_natural_key: ' . implode(', ', $mismatches);
                 }
 
-                // Apply mutable fields only (if present in attributes)
                 $toUpdate = [];
-                foreach ($mutableFields as $k) {
+                foreach ($mutable as $k) {
                     if (array_key_exists($k, $attrs)) {
                         $toUpdate[$k] = $attrs[$k];
                     }
@@ -238,11 +340,12 @@ final class EloquentPermissionRepository implements PermissionRepositoryInterfac
             }
 
             // Ensure plugin assignment (pivot)
-            /** @var PluginPermission $assignment */
+            /** @var PluginPermission|null $assignment */
             $assignment = PluginPermission::query()
                 ->where('plugin_id', $pluginId)
                 ->where('permission_type', $enum)
                 ->where('permission_id', (int)$concrete->getKey())
+                ->lockForUpdate()
                 ->first();
 
             if (!$assignment) {
@@ -250,6 +353,7 @@ final class EloquentPermissionRepository implements PermissionRepositoryInterfac
                 $assignment->plugin_id = $pluginId;
                 $assignment->permission_type = $enum;
                 $assignment->permission_id = (int)$concrete->getKey();
+                $assignment->justification = $meta['justification'] ?? null;
             }
 
             if (array_key_exists('active', $meta)) {

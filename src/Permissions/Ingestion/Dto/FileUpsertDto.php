@@ -16,8 +16,14 @@ final class FileUpsertDto extends AbstractUpsertDto
         /** @var string[] */
         public readonly array  $paths,
         /** @var array<string,bool> */
-        public readonly array  $permissions
+        public readonly array  $permissions,
+        public readonly ?string $natural_key = null
     ) {}
+
+    public function previous(): ?string
+    {
+        return $this->natural_key;
+    }
 
     public static function fromNormalized(array $rule): self
     {

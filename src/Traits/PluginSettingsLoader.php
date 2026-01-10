@@ -4,7 +4,6 @@ namespace Timeax\FortiPlugin\Traits;
 
 use InvalidArgumentException;
 use JsonException;
-use RuntimeException;
 use Timeax\FortiPlugin\Models\PluginSetting;
 use Timeax\FortiPlugin\Support\HostConfigToPluginSettings;
 

@@ -9,7 +9,7 @@ use Timeax\FortiPlugin\Models\NotificationPermission;
 
 final class NotificationUpsertDto extends AbstractUpsertDto
 {
-    private const ACTIONS = ['send','receive'];
+    private const ACTIONS = ['send', 'receive'];
 
     public function __construct(
         public readonly string  $channel,
@@ -18,8 +18,16 @@ final class NotificationUpsertDto extends AbstractUpsertDto
         /** @var string[]|null */
         public readonly ?array  $recipientsAllowed,
         /** @var array<string,bool> */
-        public readonly array   $permissions
-    ) {}
+        public readonly array   $permissions,
+        public readonly ?string $natural_key = null
+    )
+    {
+    }
+
+    public function previous(): ?string
+    {
+        return $this->natural_key;
+    }
 
     public static function fromNormalized(array $rule): self
     {
@@ -37,13 +45,19 @@ final class NotificationUpsertDto extends AbstractUpsertDto
         );
     }
 
-    public function type(): PermissionType { return PermissionType::notification; }
+    public function type(): PermissionType
+    {
+        return PermissionType::notification;
+    }
 
-    public function concreteModelClass(): string { return NotificationPermission::class; }
+    public function concreteModelClass(): string
+    {
+        return NotificationPermission::class;
+    }
 
     public function identityFields(): array
     {
-        return ['channel','templates_allowed','recipients_allowed','permissions'];
+        return ['channel', 'templates_allowed', 'recipients_allowed', 'permissions'];
     }
 
     public function mutableFields(): array
@@ -54,10 +68,10 @@ final class NotificationUpsertDto extends AbstractUpsertDto
     public function attributes(): array
     {
         return [
-            'channel'            => $this->channel,
-            'templates_allowed'  => $this->canonListOrNull($this->templatesAllowed),
+            'channel' => $this->channel,
+            'templates_allowed' => $this->canonListOrNull($this->templatesAllowed),
             'recipients_allowed' => $this->canonListOrNull($this->recipientsAllowed),
-            'permissions'        => $this->canonBoolMap($this->permissions, self::ACTIONS),
+            'permissions' => $this->canonBoolMap($this->permissions, self::ACTIONS),
         ];
     }
 
@@ -67,10 +81,10 @@ final class NotificationUpsertDto extends AbstractUpsertDto
     public function naturalKey(): string
     {
         $identity = [
-            'channel'            => $this->channel,
-            'templates_allowed'  => $this->canonListOrNull($this->templatesAllowed),
+            'channel' => $this->channel,
+            'templates_allowed' => $this->canonListOrNull($this->templatesAllowed),
             'recipients_allowed' => $this->canonListOrNull($this->recipientsAllowed),
-            'permissions'        => $this->canonBoolMap($this->permissions, self::ACTIONS),
+            'permissions' => $this->canonBoolMap($this->permissions, self::ACTIONS),
         ];
         return $this->keyFromIdentity($identity);
     }

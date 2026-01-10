@@ -17,6 +17,7 @@ use Illuminate\Database\Eloquent\Model;
  * @property string|null $limit_value
  * @property array|null $constraints
  * @property array|null $audit
+ * @property string|null $justification
  * @property \Carbon\Carbon $created_at
  * @property \Carbon\Carbon $updated_at
  * @property Plugin::class $plugin
@@ -35,6 +36,7 @@ class PluginPermission extends Model
 		"limit_value",
 		"constraints",
 		"audit",
+		"justification",
 	];
 
 	protected $guarded = ["id", "id"];

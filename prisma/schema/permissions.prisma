@@ -114,8 +114,9 @@ model PluginPermission {
   limit_value String?
 
   // Assignment-level metadata (host managed)
-  constraints Json?
-  audit       Json?
+  constraints   Json?
+  audit         Json?
+  justification String? ///@fillable
 
   created_at DateTime @default(now())
   updated_at DateTime @updatedAt
@@ -313,7 +314,7 @@ model Plugin {
   name                  String       @unique
   image                 String?
   plugin_path           String?
-  status                PluginStatus @default(active)
+  status                PluginStatus @default(inactive)
   config                Json?
   meta                  Json?
   plugin_placeholder_id BigInt       @unique @db.BigInt

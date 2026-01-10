@@ -183,7 +183,7 @@
           "update",
           "delete",
           "truncate",
-          "transaction"
+          "grouped_queries"
         ]
       },
       "minItems": 1,

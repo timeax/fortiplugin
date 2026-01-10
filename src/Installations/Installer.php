@@ -1,4 +1,5 @@
-<?php /** @noinspection GrazieInspection */
+<?php /** @noinspection NotOptimalIfConditionsInspection */
+/** @noinspection GrazieInspection */
 /** @noinspection PhpUnusedLocalVariableInspection */
 declare(strict_types=1);
 
@@ -15,6 +16,7 @@ use Timeax\FortiPlugin\Installations\DTO\InstallSummary;
 use Timeax\FortiPlugin\Installations\Enums\Install;
 use Timeax\FortiPlugin\Installations\Sections\ComposerPlanSection;
 use Timeax\FortiPlugin\Installations\Sections\DbPersistSection;
+use Timeax\FortiPlugin\Installations\Sections\IngestSection;
 use Timeax\FortiPlugin\Installations\Sections\InstallFilesSection;
 use Timeax\FortiPlugin\Installations\Sections\InternalConfigWriteSection;
 use Timeax\FortiPlugin\Installations\Sections\ProviderValidationSection;
@@ -61,6 +63,7 @@ final readonly class Installer
         private InstallationLogStore       $logStore,
         private ZipValidationGate          $zipGate,
         private PermissionService          $permissionService,
+        private IngestSection              $ingestSection
     )
     {
     }
@@ -259,40 +262,247 @@ final readonly class Installer
             // ─────────────────────────────────────────────────────────────
             $providers = [];
             $permission_manifest = [];
+
             try {
-                $cfg = $this->afs->fs()->readJson($pluginDir . DIRECTORY_SEPARATOR . 'fortiplugin.json');
+                $configPath = $pluginDir . DIRECTORY_SEPARATOR . 'fortiplugin.json';
+
+                $emitInstaller([
+                    'event' => 'PLUGIN_CONFIG_READ_START',
+                    'title' => 'PLUGIN_CONFIG_READ_START',
+                    'description' => 'Reading plugin config (fortiplugin.json)',
+                    'meta' => ['path' => $configPath, 'zip_id' => (string)$zipId, 'run_id' => $runId],
+                ]);
+
+                $cfg = $this->afs->fs()->readJson($configPath);
+
+                $emitInstaller([
+                    'event' => 'PLUGIN_CONFIG_READ_OK',
+                    'title' => 'PLUGIN_CONFIG_READ_OK',
+                    'description' => 'Plugin config loaded',
+                    'meta' => ['path' => $configPath],
+                ]);
+
+                // ─────────────────────────────────────────────────────────
+                // Permission manifest (optional): read + validate (HARD FAIL if declared but invalid)
+                // ─────────────────────────────────────────────────────────
                 $permission_manifest_path = $cfg['permission_manifest'] ?? null;
-                if (is_string($permission_manifest_path) && !empty($permission_manifest_path)) {
-                    try {
-                        $permission_manifest = $this->afs->fs()->readJson($pluginDir . DIRECTORY_SEPARATOR . $permission_manifest_path);
+
+                if (is_string($permission_manifest_path) && trim($permission_manifest_path) !== '') {
+                    $rel = trim($permission_manifest_path);
+
+                    $emitInstaller([
+                        'event' => 'PERMISSION_MANIFEST_DECLARED',
+                        'title' => 'PERMISSION_MANIFEST_DECLARED',
+                        'description' => 'Plugin declares a permission manifest',
+                        'meta' => ['permission_manifest' => $rel],
+                    ]);
+
+                    // Basic path hardening: must be a relative path within staging
+                    $isAbsolute =
+                        str_starts_with($rel, '/') ||
+                        str_starts_with($rel, '\\') ||
+                        preg_match('/^[A-Za-z]:[\/\\\\]/', $rel);
+
+                    $hasTraversal = (bool)preg_match('#(^|[\/\\\\])\.\.([\/\\\\]|$)#', $rel);
+
+                    if ($isAbsolute || $hasTraversal) {
                         $emitInstaller([
-                            'title' => "READING"
+                            'event' => 'PERMISSION_MANIFEST_PATH_INVALID',
+                            'title' => 'PERMISSION_MANIFEST_PATH_INVALID',
+                            'description' => 'Permission manifest path must be relative and may not contain ".."',
+                            'meta' => ['permission_manifest' => $rel],
                         ]);
 
-                        try {
-                            $res = $this->permissionService->validateManifest($permission_manifest);
-                            $errors = $res['errors'];
-                            $emitInstaller([
-                                'title' => "MANIFEST_VALIDATION_RESULT",
-
-                            ]);
-
-                            if (!$res['ok']) {
-                                return $this->terminate(
-                                    InstallEvents::RUN_FAIL,
-                                    new InstallerResult('fail', $summary, ['reason' => 'permission_manifest_validation_failed']),
-                                    $emitInstaller, $runId, $actor, $zipId);
-                            }
-                        } catch (Throwable $throwable) {
-
-                        }
-                    } catch (Throwable $throwable) {
-
+                        return $this->terminate(
+                            InstallEvents::RUN_FAIL,
+                            new InstallerResult('fail', $summary, ['reason' => 'permission_manifest_path_invalid', 'path' => $rel]),
+                            $emitInstaller,
+                            $runId,
+                            $actor,
+                            $zipId
+                        );
                     }
+
+                    $manifestPath = $pluginDir . DIRECTORY_SEPARATOR . ltrim($rel, "/\\");
+                    $baseReal = realpath($pluginDir) ?: rtrim($pluginDir, "/\\");
+                    $manifestReal = realpath($manifestPath);
+
+                    // If file doesn't exist, realpath() returns false; check exists before enforcing base containment.
+                    if (!$this->afs->fs()->exists($manifestPath) || $manifestReal === false) {
+                        $emitInstaller([
+                            'event' => 'PERMISSION_MANIFEST_MISSING',
+                            'title' => 'PERMISSION_MANIFEST_MISSING',
+                            'description' => 'Declared permission manifest file not found in staging',
+                            'meta' => ['permission_manifest' => $rel, 'resolved_path' => $manifestPath],
+                        ]);
+
+                        return $this->terminate(
+                            InstallEvents::RUN_FAIL,
+                            new InstallerResult('fail', $summary, ['reason' => 'permission_manifest_missing', 'path' => $rel]),
+                            $emitInstaller,
+                            $runId,
+                            $actor,
+                            $zipId
+                        );
+                    }
+
+                    // Enforce "must be inside plugin staging"
+                    $basePrefix = rtrim($baseReal, "/\\") . DIRECTORY_SEPARATOR;
+                    if (!str_starts_with($manifestReal, $basePrefix)) {
+                        $emitInstaller([
+                            'event' => 'PERMISSION_MANIFEST_OUTSIDE_STAGING',
+                            'title' => 'PERMISSION_MANIFEST_OUTSIDE_STAGING',
+                            'description' => 'Permission manifest resolves outside the staging directory',
+                            'meta' => ['permission_manifest' => $rel, 'resolved_path' => $manifestReal, 'staging_root' => $baseReal],
+                        ]);
+
+                        return $this->terminate(
+                            InstallEvents::RUN_FAIL,
+                            new InstallerResult('fail', $summary, ['reason' => 'permission_manifest_outside_staging', 'path' => $rel]),
+                            $emitInstaller,
+                            $runId,
+                            $actor,
+                            $zipId
+                        );
+                    }
+
+                    $emitInstaller([
+                        'event' => 'PERMISSION_MANIFEST_READ_START',
+                        'title' => 'PERMISSION_MANIFEST_READ_START',
+                        'description' => 'Reading permission manifest JSON',
+                        'meta' => ['path' => $manifestReal],
+                    ]);
+
+                    try {
+                        $permission_manifest = $this->afs->fs()->readJson($manifestReal);
+                    } catch (Throwable $e) {
+                        $emitInstaller([
+                            'event' => 'PERMISSION_MANIFEST_READ_FAIL',
+                            'title' => 'PERMISSION_MANIFEST_READ_FAIL',
+                            'description' => 'Failed to read permission manifest JSON',
+                            'meta' => ['path' => $manifestReal, 'exception' => $e->getMessage()],
+                        ]);
+
+                        return $this->terminate(
+                            InstallEvents::RUN_FAIL,
+                            new InstallerResult('fail', $summary, ['reason' => 'permission_manifest_read_failed', 'exception' => $e->getMessage(), 'path' => $rel]),
+                            $emitInstaller,
+                            $runId,
+                            $actor,
+                            $zipId
+                        );
+                    }
+
+                    // Build a small summary for UI/logs
+                    $req = $permission_manifest['required_permissions'] ?? [];
+                    $opt = $permission_manifest['optional_permissions'] ?? [];
+                    $reqCount = is_array($req) ? count($req) : 0;
+                    $optCount = is_array($opt) ? count($opt) : 0;
+
+                    $typeCounts = [];
+                    foreach ([$req, $opt] as $bucket) {
+                        if (!is_array($bucket)) continue;
+                        foreach ($bucket as $rule) {
+                            if (!is_array($rule)) continue;
+                            $t = $rule['type'] ?? null;
+                            if (!is_string($t) || $t === '') continue;
+                            $typeCounts[$t] = ($typeCounts[$t] ?? 0) + 1;
+                        }
+                    }
+
+                    $emitInstaller([
+                        'event' => 'PERMISSION_MANIFEST_VALIDATE_START',
+                        'title' => 'PERMISSION_MANIFEST_VALIDATE_START',
+                        'description' => 'Validating permission manifest schema and rules',
+                        'meta' => [
+                            'path' => $manifestReal,
+                            'required_count' => $reqCount,
+                            'optional_count' => $optCount,
+                            'type_counts' => $typeCounts,
+                        ],
+                    ]);
+
+                    try {
+                        $res = $this->permissionService->validateManifest($permission_manifest);
+
+                        $ok = (bool)($res['ok'] ?? false);
+                        $errors = is_array($res['errors'] ?? null) ? $res['errors'] : [];
+                        $errorCount = count($errors);
+
+                        $emitInstaller([
+                            'event' => $ok ? 'PERMISSION_MANIFEST_VALIDATE_OK' : 'PERMISSION_MANIFEST_VALIDATE_FAIL',
+                            'title' => $ok ? 'PERMISSION_MANIFEST_VALIDATE_OK' : 'PERMISSION_MANIFEST_VALIDATE_FAIL',
+                            'description' => $ok
+                                ? 'Permission manifest validated successfully'
+                                : 'Permission manifest validation failed',
+                            'meta' => [
+                                'path' => $manifestReal,
+                                'ok' => $ok,
+                                'errors_count' => $errorCount,
+                                // keep it UI-safe: first few only
+                                'errors_preview' => array_slice($errors, 0, 10),
+                            ],
+                        ]);
+
+                        if (!$ok) {
+                            return $this->terminate(
+                                InstallEvents::RUN_FAIL,
+                                new InstallerResult('fail', $summary, [
+                                    'reason' => 'permission_manifest_validation_failed',
+                                    'errors_count' => $errorCount,
+                                    'errors' => array_slice($errors, 0, 50),
+                                    'path' => $rel,
+                                ]),
+                                $emitInstaller,
+                                $runId,
+                                $actor,
+                                $zipId
+                            );
+                        }
+                    } catch (Throwable $e) {
+                        $emitInstaller([
+                            'event' => 'PERMISSION_MANIFEST_VALIDATE_EXCEPTION',
+                            'title' => 'PERMISSION_MANIFEST_VALIDATE_EXCEPTION',
+                            'description' => 'Exception thrown while validating permission manifest',
+                            'meta' => ['path' => $manifestReal, 'exception' => $e->getMessage()],
+                        ]);
+
+                        return $this->terminate(
+                            InstallEvents::RUN_FAIL,
+                            new InstallerResult('fail', $summary, [
+                                'reason' => 'permission_manifest_validation_exception',
+                                'exception' => $e->getMessage(),
+                                'path' => $rel,
+                            ]),
+                            $emitInstaller,
+                            $runId,
+                            $actor,
+                            $zipId
+                        );
+                    }
+                } else {
+                    $emitInstaller([
+                        'event' => 'PERMISSION_MANIFEST_NOT_DECLARED',
+                        'title' => 'PERMISSION_MANIFEST_NOT_DECLARED',
+                        'description' => 'No permission manifest declared; continuing without manifest validation',
+                        'meta' => ['config' => $configPath],
+                    ]);
                 }
 
+                // Providers list (best-effort parse)
                 $providers = array_values(array_filter((array)($cfg['providers'] ?? []), 'is_string'));
-            } catch (Throwable $_) {
+
+            } catch (Throwable $e) {
+                // Keep behavior as best-effort (providers remain empty), but emit a proper event
+                $emitInstaller([
+                    'event' => 'PLUGIN_CONFIG_READ_FAIL',
+                    'title' => 'PLUGIN_CONFIG_READ_FAIL',
+                    'description' => 'Failed to read plugin config (fortiplugin.json); continuing with empty providers',
+                    'meta' => [
+                        'path' => $pluginDir . DIRECTORY_SEPARATOR . 'fortiplugin.json',
+                        'exception' => $e->getMessage(),
+                    ],
+                ]);
             }
 
             $prov = $this->providerValidation->run(
@@ -430,9 +640,6 @@ final readonly class Installer
                 }
 
                 $this->dbPersist->plugins->setPluginRoot($pluginId, $file_result['dest']);
-
-                DB::commit();
-
             } catch (Throwable $e) {
                 DB::rollBack();
                 $emitInstaller([
@@ -443,6 +650,30 @@ final readonly class Installer
                 return $this->terminate(InstallEvents::RUN_FAIL, new InstallerResult('fail', $summary, ['exception' => $e->getMessage()], (int)$pluginId, $pluginVersionId), $emitInstaller, $runId, $actor, $zipId);
             }
 
+            // ─────────────────────────────────────────────────────────────
+            // Permission manifest ingestion (AFTER dbPersist sets $pluginId)
+            // ─────────────────────────────────────────────────────────────
+            try {
+                $this->ingestSection->ingestPermissions(
+                    permission_manifest: $permission_manifest,
+                    pluginId: $pluginId,
+                    runId: $runId,
+                    zipId: $zipId,
+                    emitInstaller: $emitInstaller
+                );
+                $this->ingestSection->ingestSettings(
+                    pluginId: $pluginId,
+                    pluginConfig: $cfg,
+                    runId: $runId,
+                    zipId: $zipId,
+                    emitInstaller: $emitInstaller
+                );
+            } catch (Throwable $e) {
+                DB::rollBack();
+                return $this->terminate(InstallEvents::RUN_FAIL, new InstallerResult('fail', $summary, ['exception' => $e->getMessage()], (int)$pluginId, $pluginVersionId), $emitInstaller, $runId, $actor, $zipId);
+            }
+
+            DB::commit();
             // ─────────────────────────────────────────────────────────────
             // 7) FINISH
             // ─────────────────────────────────────────────────────────────

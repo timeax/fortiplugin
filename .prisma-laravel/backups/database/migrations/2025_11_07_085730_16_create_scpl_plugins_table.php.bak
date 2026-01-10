@@ -19,7 +19,7 @@ return new class extends Migration {
 			$table->string("plugin_path")->nullable();
 			$table
 				->enum("status", ["active", "inactive", "archived"])
-				->default("active");
+				->default("inactive");
 			$table->json("config")->nullable();
 			$table->json("meta")->nullable();
 			$table

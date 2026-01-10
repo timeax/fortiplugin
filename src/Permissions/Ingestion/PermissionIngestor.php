@@ -9,6 +9,7 @@ use Timeax\FortiPlugin\Permissions\Contracts\PermissionRepositoryInterface;
 use Timeax\FortiPlugin\Permissions\Ingestion\Dto\IngestSummary;
 use Timeax\FortiPlugin\Permissions\Ingestion\Dto\RuleIngestResult;
 use Timeax\FortiPlugin\Permissions\Registry\PermissionRegistry;
+use Timeax\FortiPlugin\Permissions\Support\PermissionJustification;
 
 /**
  * Orchestrates manifest ingestion by dispatching to per-type ingestors via the registry.
@@ -19,7 +20,9 @@ final readonly class PermissionIngestor
     public function __construct(
         private PermissionRepositoryInterface $repo,
         private PermissionRegistry            $registry
-    ) {}
+    )
+    {
+    }
 
     /**
      * Ingest all rules for a plugin (idempotent).
@@ -33,10 +36,10 @@ final readonly class PermissionIngestor
      */
     public function ingest(int $pluginId, array $manifest): IngestSummary
     {
-        $created  = 0;
-        $linked   = 0;
+        $created = 0;
+        $linked = 0;
         /** @var RuleIngestResult[] $items */
-        $items    = [];
+        $items = [];
         $warnings = [];
 
         foreach (['required_permissions', 'optional_permissions'] as $bucket) {
@@ -64,11 +67,15 @@ final readonly class PermissionIngestor
                         $rule['constraints']['required'] = true;
                     }
 
-                    $dto = $ingestor->ingest($pluginId, $rule, $this->repo);
+                    $dto = $ingestor->ingest($pluginId, PermissionJustification::ensureJustification($rule, $bucket), $this->repo);
                     $items[] = $dto;
 
-                    if ($dto->created) { $created++; }
-                    if ($dto->assigned) { $linked++; }
+                    if ($dto->created) {
+                        $created++;
+                    }
+                    if ($dto->assigned) {
+                        $linked++;
+                    }
 
                     if ($dto->warning !== null && $dto->warning !== '') {
                         $warnings[] = "$path: {$dto->warning}";

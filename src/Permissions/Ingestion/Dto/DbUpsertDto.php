@@ -19,9 +19,14 @@ final class DbUpsertDto extends AbstractUpsertDto
         /** @var string[]|null */
         public readonly ?array  $writableColumns,
         /** @var array<string,bool> */
-        public readonly array   $permissions
+        public readonly array   $permissions,
+        public readonly ?string $natural_key = null
     ) {}
 
+    public function previous(): ?string
+    {
+        return $this->natural_key;
+    }
     public static function fromNormalized(array $rule): self
     {
         // $rule['target'] was already normalized by ManifestValidator (model alias→FQCN if known, columns validated)

@@ -10,17 +10,33 @@ use Timeax\FortiPlugin\Models\NetworkPermission;
 final class NetworkUpsertDto extends AbstractUpsertDto
 {
     public function __construct(
-        /** @var string[] */ public readonly array $hosts,
-        /** @var string[] */ public readonly array $methods,
-        /** @var string[]|null */ public readonly ?array $schemes,
-        /** @var int[]|null */ public readonly ?array $ports,
-        /** @var string[]|null */ public readonly ?array $paths,
-        /** @var string[]|null */ public readonly ?array $headersAllowed,
-        /** @var string[]|null */ public readonly ?array $ipsAllowed,
-                             public readonly bool $authViaHostSecret,
-                             public readonly bool $access,
-                             public readonly ?string $label = null
-    ) {}
+        /** @var string[] */
+        public readonly array   $hosts,
+        /** @var string[] */
+        public readonly array   $methods,
+        /** @var string[]|null */
+        public readonly ?array  $schemes,
+        /** @var int[]|null */
+        public readonly ?array  $ports,
+        /** @var string[]|null */
+        public readonly ?array  $paths,
+        /** @var string[]|null */
+        public readonly ?array  $headersAllowed,
+        /** @var string[]|null */
+        public readonly ?array  $ipsAllowed,
+        public readonly bool    $authViaHostSecret,
+        public readonly bool    $access,
+        public readonly ?string $label = null,
+        public readonly ?string $natural_key = null,
+    )
+    {
+    }
+
+    public function previous(): ?string
+    {
+        return $this->natural_key;
+    }
+
 
     public static function fromNormalized(array $rule): self
     {
@@ -39,14 +55,20 @@ final class NetworkUpsertDto extends AbstractUpsertDto
         );
     }
 
-    public function type(): PermissionType { return PermissionType::network; }
+    public function type(): PermissionType
+    {
+        return PermissionType::network;
+    }
 
-    public function concreteModelClass(): string { return NetworkPermission::class; }
+    public function concreteModelClass(): string
+    {
+        return NetworkPermission::class;
+    }
 
     public function identityFields(): array
     {
         // NOTE: 'label' intentionally not identity; mutable.
-        return ['hosts','methods','schemes','ports','paths','headers_allowed','ips_allowed','auth_via_host_secret','access'];
+        return ['hosts', 'methods', 'schemes', 'ports', 'paths', 'headers_allowed', 'ips_allowed', 'auth_via_host_secret', 'access'];
     }
 
     public function mutableFields(): array
@@ -57,16 +79,16 @@ final class NetworkUpsertDto extends AbstractUpsertDto
     public function attributes(): array
     {
         return [
-            'hosts'              => $this->canonHostList($this->hosts),
-            'methods'            => $this->canonList($this->methods, 'upper'),
-            'schemes'            => $this->canonListOrNull($this->schemes, 'lower'),
-            'ports'              => $this->canonPorts($this->ports),
-            'paths'              => $this->canonListOrNull($this->paths),
-            'headers_allowed'    => $this->canonListOrNull($this->headersAllowed),
-            'ips_allowed'        => $this->canonListOrNull($this->ipsAllowed),
-            'auth_via_host_secret'=> $this->authViaHostSecret,
-            'access'             => $this->access,
-            'label'              => $this->label,
+            'hosts' => $this->canonHostList($this->hosts),
+            'methods' => $this->canonList($this->methods, 'upper'),
+            'schemes' => $this->canonListOrNull($this->schemes, 'lower'),
+            'ports' => $this->canonPorts($this->ports),
+            'paths' => $this->canonListOrNull($this->paths),
+            'headers_allowed' => $this->canonListOrNull($this->headersAllowed),
+            'ips_allowed' => $this->canonListOrNull($this->ipsAllowed),
+            'auth_via_host_secret' => $this->authViaHostSecret,
+            'access' => $this->access,
+            'label' => $this->label,
         ];
     }
 
@@ -76,15 +98,15 @@ final class NetworkUpsertDto extends AbstractUpsertDto
     public function naturalKey(): string
     {
         $identity = [
-            'hosts'               => $this->canonHostList($this->hosts),
-            'methods'             => $this->canonList($this->methods, 'upper'),
-            'schemes'             => $this->canonListOrNull($this->schemes, 'lower'),
-            'ports'               => $this->canonPorts($this->ports),
-            'paths'               => $this->canonListOrNull($this->paths),
-            'headers_allowed'     => $this->canonListOrNull($this->headersAllowed),
-            'ips_allowed'         => $this->canonListOrNull($this->ipsAllowed),
-            'auth_via_host_secret'=> $this->authViaHostSecret,
-            'access'              => $this->access,
+            'hosts' => $this->canonHostList($this->hosts),
+            'methods' => $this->canonList($this->methods, 'upper'),
+            'schemes' => $this->canonListOrNull($this->schemes, 'lower'),
+            'ports' => $this->canonPorts($this->ports),
+            'paths' => $this->canonListOrNull($this->paths),
+            'headers_allowed' => $this->canonListOrNull($this->headersAllowed),
+            'ips_allowed' => $this->canonListOrNull($this->ipsAllowed),
+            'auth_via_host_secret' => $this->authViaHostSecret,
+            'access' => $this->access,
         ];
         return $this->keyFromIdentity($identity);
     }

@@ -77,6 +77,7 @@ trait PermissionServiceListTrait
                     'window'        => $d['window'] ?? null,
                     'constraints'   => $d['constraints'] ?? null,
                     'audit'         => $d['audit'] ?? null,
+                    'justification' => $d['justification'] ?? null,
                     'required'      => (bool)($d['constraints']['required'] ?? false),
                 ];
             }, $g['direct']));

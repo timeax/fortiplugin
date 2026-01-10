@@ -7,7 +7,10 @@ namespace IGNORE;
 #{PLUGIN_NAMESPACE};
 
 use JsonException;
+use RecursiveDirectoryIterator;
+use RecursiveIteratorIterator;
 use RuntimeException;
+use SplFileInfo;
 use Timeax\FortiPlugin\Contracts\ConfigInterface;
 use Timeax\FortiPlugin\Enums\PermissionType;
 use Timeax\FortiPlugin\Facades\Permissions;
@@ -633,6 +636,47 @@ final class Config implements ConfigInterface
         return self::resolveExportFile($def);
     }
 
+    /**
+     * @throws JsonException
+     */
+    public function getLogs(?string $log = null): array|string
+    {
+        $basePath = (string)static::getInfo('basePath');
+        $path = base_path($basePath . DIRECTORY_SEPARATOR . 'internals/logs');
+
+        if (!is_dir($path)) {
+            return $log ? '' : [];
+        }
+
+        if ($log !== null) {
+            $realRoot = realpath($path);
+            $target = realpath($path . DIRECTORY_SEPARATOR . $log);
+
+            if ($target && $realRoot && str_starts_with($target, $realRoot) && is_file($target)) {
+                return (string)file_get_contents($target);
+            }
+
+            return '';
+        }
+
+        $entries = [];
+        $iterator = new RecursiveIteratorIterator(
+            new RecursiveDirectoryIterator($path, RecursiveDirectoryIterator::SKIP_DOTS)
+        );
+
+        foreach ($iterator as $file) {
+            /** @var SplFileInfo $file */
+            if ($file->isFile()) {
+                $relativePath = substr($file->getPathname(), strlen($path) + 1);
+                $relativePath = str_replace('\\', '/', $relativePath);
+                $entries[$relativePath] = $relativePath;
+            }
+        }
+
+        return $entries;
+    }
+
+
     /** @var array<string, LoadedExportInfo|null> */
     private static array $exportResolveCache = [];
 
@@ -984,8 +1028,7 @@ final class Config implements ConfigInterface
     /**
      * Internal meta normalization layer.
      */
-    private
-    static function normalizeMeta(string $type, string|array|null $meta): ?array
+    private static function normalizeMeta(string $type, string|array|null $meta): ?array
     {
         if ($meta === null) {
             return null;
@@ -1052,8 +1095,7 @@ final class Config implements ConfigInterface
     /**
      * Dispatch to the correct typed `can*` method on the Permissions facade.
      */
-    private
-    static function dispatchCan(string $type, int $pluginId, string $action, array $target, array $context): Result
+    private static function dispatchCan(string $type, int $pluginId, string $action, array $target, array $context): Result
     {
         return match ($type) {
             'db' => Permissions::canDb($pluginId, $action, $target, $context),

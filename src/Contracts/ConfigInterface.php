@@ -339,4 +339,6 @@ interface ConfigInterface
      * @return class-string|null   Fully-qualified class name if resolved, or null when not found.
      */
     public static function load(?string $export = null): LoadedExportInfo;
+
+    public function getLogs(?string $log = null): array | string;
 }

@@ -129,7 +129,7 @@ final class EloquentPluginRepository implements PluginRepository
         }
 
         $existing = (array)($plugin->meta ?? []);
-        $existing['install_meta'] = $meta->toArray();
+        $existing['install_meta'] = $meta->toLogArray();
         $plugin->meta = $existing;
         $plugin->save();
     }
