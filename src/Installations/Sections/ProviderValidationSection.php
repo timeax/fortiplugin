@@ -127,7 +127,7 @@ final readonly class ProviderValidationSection
                 $missing[] = $prov;
             }
         }
-        
+
         // Persist results
         $doc = [
             'declared' => count($providers),
