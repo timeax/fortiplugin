@@ -152,7 +152,7 @@ model PluginSetting {
   id           BigInt                 @id @default(autoincrement()) @db.BigInt
   plugin_id    BigInt                 @db.BigInt
   key          String                 @unique
-  group        String
+  group        String                 @default("others")
   label        String
   value        String?                @db.LongText
   type         PluginSettingValueType @default(string)

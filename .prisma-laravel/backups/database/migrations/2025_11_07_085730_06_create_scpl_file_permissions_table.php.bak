@@ -23,7 +23,7 @@ return new class extends Migration {
 				);
 			$table->string("base_dir");
 			$table->json("paths");
-			$table->json("permissions");
+			$table->json("permissions")->default("{}");
 			$table->timestamps();
 		});
 	}

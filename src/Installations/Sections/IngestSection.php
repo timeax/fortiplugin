@@ -289,6 +289,7 @@ readonly class IngestSection
                     'plugin_id' => $pluginId,
                     'run_id' => $runId,
                     'zip_id' => $zipId,
+                    "rows" => $rows,
                     'exception' => $e->getMessage(),
                 ],
             ]);
