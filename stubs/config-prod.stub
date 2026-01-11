@@ -412,6 +412,8 @@ final class Config implements ConfigInterface
      */
     public static function getHostConfig(): mixed
     {
+        if (self::getInfo('settings')) return self::getInfo('settings');
+        ///---
         $c = self::get('hostConfig');
 
         // inline host config (decoded as array)
@@ -454,9 +456,7 @@ final class Config implements ConfigInterface
             try {
                 // keep as object by default (matches your validator usage)
                 $config = json_decode($json, false, 512, JSON_THROW_ON_ERROR);
-                static::$info['settings'] = HostConfigToPluginSettings::makeRows(static::getPluginId(), $config);
-
-                return $config;
+                return static::$info['settings'] = HostConfigToPluginSettings::makeRows(static::getPluginId(), $config);
             } catch (JsonException $e) {
                 throw new RuntimeException("Invalid JSON in hostConfig file '$path': {$e->getMessage()}", 0, $e);
             }

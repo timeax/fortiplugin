@@ -24,6 +24,8 @@
       "type": "string",
       "enum": [
         "text",
+        "toggle",
+        "tristate",
         "password",
         "email",
         "number",
@@ -42,7 +44,8 @@
         "datetime-local",
         "month",
         "week",
-        "file"
+        "file",
+        "json"
       ]
     },
     "InputOptionValue": {
@@ -174,8 +177,7 @@
                 "enum": [
                   "select",
                   "multiselect",
-                  "radio",
-                  "chips"
+                  "radio"
                 ]
               }
             },
