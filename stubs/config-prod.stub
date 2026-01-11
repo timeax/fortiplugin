@@ -6,14 +6,17 @@ declare(strict_types=1);
 namespace IGNORE;
 #{PLUGIN_NAMESPACE};
 
+use FilesystemIterator;
 use JsonException;
 use RecursiveDirectoryIterator;
 use RecursiveIteratorIterator;
 use RuntimeException;
 use SplFileInfo;
+use Throwable;
 use Timeax\FortiPlugin\Contracts\ConfigInterface;
 use Timeax\FortiPlugin\Enums\PermissionType;
 use Timeax\FortiPlugin\Facades\Permissions;
+use Timeax\FortiPlugin\Models\PluginAuditLog;
 use Timeax\FortiPlugin\Models\PluginSetting;
 use Timeax\FortiPlugin\Permissions\Evaluation\Dto\PermissionListOptions;
 use Timeax\FortiPlugin\Permissions\Evaluation\Dto\PermissionListResult;
@@ -649,40 +652,154 @@ final class Config implements ConfigInterface
     public static function getLogs(?string $log = null): array|string
     {
         $basePath = (string)static::getInfo('basePath');
-        $path = base_path($basePath . DIRECTORY_SEPARATOR . '.internals/logs');
+        $basePath = trim($basePath, "/\\");
 
-        if (!is_dir($path)) {
+        // Prefer ".internal/logs" but keep ".internals/logs" as a fallback
+        $candidates = [
+            base_path($basePath . DIRECTORY_SEPARATOR . '.internal' . DIRECTORY_SEPARATOR . 'logs'),
+            base_path($basePath . DIRECTORY_SEPARATOR . '.internals' . DIRECTORY_SEPARATOR . 'logs'),
+        ];
+
+        $path = null;
+        foreach ($candidates as $candidate) {
+            if (is_dir($candidate)) {
+                $path = $candidate;
+                break;
+            }
+        }
+
+        if ($path === null) {
             return $log ? '' : [];
         }
 
-        if ($log !== null) {
-            $realRoot = realpath($path);
-            $target = realpath($path . DIRECTORY_SEPARATOR . $log);
+        $rootReal = realpath($path) ?: $path;
+        $rootReal = rtrim($rootReal, "/\\");
 
-            if ($target && $realRoot && str_starts_with($target, $realRoot) && is_file($target)) {
-                return (string)file_get_contents($target);
+        $norm = static function (string $p): string {
+            $p = str_replace('\\', '/', rtrim($p, "/\\"));
+
+            // Windows is case-insensitive; normalize to lower for comparisons.
+            if (PHP_OS_FAMILY === 'Windows') {
+                $p = strtolower($p);
             }
 
-            return '';
+            return $p;
+        };
+
+        if ($log !== null) {
+            // Basic sanitization (null byte + normalize slashes)
+            $log = str_replace(["\0", '\\'], ['', '/'], $log);
+            $log = ltrim($log, '/');
+
+            $target = realpath($path . DIRECTORY_SEPARATOR . $log);
+
+            if ($target === false || !is_file($target)) {
+                return '';
+            }
+
+            // Ensure $target is strictly inside $rootReal (no traversal, no prefix-collision)
+            $rootCmp = $norm($rootReal) . '/';
+            $targetCmp = $norm($target) . '/';
+
+            if (!str_starts_with($targetCmp, $rootCmp)) {
+                return '';
+            }
+
+            $contents = @file_get_contents($target);
+
+            return $contents === false ? '' : $contents;
         }
 
         $entries = [];
-        $iterator = new RecursiveIteratorIterator(
-            new RecursiveDirectoryIterator($path, RecursiveDirectoryIterator::SKIP_DOTS)
-        );
 
-        foreach ($iterator as $file) {
-            /** @var SplFileInfo $file */
-            if ($file->isFile()) {
-                $relativePath = substr($file->getPathname(), strlen($path) + 1);
-                $relativePath = str_replace('\\', '/', $relativePath);
-                $entries[$relativePath] = $relativePath;
+        try {
+            $iterator = new RecursiveIteratorIterator(
+                new RecursiveDirectoryIterator($path, FilesystemIterator::SKIP_DOTS)
+            );
+
+            $rootCmp = $norm($rootReal) . '/';
+
+            foreach ($iterator as $file) {
+                if (!$file instanceof SplFileInfo || !$file->isFile()) {
+                    continue;
+                }
+
+                $filePath = $file->getPathname();
+                $fileCmp = $norm($filePath);
+
+                if (str_starts_with($fileCmp . '/', $rootCmp)) {
+                    // Compute relative path using normalized separators
+                    $rel = substr(str_replace('\\', '/', $filePath), strlen(str_replace('\\', '/', $rootReal)) + 1);
+                } else {
+                    // Fallback (should be rare)
+                    $rel = $file->getFilename();
+                }
+
+                $entries[$rel] = $rel;
             }
+        } catch (Throwable) {
+            return [];
         }
+
+        ksort($entries, SORT_STRING);
 
         return $entries;
     }
 
+    public static function getAuditLogs(int $limit = 500): array
+    {
+        $pluginId = (int)self::getPluginId();
+
+        if ($pluginId <= 0) {
+            return [];
+        }
+
+        $logs = PluginAuditLog::query()
+            ->where('plugin_id', $pluginId)
+            ->with([
+                // keep the payload lean; adjust columns if you need more
+                'actorAuthor:id,slug,name,handle,avatar_url',
+            ])
+            ->orderByDesc('id')
+            ->limit($limit)
+            ->get([
+                'id',
+                'plugin_id',
+                'actor',
+                'actor_author_id',
+                'type',
+                'action',
+                'resource',
+                'context',
+                'created_at',
+                'updated_at',
+            ]);
+
+        return $logs->map(static function (PluginAuditLog $row): array {
+            return [
+                'id' => $row->id,
+                'plugin_id' => $row->plugin_id,
+                'actor' => $row->actor,
+                'actor_author_id' => $row->actor_author_id !== null ? (int)$row->actor_author_id : null,
+
+                'actor_author' => $row->actorAuthor ? [
+                    'id' => $row->actorAuthor->id,
+                    'slug' => $row->actorAuthor->slug,
+                    'name' => $row->actorAuthor->name,
+                    'handle' => $row->actorAuthor->handle,
+                    'avatar_url' => $row->actorAuthor->avatar_url,
+                ] : null,
+
+                'type' => $row->type,
+                'action' => $row->action,
+                'resource' => $row->resource,
+                'context' => $row->context,
+
+                'created_at' => $row->created_at?->toISOString(),
+                'updated_at' => $row->updated_at?->toISOString(),
+            ];
+        })->all();
+    }
 
     /** @var array<string, LoadedExportInfo|null> */
     private static array $exportResolveCache = [];
