@@ -661,6 +661,12 @@ final readonly class Installer
                     zipId: $zipId,
                     emitInstaller: $emitInstaller
                 );
+            } catch (Throwable $e) {
+                DB::rollBack();
+                return $this->terminate(InstallEvents::RUN_FAIL, new InstallerResult('fail', $summary, ['exception' => $e->getMessage()], (int)$pluginId, $pluginVersionId), $emitInstaller, $runId, $actor, $zipId);
+            }
+
+            try {
                 $this->ingestSection->ingestSettings(
                     pluginId: $pluginId,
                     pluginConfig: $cfg,
@@ -668,9 +674,9 @@ final readonly class Installer
                     zipId: $zipId,
                     emitInstaller: $emitInstaller
                 );
-            } catch (Throwable $e) {
+            } catch (Throwable $th) {
                 DB::rollBack();
-                return $this->terminate(InstallEvents::RUN_FAIL, new InstallerResult('fail', $summary, ['exception' => $e->getMessage()], (int)$pluginId, $pluginVersionId), $emitInstaller, $runId, $actor, $zipId);
+                return $this->terminate(InstallEvents::RUN_FAIL, new InstallerResult('fail', $summary, ['exception' => $th->getMessage()], (int)$pluginId, $pluginVersionId), $emitInstaller, $runId, $actor, $zipId);
             }
 
             DB::commit();

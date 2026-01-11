@@ -639,7 +639,7 @@ final class Config implements ConfigInterface
     /**
      * @throws JsonException
      */
-    public function getLogs(?string $log = null): array|string
+    public static function getLogs(?string $log = null): array|string
     {
         $basePath = (string)static::getInfo('basePath');
         $path = base_path($basePath . DIRECTORY_SEPARATOR . 'internals/logs');

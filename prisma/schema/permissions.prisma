@@ -169,7 +169,7 @@ model FilePermission {
   paths    Json // ["**/*","logs/*",...]
 
   // Boolean map: { read, write, append, delete, mkdir, rmdir, list }
-  permissions Json // SERVICE-MANAGED
+  permissions Json @default("{}") // SERVICE-MANAGED
 
   created_at DateTime @default(now())
   updated_at DateTime @updatedAt
