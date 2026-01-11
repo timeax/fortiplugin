@@ -5,11 +5,8 @@
   </component>
   <component name="ChangeListManager">
     <list default="true" id="eaf4cbc6-d298-4694-b042-183ced7c77f7" name="Changes" comment="">
-      <change beforePath="$PROJECT_DIR$/.prisma-laravel/backups/database/migrations/2025_11_07_085730_19_create_scpl_plugin_settings_table.php.bak" beforeDir="false" afterPath="$PROJECT_DIR$/.prisma-laravel/backups/database/migrations/2025_11_07_085730_19_create_scpl_plugin_settings_table.php.bak" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/.prisma-laravel/backups/src/Enums/PluginSettingValueType.php.bak" beforeDir="false" afterPath="$PROJECT_DIR$/.prisma-laravel/backups/src/Enums/PluginSettingValueType.php.bak" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/database/migrations/2025_11_07_085730_19_create_scpl_plugin_settings_table.php" beforeDir="false" afterPath="$PROJECT_DIR$/database/migrations/2025_11_07_085730_19_create_scpl_plugin_settings_table.php" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/prisma/schema.prisma" beforeDir="false" afterPath="$PROJECT_DIR$/prisma/schema.prisma" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/Enums/PluginSettingValueType.php" beforeDir="false" afterPath="$PROJECT_DIR$/src/Enums/PluginSettingValueType.php" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/Services/PluginSettingsWriter.php" beforeDir="false" afterPath="$PROJECT_DIR$/src/Services/PluginSettingsWriter.php" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />

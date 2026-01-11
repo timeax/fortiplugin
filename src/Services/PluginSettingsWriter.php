@@ -5,6 +5,7 @@ namespace Timeax\FortiPlugin\Services;
 
 use JsonException;
 use RuntimeException;
+use stdClass;
 use Timeax\FortiPlugin\Enums\PluginSettingValueType;
 use Timeax\FortiPlugin\Models\PluginSetting;
 
@@ -15,34 +16,56 @@ final readonly class PluginSettingsWriter
      */
     public static function decodeValue(
         ?PluginSettingValueType $type,
-        ?string $raw,
-        mixed $default = null
-    ): mixed {
+        ?string                 $raw,
+        mixed                   $default = null
+    ): mixed
+    {
         if ($type === null || $raw === null) {
             return $default;
         }
 
         return match ($type) {
-            PluginSettingValueType::string,
+            // string-ish (stored as raw string)
+            PluginSettingValueType::text,
+            PluginSettingValueType::password,
+            PluginSettingValueType::email,
+            PluginSettingValueType::tel,
+            PluginSettingValueType::url,
+            PluginSettingValueType::search,
+            PluginSettingValueType::color,
+            PluginSettingValueType::date,
+            PluginSettingValueType::time,
+            PluginSettingValueType::datetime_local,
+            PluginSettingValueType::month,
+            PluginSettingValueType::week,
             PluginSettingValueType::file,
-            PluginSettingValueType::blob,
-            PluginSettingValueType::select => $raw,
+            PluginSettingValueType::select,
+            PluginSettingValueType::radio => $raw,
 
-            // arrays (stored as JSON array string)
-            PluginSettingValueType::radio,
-            PluginSettingValueType::multiselect,
-            PluginSettingValueType::chips => self::tryDecodeJsonArray($raw, $default),
-
-            PluginSettingValueType::number => is_numeric($raw)
+            // numbers (stored as numeric string)
+            PluginSettingValueType::number,
+            PluginSettingValueType::range => is_numeric($raw)
                 ? ((str_contains($raw, '.') || str_contains($raw, 'e') || str_contains($raw, 'E'))
-                    ? (float) $raw
-                    : (int) $raw)
+                    ? (float)$raw
+                    : (int)$raw)
                 : $default,
 
-            PluginSettingValueType::boolean,
-            PluginSettingValueType::checkbox =>
+            // booleans (stored as "true"/"false")
+            PluginSettingValueType::toggle =>
                 filter_var($raw, FILTER_VALIDATE_BOOLEAN, FILTER_NULL_ON_FAILURE) ?? $default,
 
+            /**
+             * checkbox can be:
+             *  - single boolean checkbox (stored as "true"/"false")
+             *  - checkbox group (stored as JSON array string)
+             */
+            PluginSettingValueType::checkbox => self::decodeCheckbox($raw, $default),
+
+            // arrays (stored as JSON array string)
+            PluginSettingValueType::multiselect, PluginSettingValueType::chips => self::tryDecodeJsonArray($raw, $default),
+
+            // chips (stored as JSON array string)
+            // tristate stored as "true" | "false" | "null"
             PluginSettingValueType::tristate => match (strtolower(trim($raw))) {
                 'true' => true,
                 'false' => false,
@@ -61,33 +84,42 @@ final readonly class PluginSettingsWriter
      * @return array{0:string,1:PluginSettingValueType}
      */
     public static function encodeValue(
-        mixed $value,
+        mixed                   $value,
         ?PluginSettingValueType $type = null
-    ): array {
+    ): array
+    {
         if ($type === null) {
             // Infer
             if (is_bool($value)) {
-                return [$value ? 'true' : 'false', PluginSettingValueType::boolean];
+                return [$value ? 'true' : 'false', PluginSettingValueType::toggle];
             }
 
             if (is_int($value) || is_float($value)) {
-                return [(string) $value, PluginSettingValueType::number];
+                return [(string)$value, PluginSettingValueType::number];
             }
 
             if (is_array($value) || is_object($value)) {
                 return [self::encodeJson($value), PluginSettingValueType::json];
             }
 
-            return [(string) $value, PluginSettingValueType::string];
+            return [(string)$value, PluginSettingValueType::text];
         }
 
         // Explicit type passed
         return match ($type) {
-            PluginSettingValueType::boolean,
-            PluginSettingValueType::checkbox => [
+            PluginSettingValueType::toggle => [
                 is_bool($value)
                     ? ($value ? 'true' : 'false')
-                    : self::normalizeBoolString((string) $value),
+                    : self::normalizeBoolString((string)$value),
+                $type
+            ],
+
+            PluginSettingValueType::checkbox => [
+                is_array($value)
+                    ? self::encodeJson(array_values($value))
+                    : (is_bool($value)
+                    ? ($value ? 'true' : 'false')
+                    : self::normalizeBoolString((string)$value)),
                 $type
             ],
 
@@ -96,24 +128,33 @@ final readonly class PluginSettingsWriter
                     ? 'null'
                     : (is_bool($value)
                     ? ($value ? 'true' : 'false')
-                    : self::normalizeTriStateString((string) $value)),
+                    : self::normalizeTriStateString((string)$value)),
                 $type
             ],
 
-            PluginSettingValueType::number, PluginSettingValueType::select, PluginSettingValueType::file, PluginSettingValueType::blob, PluginSettingValueType::string => [(string) $value, $type],
+            PluginSettingValueType::number,
+            PluginSettingValueType::range, PluginSettingValueType::text, PluginSettingValueType::password, PluginSettingValueType::email, PluginSettingValueType::tel, PluginSettingValueType::url, PluginSettingValueType::search, PluginSettingValueType::color, PluginSettingValueType::date, PluginSettingValueType::time, PluginSettingValueType::datetime_local, PluginSettingValueType::month, PluginSettingValueType::week, PluginSettingValueType::file, PluginSettingValueType::select, PluginSettingValueType::radio => [(string)$value, $type],
 
+            // raw string storage
             PluginSettingValueType::json => [
-                (is_array($value) || is_object($value)) ? self::encodeJson($value) : (string) $value,
+                (is_array($value) || is_object($value))
+                    ? self::encodeJson($value)
+                    : (string)$value,
                 $type
             ],
 
             // arrays stored as JSON array string
-            PluginSettingValueType::radio,
-            PluginSettingValueType::multiselect,
-            PluginSettingValueType::chips => [
+            PluginSettingValueType::multiselect => [
                 is_array($value)
                     ? self::encodeJson(array_values($value))
-                    : self::encodeJson([(string) $value]),
+                    : self::encodeJson([$value]),
+                $type
+            ],
+
+            PluginSettingValueType::chips => [
+                is_array($value)
+                    ? self::encodeJson(array_values(array_map('strval', $value)))
+                    : self::encodeJson([(string)$value]),
                 $type
             ],
         };
@@ -136,7 +177,7 @@ final readonly class PluginSettingsWriter
             ['plugin_id' => $pluginId, 'key' => $key],
             [
                 'value' => $raw,
-                'type'  => $finalType,
+                'type' => $finalType,
             ]
         );
     }
@@ -171,7 +212,7 @@ final readonly class PluginSettingsWriter
         }
     }
 
-    private static function encodeJson(array|object $value): string
+    private static function encodeJson(mixed $value): string
     {
         try {
             return json_encode($value, JSON_THROW_ON_ERROR | JSON_UNESCAPED_SLASHES);
@@ -193,6 +234,20 @@ final readonly class PluginSettingsWriter
     {
         $decoded = self::tryDecodeJson($raw, $default);
         return is_array($decoded) ? $decoded : $default;
+    }
+
+    private static function decodeCheckbox(string $raw, mixed $default): mixed
+    {
+        // Try array first (checkbox group stored as JSON array)
+        $sentinel = new stdClass();
+        $decoded = self::tryDecodeJsonArray($raw, $sentinel);
+
+        if ($decoded !== $sentinel) {
+            return $decoded;
+        }
+
+        // Fallback to boolean
+        return filter_var($raw, FILTER_VALIDATE_BOOLEAN, FILTER_NULL_ON_FAILURE) ?? $default;
     }
 
     private static function normalizeBoolString(string $raw): string
