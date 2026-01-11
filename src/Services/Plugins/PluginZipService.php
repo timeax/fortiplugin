@@ -6,6 +6,7 @@ namespace Timeax\FortiPlugin\Services\Plugins;
 
 use Illuminate\Support\Collection;
 use Illuminate\Support\Str;
+use JsonException;
 use RuntimeException;
 use Timeax\FortiPlugin\Enums\ProcessStatus;
 use Timeax\FortiPlugin\Enums\ProcessType;
@@ -146,7 +147,19 @@ final readonly class PluginZipService
             'placeholder_slug' => $placeholderSlug,
             'version_tag' => $versionTag,
         ];
+    }
 
+    /**
+     * @throws JsonException
+     */
+    public function installLogs($zip): array
+    {
+        $process = PluginProcess::where('type', ProcessType::installer)->where('source_id', $zip)->latest()->first();
+        if ($process) {
+            return read_forti_process_log($process->id);
+        }
+
+        return [];
     }
 
     public function delete(int $zipId): array

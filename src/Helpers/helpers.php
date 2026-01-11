@@ -1,5 +1,6 @@
 <?php
 
+use Timeax\FortiPlugin\Enums\ProcessType;
 use Timeax\FortiPlugin\Models\PluginProcess;
 
 if (!function_exists('stripComments')) {
@@ -84,7 +85,7 @@ if (!function_exists('read_forti_process_log')) {
     function read_forti_process_log(int $processId): array
     {
         /** @var PluginProcess|null $process */
-        $process = PluginProcess::query()->find($processId);
+        $process = PluginProcess::query()->where('type', ProcessType::installer)->find($processId);
 
         if (!$process) {
             return [
@@ -95,8 +96,8 @@ if (!function_exists('read_forti_process_log')) {
             ];
         }
 
-        $zipId = (int)$process->zip_id;
-        $runId = (string)$process->run_id;
+        $zipId = $process->source_id;
+        $runId = $process->run_id;
 
         $path = forti_installation_log_path($zipId, $runId);
 
@@ -121,7 +122,7 @@ if (!function_exists('read_forti_process_log')) {
         return [
             'process' => [
                 'id' => $process->id,
-                'zip_id' => $process->zip_id,
+                'zip_id' => $process->source_id,
                 'run_id' => $process->run_id,
                 'status' => $process->status,
                 'created_at' => $process->created_at?->toISOString(),
