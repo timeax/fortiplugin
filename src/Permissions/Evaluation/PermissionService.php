@@ -185,7 +185,7 @@ final readonly class PermissionService implements PermissionServiceInterface
 
     public function validateManifest(array $manifest): array
     {
-        return ManifestValidator::tryValidate($manifest);
+        return app(ManifestValidator::class)->tryValidate($manifest);
     }
 
     /* ----------------------------- internals ----------------------- */
