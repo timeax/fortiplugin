@@ -649,7 +649,7 @@ final class Config implements ConfigInterface
     public static function getLogs(?string $log = null): array|string
     {
         $basePath = (string)static::getInfo('basePath');
-        $path = base_path($basePath . DIRECTORY_SEPARATOR . 'internals/logs');
+        $path = base_path($basePath . DIRECTORY_SEPARATOR . '.internals/logs');
 
         if (!is_dir($path)) {
             return $log ? '' : [];
