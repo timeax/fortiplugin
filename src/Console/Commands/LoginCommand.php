@@ -12,7 +12,7 @@ use GuzzleHttp\Client;
 
 class LoginCommand extends Command
 {
-    protected $signature = 'fp:login {--host=} {--alias=} {--remember}';
+    protected $signature = 'fp:login {--host=} {--alias=} {--remember} {--relog}';
     protected $description = 'Log in to Secure Plugin host and save session token.';
 
     /**
@@ -22,31 +22,53 @@ class LoginCommand extends Command
      */
     public function handle(): int
     {
-        $host = $this->option('host') ?: $this->ask('Enter host domain (no https://)');
-        $suggestedAlias = $this->option('alias') ?: CliSessionManager::autoAlias($host);
+        $aliasOption = $this->option('alias');
+        $relog = $this->option('relog');
 
-        // Prompt with auto-generated alias (dev can override)
-        $alias = $this->ask(
-            "Enter a session alias for this host (default: $suggestedAlias)",
-            $suggestedAlias
-        );
+        if ($relog && $aliasOption) {
+            $session = CliSessionManager::getSession($aliasOption);
+            if (!$session) {
+                $this->error("Alias '$aliasOption' not found for relogin.");
+                return 1;
+            }
+            $host = $session['host'];
+            $email = $session['email'] ?? null;
+            $alias = $aliasOption;
 
-        $existingAliases = array_keys(CliSessionManager::listHosts());
+            if ($email) {
+                $this->info("Relogging into alias: $alias ($host) as $email");
+            } else {
+                $this->info("Relogging into alias: $alias ($host)");
+                $email = $this->ask('Email');
+            }
+        } else {
+            $host = $this->option('host') ?: $this->ask('Enter host domain (no https://)');
+            $suggestedAlias = $aliasOption ?: CliSessionManager::autoAlias($host);
 
-        while (in_array($alias, $existingAliases, true)) {
-            $this->warn("Alias '$alias' already exists for another session.");
-            if ($this->confirm("Do you want to overwrite the existing session for alias '$alias'?")) {
-                break; // Will overwrite below
+            // Prompt with auto-generated alias (dev can override)
+            $alias = $this->ask(
+                "Enter a session alias for this host (default: $suggestedAlias)",
+                $suggestedAlias
+            );
+
+            $existingAliases = array_keys(CliSessionManager::listHosts());
+
+            while (in_array($alias, $existingAliases, true)) {
+                $this->warn("Alias '$alias' already exists for another session.");
+                if ($this->confirm("Do you want to overwrite the existing session for alias '$alias'?")) {
+                    break; // Will overwrite below
+                }
+
+                $this->info("Existing aliases:");
+                foreach ($existingAliases as $al) {
+                    $this->line(" - $al");
+                }
+                $alias = $this->ask('Enter a different session alias');
             }
 
-            $this->info("Existing aliases:");
-            foreach ($existingAliases as $al) {
-                $this->line(" - $al");
-            }
-            $alias = $this->ask('Enter a different session alias');
+            $email = $this->ask('Email');
         }
 
-        $email = $this->ask('Email');
         $password = $this->secret('Password');
         $remember = $this->option('remember');
 

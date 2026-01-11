@@ -6,9 +6,7 @@
   <component name="ChangeListManager">
     <list default="true" id="eaf4cbc6-d298-4694-b042-183ced7c77f7" name="Changes" comment="">
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/.prisma-laravel/backups/src/Models/PluginSetting.php.bak" beforeDir="false" afterPath="$PROJECT_DIR$/.prisma-laravel/backups/src/Models/PluginSetting.php.bak" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/prisma/schema.prisma" beforeDir="false" afterPath="$PROJECT_DIR$/prisma/schema.prisma" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/Models/PluginSetting.php" beforeDir="false" afterPath="$PROJECT_DIR$/src/Models/PluginSetting.php" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/Console/Commands/LoginCommand.php" beforeDir="false" afterPath="$PROJECT_DIR$/src/Console/Commands/LoginCommand.php" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
