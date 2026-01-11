@@ -242,6 +242,7 @@ readonly class IngestSection
                 $updates = [
                     'label' => (string)$row['label'],
                     'type' => (string)$row['type'],
+                    'meta' => $row['meta'],
                     'group' => $row['group'] ?? null,
                     'is_required' => (bool)$row['is_required'],
                     'is_sensitive' => (bool)$row['is_sensitive'],
