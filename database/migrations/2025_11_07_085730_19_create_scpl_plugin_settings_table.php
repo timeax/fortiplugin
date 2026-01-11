@@ -24,22 +24,31 @@ return new class extends Migration {
 			$table->string("group")->nullable()->default("others");
 			$table->string("label");
 			$table->longText("value")->nullable();
-			$table
-				->enum("type", [
-					"string",
-					"number",
-					"boolean",
-					"json",
-					"file",
-					"blob",
-					"tristate",
-					"multiselect",
-					"select",
-					"checkbox",
-					"radio",
-					"chips",
-				])
-				->default("string");
+			$table->enum("type", [
+				"text",
+				"toggle",
+				"tristate",
+				"password",
+				"email",
+				"number",
+				"tel",
+				"url",
+				"search",
+				"chips",
+				"checkbox",
+				"radio",
+				"color",
+				"range",
+				"select",
+				"multiselect",
+				"date",
+				"time",
+				"datetime_local",
+				"month",
+				"week",
+				"file",
+				"json",
+			]);
 			$table->boolean("is_required")->default(true);
 			$table->boolean("is_sensitive")->default(false);
 			$table->json("meta")->nullable();

@@ -45,18 +45,29 @@ enum AuthorStatus {
 }
 
 enum PluginSettingValueType {
-  string
-  number
-  boolean
-  json
-  file
-  blob
+  text
+  toggle
   tristate
-  multiselect
-  select
+  password
+  email
+  number
+  tel
+  url
+  search
+  chips
   checkbox
   radio
-  chips
+  color
+  range
+  select
+  multiselect
+  date
+  time
+  datetime_local
+  month
+  week
+  file
+  json
 }
 
 enum AuthorRole {
@@ -154,7 +165,7 @@ model PluginSetting {
   group        String?                @default("others")
   label        String
   value        String?                @db.LongText
-  type         PluginSettingValueType @default(string)
+  type         PluginSettingValueType
   is_required  Boolean                @default(true)
   is_sensitive Boolean                @default(false)
   meta         Json?
