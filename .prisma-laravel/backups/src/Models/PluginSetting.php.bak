@@ -23,9 +23,7 @@ class PluginSetting extends Model
 {
 	protected $table = "scpl_plugin_settings";
 
-	protected $fillable = ["plugin_id", "key", "value", "type"];
-
-	protected $guarded = ["id", "id"];
+	protected $guarded = [];
 
 	protected $casts = [
 		"type" => PluginSettingValueType::class,

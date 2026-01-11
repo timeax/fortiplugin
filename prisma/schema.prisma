@@ -146,8 +146,7 @@ model PluginAuthor {
 }
 
 // PLUGIN SETTINGS (unchanged)
-///@guarded:id
-///@fillable:plugin_id,key,value,type
+///@guarded
 model PluginSetting {
   id           BigInt                 @id @default(autoincrement()) @db.BigInt
   plugin_id    BigInt                 @db.BigInt
