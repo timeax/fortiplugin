@@ -3,6 +3,7 @@ declare(strict_types=1);
 
 namespace Timeax\FortiPlugin\Permissions\Contracts;
 
+use Throwable;
 use Timeax\FortiPlugin\Enums\PermissionType;
 
 /**
@@ -68,10 +69,18 @@ interface PermissionRepositoryInterface
      * @return array{permission_id:int,permission_type:string,concrete_id:int,concrete_type:string,created:bool}
      */
     public function upsertForPlugin(
-        int    $pluginId,
+        int                $pluginId,
         UpsertDtoInterface $dto,
-        array  $meta = []
+        array              $meta = []
     ): array;
+
+    /**
+     * Set PluginPermission.active = true (idempotent).
+     * Returns true only if it changed from false -> true.
+     *
+     * @throws Throwable
+     */
+    public function activatePluginPermission(int $pluginId, PermissionType $type, int $permissionId): bool;
 
     /**
      * Deactivate a direct plugin→permission morph (idempotent).

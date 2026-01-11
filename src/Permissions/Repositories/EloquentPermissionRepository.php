@@ -148,26 +148,14 @@ final class EloquentPermissionRepository implements PermissionRepositoryInterfac
      */
     public function ensurePluginAssignment(int $pluginId, string $type, int $permissionId, array $meta = []): void
     {
-        DB::transaction(static function () use ($pluginId, $type, $permissionId, $meta) {
+        DB::transaction(function () use ($pluginId, $type, $permissionId, $meta) {
             $enum = PermissionType::from($type);
-
-            /** @var PluginPermission $row */
-            $row = PluginPermission::query()->firstOrNew([
-                'plugin_id' => $pluginId,
-                'permission_type' => $enum,
-                'permission_id' => $permissionId,
-            ]);
-
-            $row->active = (bool)($meta['active'] ?? true);
-
-            if (array_key_exists('constraints', $meta)) {
-                $row->constraints = $meta['constraints'];
-            }
-            if (array_key_exists('audit', $meta)) {
-                $row->audit = $meta['audit'];
+            
+            if (!array_key_exists('active', $meta)) {
+                $meta['active'] = true;
             }
 
-            $row->save();
+            $this->handleAssignmentUpsert($pluginId, $enum, $permissionId, $meta);
         });
     }
 
@@ -340,33 +328,7 @@ final class EloquentPermissionRepository implements PermissionRepositoryInterfac
             }
 
             // Ensure plugin assignment (pivot)
-            /** @var PluginPermission|null $assignment */
-            $assignment = PluginPermission::query()
-                ->where('plugin_id', $pluginId)
-                ->where('permission_type', $enum)
-                ->where('permission_id', (int)$concrete->getKey())
-                ->lockForUpdate()
-                ->first();
-
-            if (!$assignment) {
-                $assignment = new PluginPermission();
-                $assignment->plugin_id = $pluginId;
-                $assignment->permission_type = $enum;
-                $assignment->permission_id = (int)$concrete->getKey();
-                $assignment->justification = $meta['justification'] ?? null;
-            }
-
-            if (array_key_exists('active', $meta)) {
-                $assignment->active = (bool)$meta['active'];
-            }
-            if (array_key_exists('constraints', $meta)) {
-                $assignment->constraints = $meta['constraints'];
-            }
-            if (array_key_exists('audit', $meta)) {
-                $assignment->audit = $meta['audit'];
-            }
-
-            $assignment->save();
+            $this->handleAssignmentUpsert($pluginId, $enum, (int)$concrete->getKey(), $meta, true);
 
             return [
                 'permission_id' => (int)$concrete->getKey(),
@@ -384,24 +346,76 @@ final class EloquentPermissionRepository implements PermissionRepositoryInterfac
      */
     public function deactivatePluginPermission(int $pluginId, PermissionType $type, int $permissionId): bool
     {
-        return DB::transaction(static function () use ($pluginId, $type, $permissionId): bool {
+        return $this->setPermissionActiveState($pluginId, $type, $permissionId, false);
+    }
+
+    /**
+     * @throws Throwable
+     */
+    public function activatePluginPermission(int $pluginId, PermissionType $type, int $permissionId): bool
+    {
+        return $this->setPermissionActiveState($pluginId, $type, $permissionId, true);
+    }
+
+    /**
+     * @throws Throwable
+     */
+    private function setPermissionActiveState(int $pluginId, PermissionType $type, int $permissionId, bool $active): bool
+    {
+        return DB::transaction(static function () use ($pluginId, $type, $permissionId, $active): bool {
             $row = PluginPermission::query()
                 ->where('plugin_id', $pluginId)
-                ->where('permission_type', $type) // enum cast on model
+                ->where('permission_type', $type) // enum cast
                 ->where('permission_id', $permissionId)
                 ->first();
 
-            if (!$row || $row->active === false) {
-                return false; // idempotent
+            if (!$row || $row->active === $active) {
+                return false; // idempotent / not found
             }
 
-            $row->active = false;
+            $row->active = $active;
             $row->save();
 
             return true;
         });
     }
 
+    private function handleAssignmentUpsert(int $pluginId, PermissionType $enum, int $permissionId, array $meta, bool $lock = false): void
+    {
+        $query = PluginPermission::query()
+            ->where('plugin_id', $pluginId)
+            ->where('permission_type', $enum)
+            ->where('permission_id', $permissionId);
+
+        if ($lock) {
+            $query->lockForUpdate();
+        }
+
+        /** @var PluginPermission|null $assignment */
+        $assignment = $query->first();
+
+        if (!$assignment) {
+            $assignment = new PluginPermission();
+            $assignment->plugin_id = $pluginId;
+            $assignment->permission_type = $enum;
+            $assignment->permission_id = $permissionId;
+            if (array_key_exists('justification', $meta)) {
+                $assignment->justification = $meta['justification'];
+            }
+        }
+
+        if (array_key_exists('active', $meta)) {
+            $assignment->active = (bool)$meta['active'];
+        }
+        if (array_key_exists('constraints', $meta)) {
+            $assignment->constraints = $meta['constraints'];
+        }
+        if (array_key_exists('audit', $meta)) {
+            $assignment->audit = $meta['audit'];
+        }
+
+        $assignment->save();
+    }
 
     /**
      * @throws JsonException
