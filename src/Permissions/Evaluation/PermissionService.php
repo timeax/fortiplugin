@@ -34,7 +34,7 @@ use Timeax\FortiPlugin\Permissions\Registry\PermissionRegistry;
 
 final readonly class PermissionService implements PermissionServiceInterface
 {
-    use PermissionServiceAllowTrait, PermissionServiceUpsertTrait, PermissionServiceListTrait;
+    use PermissionServiceDecisionTrait, PermissionServiceUpsertTrait, PermissionServiceListTrait;
 
     public function __construct(
         private PermissionRepositoryInterface $repo,
