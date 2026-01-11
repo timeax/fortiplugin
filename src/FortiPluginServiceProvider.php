@@ -40,6 +40,7 @@ use Timeax\FortiPlugin\Installations\InstallerPolicy;
 use Timeax\FortiPlugin\Installations\Sections\ComposerPlanSection;
 use Timeax\FortiPlugin\Installations\Sections\DbPersistSection;
 use Timeax\FortiPlugin\Installations\Sections\FileScanSection;
+use Timeax\FortiPlugin\Installations\Sections\IngestSection;
 use Timeax\FortiPlugin\Installations\Sections\InstallFilesSection;
 use Timeax\FortiPlugin\Installations\Sections\InternalConfigWriteSection;
 use Timeax\FortiPlugin\Installations\Sections\ProviderValidationSection;
@@ -317,6 +318,8 @@ class FortiPluginServiceProvider extends ServiceProvider
             $app->make(InstallationLogStore::class),
         ));
 
+        $this->app->singleton(IngestSection::class);
+
         // ── Installer (scoped: must share the same scoped log store + sections) ─
         $this->app->scoped(Installer::class, fn($app) => new Installer(
             policy: $app->make(InstallerPolicy::class),
@@ -338,6 +341,8 @@ class FortiPluginServiceProvider extends ServiceProvider
             tokens: $app->make(InstallerTokenManager::class),
             logStore: $app->make(InstallationLogStore::class),
             zipGate: $app->make(ZipValidationGate::class),
+            permissionService: $app->make(PermissionService::class),
+            ingestSection: $app->make(IngestSection::class)
         ));
 
         // ── Activation writers / activator ─────────────────────────────────────
