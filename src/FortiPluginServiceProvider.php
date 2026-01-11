@@ -64,6 +64,7 @@ use Timeax\FortiPlugin\Installations\Support\ValidatorBridge;
 use Timeax\FortiPlugin\Permissions\Bootstrap\FortiPermissions;
 use Timeax\FortiPlugin\Permissions\Contracts\PermissionServiceInterface;
 use Timeax\FortiPlugin\Permissions\Evaluation\PermissionService;
+use Timeax\FortiPlugin\Permissions\Manifest\ManifestValidator;
 use Timeax\FortiPlugin\Services\HostKeyService;
 use Timeax\FortiPlugin\Services\Plugins\PluginZipService;
 use Timeax\FortiPlugin\Services\PluginService;
@@ -212,6 +213,8 @@ class FortiPluginServiceProvider extends ServiceProvider
         if (is_string($impl) && $impl !== '' && $impl !== BackgroundScanDispatcher::class) {
             $this->app->bind(BackgroundScanDispatcher::class, $impl);
         }
+
+        $this->app->singleton(ManifestValidator::class);
 
         // ── Log store (stateful, per-run scope) ────────────────────────────────
         $this->app->scoped(InstallationLogStore::class, fn($app) => new InstallationLogStore($app->make(AtomicFilesystem::class))
