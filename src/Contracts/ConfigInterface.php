@@ -340,5 +340,5 @@ interface ConfigInterface
      */
     public static function load(?string $export = null): LoadedExportInfo;
 
-    public static function getLogs(?string $log = null): array | string;
+    public static function getLogs(?string $log = null): array|string;
 }

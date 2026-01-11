@@ -2,6 +2,7 @@
 
 namespace Timeax\FortiPlugin\Models;
 
+use Illuminate\Database\Eloquent\Casts\AsArrayObject;
 use Timeax\FortiPlugin\Enums\PluginSettingValueType;
 use Illuminate\Database\Eloquent\Model;
 
@@ -15,6 +16,7 @@ use Illuminate\Database\Eloquent\Model;
  * @property PluginSettingValueType::class $type
  * @property bool $is_required
  * @property bool $is_sensitive
+ * @property array|null $meta
  * @property \Carbon\Carbon $created_at
  * @property \Carbon\Carbon $updated_at
  * @property Plugin::class $plugin
@@ -27,6 +29,7 @@ class PluginSetting extends Model
 
 	protected $casts = [
 		"type" => PluginSettingValueType::class,
+		"meta" => AsArrayObject::class,
 		"created_at" => "datetime",
 		"updated_at" => "datetime",
 	];

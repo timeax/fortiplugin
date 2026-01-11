@@ -191,6 +191,7 @@ final class HostConfigToPluginSettings
             'group' => $group,
             'is_required' => $effectiveRequired,
             'is_sensitive' => $effectiveSensitive,
+            'meta' => self::getOptional($node, 'meta')
         ];
     }
 

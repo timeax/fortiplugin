@@ -42,6 +42,7 @@ return new class extends Migration {
 				->default("string");
 			$table->boolean("is_required")->default(true);
 			$table->boolean("is_sensitive")->default(false);
+			$table->json("meta")->nullable();
 			$table->timestamps();
 			$table->index("plugin_id");
 			$table->unique(["plugin_id", "key"]);

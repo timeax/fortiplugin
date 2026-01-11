@@ -20,6 +20,7 @@ use Timeax\FortiPlugin\Permissions\Evaluation\Dto\PermissionListResult;
 use Timeax\FortiPlugin\Permissions\Evaluation\Dto\PermissionListSummary;
 use Timeax\FortiPlugin\Permissions\Evaluation\Dto\Result;
 use Timeax\FortiPlugin\Services\PluginSettingsWriter;
+use Timeax\FortiPlugin\Support\HostConfigToPluginSettings;
 use Timeax\FortiPlugin\Support\LoadedExportInfo;
 
 final class Config implements ConfigInterface
@@ -43,6 +44,7 @@ final class Config implements ConfigInterface
         'name' => '#{PLUGIN_STUDLY}',
         'namespace' => '#{PLUGIN_NAMESPACE}',
         'basePath' => '#{PLUGIN_BASE_PATH}',
+        'settings' => null
     ];
 
 
@@ -408,7 +410,7 @@ final class Config implements ConfigInterface
      * {@inheritdoc}
      * @throws JsonException
      */
-    public static function getHostConfig(?string $pluginRoot = null): mixed
+    public static function getHostConfig(): mixed
     {
         $c = self::get('hostConfig');
 
@@ -419,6 +421,7 @@ final class Config implements ConfigInterface
 
         // path-based host config
         if (is_string($c)) {
+            $pluginRoot = base_path(static::getInfo('basePath'));
             if ($pluginRoot === null || trim($pluginRoot) === '') {
                 throw new RuntimeException('hostConfig is a path but pluginRoot was not provided.');
             }
@@ -450,7 +453,10 @@ final class Config implements ConfigInterface
 
             try {
                 // keep as object by default (matches your validator usage)
-                return json_decode($json, false, 512, JSON_THROW_ON_ERROR);
+                $config = json_decode($json, false, 512, JSON_THROW_ON_ERROR);
+                static::$info['settings'] = HostConfigToPluginSettings::makeRows(static::getPluginId(), $config);
+
+                return $config;
             } catch (JsonException $e) {
                 throw new RuntimeException("Invalid JSON in hostConfig file '$path': {$e->getMessage()}", 0, $e);
             }
@@ -472,6 +478,7 @@ final class Config implements ConfigInterface
             'name' => is_string(self::$info['name'] ?? null) ? (string)self::$info['name'] : self::getName(),
             'namespace' => is_string(self::$info['namespace'] ?? null) ? (string)self::$info['namespace'] : null,
             'basePath' => is_string(self::$info['basePath'] ?? null) ? (string)self::$info['basePath'] : null,
+            'settings' => is_array(self::$info['settings']) ? self::$info['settings'] : null,
         ];
 
         if ($key !== null) return $info[$key] ?? '';

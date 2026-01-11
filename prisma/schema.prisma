@@ -151,12 +151,13 @@ model PluginSetting {
   id           BigInt                 @id @default(autoincrement()) @db.BigInt
   plugin_id    BigInt                 @db.BigInt
   key          String                 @unique
-  group        String?                 @default("others")
+  group        String?                @default("others")
   label        String
   value        String?                @db.LongText
   type         PluginSettingValueType @default(string)
   is_required  Boolean                @default(true)
   is_sensitive Boolean                @default(false)
+  meta         Json?
   created_at   DateTime               @default(now())
   updated_at   DateTime               @updatedAt
 
