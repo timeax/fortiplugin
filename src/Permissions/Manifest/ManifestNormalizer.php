@@ -16,7 +16,7 @@ final readonly class ManifestNormalizer
      * @return array Canonical form suitable for ingestors (deterministic ordering, unified type names).
      * @throws JsonException
      */
-    public function normalize(array $validated): array
+    public static function normalize(array $validated): array
     {
         $out = [
             'required_permissions' => [],
@@ -28,7 +28,7 @@ final readonly class ManifestNormalizer
                 continue;
             }
             foreach ($validated[$bucket] as $rule) {
-                $out[$bucket][] = $this->canonicalRule($rule);
+                $out[$bucket][] = self::canonicalRule($rule);
             }
         }
 
@@ -53,7 +53,7 @@ final readonly class ManifestNormalizer
 
     /* -- internals --------------------------------------------------------- */
 
-    private function canonicalRule(array $rule): array
+    private static function canonicalRule(array $rule): array
     {
         $type = (string)($rule['type'] ?? '');
         // Unify "notify" to "notification" for the rest of the system
@@ -66,60 +66,60 @@ final readonly class ManifestNormalizer
 
         // Canonicalize actions (sorted, unique)
         if (isset($canon['actions']) && is_array($canon['actions'])) {
-            $canon['actions'] = $this->uniqueSortedStrings($canon['actions']);
+            $canon['actions'] = self::uniqueSortedStrings($canon['actions']);
             // Uppercase request-ish verbs if they appear (mainly affects network "request" not needed; kept generic)
         }
 
         // Per-type canonicalization
         return match ($type) {
-            'db'           => $this->canonDb($canon),
-            'file'         => $this->canonFile($canon),
-            'network'      => $this->canonNetwork($canon),
-            'notification' => $this->canonNotify($canon),
-            'module'       => $this->canonModule($canon),
-            'codec'        => $this->canonCodec($canon),
+            'db'           => self::canonDb($canon),
+            'file'         => self::canonFile($canon),
+            'network'      => self::canonNetwork($canon),
+            'notification' => self::canonNotify($canon),
+            'module'       => self::canonModule($canon),
+            'codec'        => self::canonCodec($canon),
             default        => $canon,
         };
     }
 
-    private function canonDb(array $r): array
+    private static function canonDb(array $r): array
     {
         // Ensure columns are unique/sorted (if present)
         if (isset($r['target']['columns']) && is_array($r['target']['columns'])) {
-            $r['target']['columns'] = $this->uniqueSortedStrings($r['target']['columns']);
+            $r['target']['columns'] = self::uniqueSortedStrings($r['target']['columns']);
         }
         // Preserve model_alias/map info produced by the core validator.
         return $r;
     }
 
-    private function canonFile(array $r): array
+    private static function canonFile(array $r): array
     {
         if (isset($r['target']['paths']) && is_array($r['target']['paths'])) {
-            $r['target']['paths'] = $this->uniqueSortedStrings($r['target']['paths']);
+            $r['target']['paths'] = self::uniqueSortedStrings($r['target']['paths']);
         }
         return $r;
     }
 
-    private function canonNetwork(array $r): array
+    private static function canonNetwork(array $r): array
     {
         if (isset($r['target']['methods']) && is_array($r['target']['methods'])) {
-            $r['target']['methods'] = $this->uniqueSortedStrings(
+            $r['target']['methods'] = self::uniqueSortedStrings(
                 array_map(static fn($m) => strtoupper((string)$m), $r['target']['methods'])
             );
         }
         if (isset($r['target']['hosts']) && is_array($r['target']['hosts'])) {
-            $r['target']['hosts'] = $this->uniqueSortedStrings($r['target']['hosts']);
+            $r['target']['hosts'] = self::uniqueSortedStrings($r['target']['hosts']);
         }
         if (isset($r['target']['schemes'])) {
             $schemes = is_array($r['target']['schemes']) ? $r['target']['schemes'] : [];
             $schemes = $schemes === [] ? ['https'] : $schemes; // default to https if missing/empty
-            $r['target']['schemes'] = $this->uniqueSortedStrings($schemes);
+            $r['target']['schemes'] = self::uniqueSortedStrings($schemes);
         } else {
             $r['target']['schemes'] = ['https'];
         }
         foreach (['paths','headers_allowed','ips_allowed'] as $k) {
             if (isset($r['target'][$k]) && is_array($r['target'][$k])) {
-                $r['target'][$k] = $this->uniqueSortedStrings($r['target'][$k]);
+                $r['target'][$k] = self::uniqueSortedStrings($r['target'][$k]);
             }
         }
         if (isset($r['target']['ports']) && is_array($r['target']['ports'])) {
@@ -131,45 +131,45 @@ final readonly class ManifestNormalizer
         return $r;
     }
 
-    private function canonNotify(array $r): array
+    private static function canonNotify(array $r): array
     {
         if (isset($r['target']['channels']) && is_array($r['target']['channels'])) {
-            $r['target']['channels'] = $this->uniqueSortedStrings($r['target']['channels']);
+            $r['target']['channels'] = self::uniqueSortedStrings($r['target']['channels']);
         }
         foreach (['templates','recipients'] as $k) {
             if (isset($r['target'][$k]) && is_array($r['target'][$k])) {
-                $r['target'][$k] = $this->uniqueSortedStrings($r['target'][$k]);
+                $r['target'][$k] = self::uniqueSortedStrings($r['target'][$k]);
             }
         }
         return $r;
     }
 
-    private function canonModule(array $r): array
+    private static function canonModule(array $r): array
     {
         if (isset($r['target']['apis']) && is_array($r['target']['apis'])) {
-            $r['target']['apis'] = $this->uniqueSortedStrings($r['target']['apis']);
+            $r['target']['apis'] = self::uniqueSortedStrings($r['target']['apis']);
         }
         // Preserve alias/FQCN/docs provided by core validator.
         return $r;
     }
 
-    private function canonCodec(array $r): array
+    private static function canonCodec(array $r): array
     {
         // If validator produced resolved_methods, canonicalize it (unless wildcard '*')
         if (isset($r['resolved_methods']) && $r['resolved_methods'] !== '*' && is_array($r['resolved_methods'])) {
-            $r['resolved_methods'] = $this->uniqueSortedStrings($r['resolved_methods']);
+            $r['resolved_methods'] = self::uniqueSortedStrings($r['resolved_methods']);
         }
         // Also canonicalize methods/groups if present for display/debugging
         foreach (['methods','groups'] as $k) {
             if (isset($r[$k]) && is_array($r[$k])) {
-                $r[$k] = $this->uniqueSortedStrings($r[$k]);
+                $r[$k] = self::uniqueSortedStrings($r[$k]);
             }
         }
         return $r;
     }
 
     /** @param string[] $list */
-    private function uniqueSortedStrings(array $list): array
+    private static function uniqueSortedStrings(array $list): array
     {
         $list = array_values(array_unique(array_map('strval', $list)));
         sort($list, SORT_STRING);
