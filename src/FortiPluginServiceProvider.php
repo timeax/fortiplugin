@@ -318,7 +318,10 @@ class FortiPluginServiceProvider extends ServiceProvider
             $app->make(InstallationLogStore::class),
         ));
 
-        $this->app->singleton(IngestSection::class);
+        $this->app->scoped(IngestSection::class, fn($app) => new IngestSection(
+            $app->make(PermissionService::class),
+            $app->make(InstallationLogStore::class),
+        ));
 
         // ── Installer (scoped: must share the same scoped log store + sections) ─
         $this->app->scoped(Installer::class, fn($app) => new Installer(
