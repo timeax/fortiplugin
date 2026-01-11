@@ -1,7 +1,10 @@
-<?php /** @noinspection PhpUnusedParameterInspection */
+<?php /** @noinspection GrazieInspection */
+
+/** @noinspection PhpUnusedParameterInspection */
 
 namespace Timeax\FortiPlugin;
 
+use Illuminate\Contracts\Container\BindingResolutionException;
 use Illuminate\Filesystem\Filesystem as LaravelFs;
 use Illuminate\Support\ServiceProvider;
 use Timeax\FortiPlugin\Autoload\ComposerLoaderResolver;
@@ -17,6 +20,7 @@ use Timeax\FortiPlugin\Console\Commands\LoginCommand;
 use Timeax\FortiPlugin\Console\Commands\LogoutCommand;
 use Timeax\FortiPlugin\Console\Commands\MakePlugin;
 use Timeax\FortiPlugin\Console\Commands\PackPlugin;
+use Timeax\FortiPlugin\Console\Commands\RedirectPlugin;
 use Timeax\FortiPlugin\Console\Commands\ValidatePlugin;
 use Timeax\FortiPlugin\Core\Install\JsonRouteCompiler;
 use Timeax\FortiPlugin\Core\Install\RouteWriter;
@@ -79,6 +83,9 @@ use Timeax\FortiPlugin\Support\FortiGateRegistrar;
 
 class FortiPluginServiceProvider extends ServiceProvider
 {
+    /**
+     * @throws BindingResolutionException
+     */
     public function register(): void
     {
         $this->app->register(EventServiceProvider::class);
@@ -112,6 +119,7 @@ class FortiPluginServiceProvider extends ServiceProvider
                 ValidatePlugin::class,
                 CreateAuthorCommand::class,
                 GenerateHostKeyCommand::class,
+                RedirectPlugin::class,
             ]);
         }
     }
@@ -363,6 +371,9 @@ class FortiPluginServiceProvider extends ServiceProvider
     }
 
 
+    /**
+     * @throws BindingResolutionException
+     */
     private function registerPluginAutoload(): void
     {
         $this->app->singleton(ComposerLoaderResolver::class, fn() => new ComposerLoaderResolver());
