@@ -52,7 +52,7 @@ final class EloquentPermissionRepository implements PermissionRepositoryInterfac
                 'type' => $r->permission_type->value,      // enum cast → string value
                 'id' => (int)$r->permission_id,
                 'active' => (bool)$r->active,
-                'window' => $this->windowObj($r->limited, $r->limit_type, $r->limit_value),
+                'window' => $this->windowObj((bool)$r->limited, $r->limit_type, $r->limit_value),
                 'constraints' => $r->constraints,                 // assignment-level (direct)
                 'justification' => $r->justification,
                 'audit' => $r->audit,                       // assignment-level (direct)
