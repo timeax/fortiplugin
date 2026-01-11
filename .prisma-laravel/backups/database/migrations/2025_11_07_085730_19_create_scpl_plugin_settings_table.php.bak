@@ -21,7 +21,7 @@ return new class extends Migration {
 				->onDelete("cascade")
 				->onUpdate("no action");
 			$table->string("key")->unique();
-			$table->string("group")->default("others");
+			$table->string("group")->nullable()->default("others");
 			$table->string("label");
 			$table->longText("value")->nullable();
 			$table

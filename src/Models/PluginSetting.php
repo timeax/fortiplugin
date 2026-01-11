@@ -9,7 +9,7 @@ use Illuminate\Database\Eloquent\Model;
  * @property int $id
  * @property int $plugin_id
  * @property string $key
- * @property string $group
+ * @property string|null $group
  * @property string $label
  * @property string|null $value
  * @property PluginSettingValueType::class $type
