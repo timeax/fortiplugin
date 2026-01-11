@@ -49,11 +49,11 @@ final readonly class ProviderValidationSection
      * @noinspection PhpUndefinedClassInspection
      */
     public function run(
-        string    $pluginDir,
-        string    $pluginName,
-        string    $psr4Root,
-        array     $providers,
-        callable  $emit
+        string   $pluginDir,
+        string   $pluginName,
+        string   $psr4Root,
+        array    $providers,
+        callable $emit
     ): array
     {
         $pluginDir = rtrim($pluginDir, "\\/");
@@ -104,14 +104,21 @@ final readonly class ProviderValidationSection
                 continue;
             }
 
-            $relative = $prov;
-            if (str_starts_with($prov, $nsPrefix)) {
-                // Strip "<psr4Root>\<pluginName>\"
-                $relative = substr($prov, strlen($nsPrefix));
-            }
-            $relative = ltrim($relative, '\\/');
+            // Normalize (in case someone passes "\Vendor\Plugin\Foo")
+            $provNorm = ltrim($prov, '\\/');
 
-            $path = $pluginDir . DIRECTORY_SEPARATOR
+            // If it's under the plugin PSR-4 namespace, strip it using replace (prefix-guarded)
+            $relative = $provNorm;
+            $baseDir = $pluginDir;
+
+            if (str_starts_with($provNorm, $nsPrefix)) {
+                $relative = str_replace($nsPrefix, '', $provNorm); // safe because starts_with guarded
+                $baseDir = $pluginDir . DIRECTORY_SEPARATOR . 'src';
+            }
+
+            $relative = trim($relative, '\\/');
+
+            $path = $baseDir . DIRECTORY_SEPARATOR
                 . str_replace('\\', DIRECTORY_SEPARATOR, $relative) . '.php';
 
             $fileMap[$prov] = $path;
@@ -120,7 +127,7 @@ final readonly class ProviderValidationSection
                 $missing[] = $prov;
             }
         }
-
+        
         // Persist results
         $doc = [
             'declared' => count($providers),
