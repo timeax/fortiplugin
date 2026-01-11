@@ -274,6 +274,7 @@ final readonly class Installer
                 ]);
 
                 $cfg = $this->afs->fs()->readJson($configPath);
+                $rawConfig = $cfg;
 
                 $emitInstaller([
                     'event' => 'PLUGIN_CONFIG_READ_OK',
@@ -669,7 +670,7 @@ final readonly class Installer
             try {
                 $this->ingestSection->ingestSettings(
                     pluginId: $pluginId,
-                    pluginConfig: $cfg,
+                    pluginConfig: $rawConfig ?? [],
                     runId: $runId,
                     zipId: $zipId,
                     emitInstaller: $emitInstaller
