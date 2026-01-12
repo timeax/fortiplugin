@@ -17,17 +17,8 @@ class FileIo extends FileIoUtility
      */
     public function get(string $path, ?string $disk = null): ?string
     {
-        $request = new FileRequest(
-            action: 'read',
-            path: $path
-        );
-        $this->checkModulePermission($request);
-
-        $disk = $disk ?: $this->forcedDisk ?: 'local';
-
-        if (!$this->isPathAllowed($path, $disk)) {
-            return null;
-        }
+        $disk = $this->check('read', $path, $disk);
+        if (!$disk) return null;
 
         if (!Storage::disk($disk)->exists($path)) {
             return null;
@@ -41,19 +32,8 @@ class FileIo extends FileIoUtility
      */
     public function put(string $path, string $contents, ?string $disk = null): bool
     {
-        $disk = $disk ?: $this->forcedDisk ?: 'local';
-
-        if (!$this->isPathAllowed($path, $disk)) {
-            return false;
-        }
-
-        $absPath = realpath(dirname(Storage::disk($disk)->path($path))) ?: Storage::disk($disk)->path($path);
-        
-        $request = new FileRequest(
-            action: 'write',
-            path: $absPath
-        );
-        $this->checkModulePermission($request);
+        $disk = $this->check('write', $path, $disk, true);
+        if (!$disk) return false;
 
         return Storage::disk($disk)->put($path, $contents);
     }
@@ -63,19 +43,8 @@ class FileIo extends FileIoUtility
      */
     public function append(string $path, string $data, ?string $disk = null): bool
     {
-        $disk = $disk ?: $this->forcedDisk ?: 'local';
-
-        if (!$this->isPathAllowed($path, $disk)) {
-            return false;
-        }
-
-        $absPath = realpath(dirname(Storage::disk($disk)->path($path))) ?: Storage::disk($disk)->path($path);
-        
-        $request = new FileRequest(
-            action: 'write', // Append is a write operation
-            path: $absPath
-        );
-        $this->checkModulePermission($request);
+        $disk = $this->check('write', $path, $disk, true);
+        if (!$disk) return false;
 
         return Storage::disk($disk)->append($path, $data);
     }
@@ -85,19 +54,8 @@ class FileIo extends FileIoUtility
      */
     public function prepend(string $path, string $data, ?string $disk = null): bool
     {
-        $disk = $disk ?: $this->forcedDisk ?: 'local';
-
-        if (!$this->isPathAllowed($path, $disk)) {
-            return false;
-        }
-
-        $absPath = realpath(dirname(Storage::disk($disk)->path($path))) ?: Storage::disk($disk)->path($path);
-        
-        $request = new FileRequest(
-            action: 'write', // Prepend is a write operation
-            path: $absPath
-        );
-        $this->checkModulePermission($request);
+        $disk = $this->check('write', $path, $disk, true);
+        if (!$disk) return false;
 
         return Storage::disk($disk)->prepend($path, $data);
     }
@@ -113,7 +71,6 @@ class FileIo extends FileIoUtility
             return false;
         }
 
-        // Existence check doesn't require explicit permission, just path sandboxing.
         return Storage::disk($disk)->exists($path);
     }
 
@@ -161,27 +118,17 @@ class FileIo extends FileIoUtility
         return $absPath && is_dir($absPath);
     }
 
-    private function prepareCopy(string $from, string $to, ?string $disk = null): void
+    private function prepareCopy(string $from, string $to, ?string $disk = null): ?string
     {
         $disk = $disk ?: $this->forcedDisk ?: 'local';
-        if (!$this->isPathAllowed($from, $disk) || !$this->isPathAllowed($to, $disk)) {
-            return;
-        }
+        
+        // Check read on source
+        if (!$this->check('read', $from, $disk)) return null;
+        
+        // Check write on dest (parent)
+        if (!$this->check('write', $to, $disk, true)) return null;
 
-        $absFrom = realpath(Storage::disk($disk)->path($from));
-        $absTo = realpath(dirname(Storage::disk($disk)->path($to))) ?: Storage::disk($disk)->path($to);
-
-        $readRequest = new FileRequest(
-            action: 'read',
-            path: $absFrom
-        );
-        $this->checkModulePermission($readRequest);
-
-        $writeRequest = new FileRequest(
-            action: 'write',
-            path: $absTo
-        );
-        $this->checkModulePermission($writeRequest);
+        return $disk;
     }
 
     /**
@@ -189,7 +136,9 @@ class FileIo extends FileIoUtility
      */
     public function copy(string $from, string $to, ?string $disk = null): bool
     {
-        $this->prepareCopy($from, $to, $disk);
+        $disk = $this->prepareCopy($from, $to, $disk);
+        if (!$disk) return false;
+        
         return Storage::disk($disk)->copy($from, $to);
     }
 
@@ -198,7 +147,9 @@ class FileIo extends FileIoUtility
      */
     public function move(string $from, string $to, ?string $disk = null): bool
     {
-        $this->prepareCopy($from, $to, $disk);
+        $disk = $this->prepareCopy($from, $to, $disk);
+        if (!$disk) return false;
+
         return Storage::disk($disk)->move($from, $to);
     }
 
@@ -211,16 +162,9 @@ class FileIo extends FileIoUtility
         $paths = (array)$paths;
 
         foreach ($paths as $path) {
-            if (!$this->isPathAllowed($path, $disk)) {
+            if (!$this->check('write', $path, $disk)) {
                 return false;
             }
-            $absPath = realpath(Storage::disk($disk)->path($path));
-            
-            $request = new FileRequest(
-                action: 'write', // Delete is a write operation
-                path: $absPath
-            );
-            $this->checkModulePermission($request);
         }
 
         return Storage::disk($disk)->delete($paths);
@@ -231,20 +175,10 @@ class FileIo extends FileIoUtility
      */
     public function chmod(string $path, int $mode, ?string $disk = null): bool
     {
-        $disk = $disk ?: $this->forcedDisk ?: 'local';
-
-        if (!$this->isPathAllowed($path, $disk)) {
-            return false;
-        }
+        $disk = $this->check('write', $path, $disk);
+        if (!$disk) return false;
 
         $absPath = realpath(Storage::disk($disk)->path($path));
-        
-        $request = new FileRequest(
-            action: 'write', // chmod is a write operation
-            path: $absPath
-        );
-        $this->checkModulePermission($request);
-
         return $absPath && chmod($absPath, $mode);
     }
 
@@ -253,19 +187,8 @@ class FileIo extends FileIoUtility
      */
     public function files(string $directory = '', ?string $disk = null): array
     {
-        $disk = $disk ?: $this->forcedDisk ?: 'local';
-
-        if (!$this->isPathAllowed($directory, $disk)) {
-            return [];
-        }
-
-        $absDir = realpath(Storage::disk($disk)->path($directory));
-        
-        $request = new FileRequest(
-            action: 'read',
-            path: $absDir
-        );
-        $this->checkModulePermission($request);
+        $disk = $this->check('read', $directory, $disk);
+        if (!$disk) return [];
 
         return Storage::disk($disk)->files($directory);
     }
@@ -275,19 +198,8 @@ class FileIo extends FileIoUtility
      */
     public function allFiles(string $directory = '', ?string $disk = null): array
     {
-        $disk = $disk ?: $this->forcedDisk ?: 'local';
-
-        if (!$this->isPathAllowed($directory, $disk)) {
-            return [];
-        }
-
-        $absDir = realpath(Storage::disk($disk)->path($directory));
-        
-        $request = new FileRequest(
-            action: 'read',
-            path: $absDir
-        );
-        $this->checkModulePermission($request);
+        $disk = $this->check('read', $directory, $disk);
+        if (!$disk) return [];
 
         return Storage::disk($disk)->allFiles($directory);
     }
@@ -297,19 +209,8 @@ class FileIo extends FileIoUtility
      */
     public function directories(string $directory = '', ?string $disk = null): array
     {
-        $disk = $disk ?: $this->forcedDisk ?: 'local';
-
-        if (!$this->isPathAllowed($directory, $disk)) {
-            return [];
-        }
-
-        $absDir = realpath(Storage::disk($disk)->path($directory));
-        
-        $request = new FileRequest(
-            action: 'read',
-            path: $absDir
-        );
-        $this->checkModulePermission($request);
+        $disk = $this->check('read', $directory, $disk);
+        if (!$disk) return [];
 
         return Storage::disk($disk)->directories($directory);
     }
@@ -319,19 +220,8 @@ class FileIo extends FileIoUtility
      */
     public function makeDirectory(string $path, ?string $disk = null): bool
     {
-        $disk = $disk ?: $this->forcedDisk ?: 'local';
-
-        if (!$this->isPathAllowed($path, $disk)) {
-            return false;
-        }
-
-        $absPath = realpath(dirname(Storage::disk($disk)->path($path))) ?: Storage::disk($disk)->path($path);
-        
-        $request = new FileRequest(
-            action: 'write',
-            path: $absPath
-        );
-        $this->checkModulePermission($request);
+        $disk = $this->check('write', $path, $disk, true);
+        if (!$disk) return false;
 
         return Storage::disk($disk)->makeDirectory($path);
     }
@@ -341,19 +231,8 @@ class FileIo extends FileIoUtility
      */
     public function deleteDirectory(string $directory, ?string $disk = null): bool
     {
-        $disk = $disk ?: $this->forcedDisk ?: 'local';
-
-        if (!$this->isPathAllowed($directory, $disk)) {
-            return false;
-        }
-
-        $absDir = realpath(Storage::disk($disk)->path($directory));
-        
-        $request = new FileRequest(
-            action: 'write',
-            path: $absDir
-        );
-        $this->checkModulePermission($request);
+        $disk = $this->check('write', $directory, $disk);
+        if (!$disk) return false;
 
         return Storage::disk($disk)->deleteDirectory($directory);
     }
@@ -363,19 +242,8 @@ class FileIo extends FileIoUtility
      */
     public function size(string $path, ?string $disk = null): int|false
     {
-        $disk = $disk ?: $this->forcedDisk ?: 'local';
-
-        if (!$this->isPathAllowed($path, $disk)) {
-            return false;
-        }
-
-        $absPath = realpath(Storage::disk($disk)->path($path));
-        
-        $request = new FileRequest(
-            action: 'read',
-            path: $absPath
-        );
-        $this->checkModulePermission($request);
+        $disk = $this->check('read', $path, $disk);
+        if (!$disk) return false;
 
         return Storage::disk($disk)->size($path);
     }
@@ -385,19 +253,8 @@ class FileIo extends FileIoUtility
      */
     public function lastModified(string $path, ?string $disk = null): int|false
     {
-        $disk = $disk ?: $this->forcedDisk ?: 'local';
-
-        if (!$this->isPathAllowed($path, $disk)) {
-            return false;
-        }
-
-        $absPath = realpath(Storage::disk($disk)->path($path));
-        
-        $request = new FileRequest(
-            action: 'read',
-            path: $absPath
-        );
-        $this->checkModulePermission($request);
+        $disk = $this->check('read', $path, $disk);
+        if (!$disk) return false;
 
         return Storage::disk($disk)->lastModified($path);
     }
@@ -407,19 +264,8 @@ class FileIo extends FileIoUtility
      */
     public function mimeType(string $path, ?string $disk = null): string|false
     {
-        $disk = $disk ?: $this->forcedDisk ?: 'local';
-
-        if (!$this->isPathAllowed($path, $disk)) {
-            return false;
-        }
-
-        $absPath = realpath(Storage::disk($disk)->path($path));
-        
-        $request = new FileRequest(
-            action: 'read',
-            path: $absPath
-        );
-        $this->checkModulePermission($request);
+        $disk = $this->check('read', $path, $disk);
+        if (!$disk) return false;
 
         return Storage::disk($disk)->mimeType($path);
     }
@@ -460,19 +306,8 @@ class FileIo extends FileIoUtility
      */
     public function url(string $path, ?string $disk = null): string
     {
-        $disk = $disk ?: $this->forcedDisk ?: 'local';
-
-        if (!$this->isPathAllowed($path, $disk)) {
-            return '';
-        }
-
-        $absPath = realpath(Storage::disk($disk)->path($path));
-        
-        $request = new FileRequest(
-            action: 'read',
-            path: $absPath
-        );
-        $this->checkModulePermission($request);
+        $disk = $this->check('read', $path, $disk);
+        if (!$disk) return '';
 
         return Storage::disk($disk)->url($path);
     }
@@ -482,19 +317,8 @@ class FileIo extends FileIoUtility
      */
     public function temporaryUrl(string $path, $expiration, ?string $disk = null): string
     {
-        $disk = $disk ?: $this->forcedDisk ?: 'local';
-
-        if (!$this->isPathAllowed($path, $disk)) {
-            return '';
-        }
-
-        $absPath = realpath(Storage::disk($disk)->path($path));
-        
-        $request = new FileRequest(
-            action: 'read',
-            path: $absPath
-        );
-        $this->checkModulePermission($request);
+        $disk = $this->check('read', $path, $disk);
+        if (!$disk) return '';
 
         return Storage::disk($disk)->temporaryUrl($path, $expiration);
     }
@@ -521,19 +345,8 @@ class FileIo extends FileIoUtility
      */
     public function readStream(string $path, ?string $disk = null)
     {
-        $disk = $disk ?: $this->forcedDisk ?: 'local';
-
-        if (!$this->isPathAllowed($path, $disk)) {
-            return false;
-        }
-
-        $absPath = realpath(Storage::disk($disk)->path($path));
-        
-        $request = new FileRequest(
-            action: 'read',
-            path: $absPath
-        );
-        $this->checkModulePermission($request);
+        $disk = $this->check('read', $path, $disk);
+        if (!$disk) return false;
 
         return Storage::disk($disk)->readStream($path);
     }
@@ -543,19 +356,8 @@ class FileIo extends FileIoUtility
      */
     public function writeStream(string $path, $resource, ?string $disk = null): bool
     {
-        $disk = $disk ?: $this->forcedDisk ?: 'local';
-
-        if (!$this->isPathAllowed($path, $disk)) {
-            return false;
-        }
-
-        $absPath = realpath(dirname(Storage::disk($disk)->path($path))) ?: Storage::disk($disk)->path($path);
-        
-        $request = new FileRequest(
-            action: 'write',
-            path: $absPath
-        );
-        $this->checkModulePermission($request);
+        $disk = $this->check('write', $path, $disk, true);
+        if (!$disk) return false;
 
         return Storage::disk($disk)->writeStream($path, $resource);
     }
@@ -567,9 +369,37 @@ class FileIo extends FileIoUtility
 
     public function disk(string $name): static
     {
+        return new self(["forcedDisk" => $name]);
+    }
 
-        return new self([
-            "forcedDisk" => $name
-        ]);
+    /**
+     * Helper to validate path and check permission.
+     *
+     * @param string $action
+     * @param string $path
+     * @param string|null $disk
+     * @param bool $parent If true, checks permission on the parent directory (for creating files).
+     * @return string|null The resolved disk name if allowed, null otherwise.
+     */
+    private function check(string $action, string $path, ?string $disk, bool $parent = false): ?string
+    {
+        $disk = $disk ?: $this->forcedDisk ?: 'local';
+
+        if (!$this->isPathAllowed($path, $disk)) {
+            return null;
+        }
+
+        $fullPath = Storage::disk($disk)->path($path);
+        $absPath = $parent
+            ? (realpath(dirname($fullPath)) ?: $fullPath)
+            : (realpath($fullPath) ?: $fullPath);
+
+        $this->checkModulePermission(new FileRequest(
+            action: $action,
+            baseDir: $disk,
+            path: (string)$absPath
+        ));
+
+        return $disk;
     }
 }

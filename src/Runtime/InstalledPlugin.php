@@ -200,7 +200,7 @@ final readonly class InstalledPlugin
             pluginVersionId: $this->plugin->active_version_id,
             zipPlaceholderId: $this->plugin->plugin_placeholder_id,
             runId: $process->run_id,
-            actor: $id
+            actor: (string)$id
         );
 
         return $process->id;
