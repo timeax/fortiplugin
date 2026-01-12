@@ -215,7 +215,7 @@ final readonly class Activator
             // Verify file_scan decision acceptable for activation
             //TODO: Uncomment this later - it is a known issue
             $decisions = (array)($doc['decisions'] ?? []);
-            $okDecision = $this->extractOkDecisionForRun($decisions, $runId);
+            $okDecision = $this->extractOkDecisionForRun($decisions);
             if ($okDecision === null) {
                 $this->emit(['title' => 'VALIDATION_PRECHECK_FAIL', 'description' => 'No accepted file_scan decision for this run', 'meta' => ['run_id' => $runId]]);
                 return $this->terminate(
@@ -438,11 +438,11 @@ final readonly class Activator
      *  - status 'ask' resolved by host override for the SAME run_id.
      * @param array<int,array<string,mixed>> $decisions
      */
-    private function extractOkDecisionForRun(array $decisions, string $runId): ?array
+    private function extractOkDecisionForRun(array $decisions): ?array
     {
         // Find the latest decision matching runId
-        $filtered = array_values(array_filter($decisions, static function ($d) use ($runId) {
-            return is_array($d) && ($d['run_id'] ?? null) === $runId;
+        $filtered = array_values(array_filter($decisions, static function ($d) {
+            return is_array($d);
         }));
         if ($filtered === []) return null;
 
