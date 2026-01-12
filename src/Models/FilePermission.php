@@ -18,7 +18,7 @@ class FilePermission extends Model
 {
 	protected $table = "scpl_file_permissions";
 
-	protected $fillable = ["natural_key", "base_dir", "paths"];
+	protected $fillable = ["natural_key", "base_dir", "paths", "permissions"];
 
 	protected $guarded = [
 		"id",

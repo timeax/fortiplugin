@@ -22,6 +22,7 @@ class NotificationPermission extends Model
 	protected $fillable = [
 		"natural_key",
 		"channel",
+		"permissions",
 		"templates_allowed",
 		"recipients_allowed",
 	];

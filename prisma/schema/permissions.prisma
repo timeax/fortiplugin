@@ -134,7 +134,7 @@ model PluginPermission {
 
 /// DB — actions: select, insert, update, delete, truncate, grouped_queries
 ///@guarded:id,permissions,natural_key
-///@fillable:natural_key,model,table,readable_columns,writable_columns,limited,limit_type,limit_value
+///@fillable:natural_key,model,table,readable_columns,writable_columns,limited,limit_type,limit_value,permissions
 model DbPermission {
   id BigInt @id @default(autoincrement()) @db.BigInt
 
@@ -158,7 +158,7 @@ model DbPermission {
 
 /// FILE — actions: read, write, append, delete, mkdir, rmdir, list
 ///@guarded:id,permissions,natural_key
-///@fillable:natural_key,base_dir,paths,limited,limit_type,limit_value
+///@fillable:natural_key,base_dir,paths,limited,limit_type,limit_value,permissions
 model FilePermission {
   id BigInt @id @default(autoincrement()) @db.BigInt
 
@@ -179,7 +179,7 @@ model FilePermission {
 
 /// NOTIFY — actions: send, receive
 ///@guarded:id,permissions,natural_key
-///@fillable:natural_key,channel,templates_allowed,recipients_allowed,limited,limit_type,limit_value
+///@fillable:natural_key,channel,templates_allowed,recipients_allowed,limited,limit_type,limit_value,permissions
 model NotificationPermission {
   id BigInt @id @default(autoincrement()) @db.BigInt
 

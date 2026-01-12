@@ -25,6 +25,7 @@ class DbPermission extends Model
 		"natural_key",
 		"model",
 		"table",
+		"permissions",
 		"readable_columns",
 		"writable_columns",
 	];

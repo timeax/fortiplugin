@@ -4,7 +4,16 @@
     <option name="autoReloadType" value="SELECTIVE" />
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="eaf4cbc6-d298-4694-b042-183ced7c77f7" name="Changes" comment="" />
+    <list default="true" id="eaf4cbc6-d298-4694-b042-183ced7c77f7" name="Changes" comment="">
+      <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/.prisma-laravel/backups/src/Models/DbPermission.php.bak" beforeDir="false" afterPath="$PROJECT_DIR$/.prisma-laravel/backups/src/Models/DbPermission.php.bak" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/.prisma-laravel/backups/src/Models/FilePermission.php.bak" beforeDir="false" afterPath="$PROJECT_DIR$/.prisma-laravel/backups/src/Models/FilePermission.php.bak" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/.prisma-laravel/backups/src/Models/NotificationPermission.php.bak" beforeDir="false" afterPath="$PROJECT_DIR$/.prisma-laravel/backups/src/Models/NotificationPermission.php.bak" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/prisma/schema/permissions.prisma" beforeDir="false" afterPath="$PROJECT_DIR$/prisma/schema/permissions.prisma" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/Models/DbPermission.php" beforeDir="false" afterPath="$PROJECT_DIR$/src/Models/DbPermission.php" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/Models/FilePermission.php" beforeDir="false" afterPath="$PROJECT_DIR$/src/Models/FilePermission.php" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/Models/NotificationPermission.php" beforeDir="false" afterPath="$PROJECT_DIR$/src/Models/NotificationPermission.php" afterDir="false" />
+    </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
     <option name="HIGHLIGHT_NON_ACTIVE_CHANGELIST" value="false" />
@@ -375,6 +384,7 @@
       <workItem from="1768081238194" duration="5188000" />
       <workItem from="1768169801613" duration="17438000" />
       <workItem from="1768199605284" duration="1291000" />
+      <workItem from="1768211107788" duration="511000" />
     </task>
     <servers />
   </component>
