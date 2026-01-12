@@ -197,7 +197,7 @@ final readonly class InstalledPlugin
         ]);
 
         ActivatePluginVersionJob::dispatch(
-            pluginVersionId: $this->plugin->active_version_id,
+            pluginVersionId: $this->plugin->plugin_versions()->latest()->firstOrFail()->id,
             zipPlaceholderId: $this->plugin->plugin_placeholder_id,
             runId: $process->run_id,
             actor: (string)$id
