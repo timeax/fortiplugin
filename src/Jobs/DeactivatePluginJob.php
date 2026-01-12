@@ -10,15 +10,14 @@ use Illuminate\Foundation\Bus\Dispatchable;
 use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\SerializesModels;
 use JsonException;
-use Random\RandomException;
 use RuntimeException;
 use Throwable;
 use Timeax\FortiPlugin\Enums\ProcessStatus;
-use Timeax\FortiPlugin\Installations\Lifecycle\Activation\Activator;
+use Timeax\FortiPlugin\Installations\Lifecycle\Deactivation\Deactivator;
+use Timeax\FortiPlugin\Models\Plugin;
 use Timeax\FortiPlugin\Models\PluginProcess;
-use Timeax\FortiPlugin\Models\PluginVersion;
 
-final class ActivatePluginVersionJob implements ShouldQueue
+final class DeactivatePluginJob implements ShouldQueue
 {
     use Dispatchable, InteractsWithQueue, Queueable, SerializesModels;
 
@@ -26,8 +25,7 @@ final class ActivatePluginVersionJob implements ShouldQueue
     public int $timeout = 1800;
 
     public function __construct(
-        public readonly int        $pluginVersionId,
-        public readonly int        $zipPlaceholderId,
+        public readonly int        $pluginId,
         public readonly string     $runId,
         public readonly int|string $actor,
     )
@@ -36,29 +34,18 @@ final class ActivatePluginVersionJob implements ShouldQueue
 
     /**
      * @throws Throwable
-     * @throws RandomException
      * @throws JsonException
      */
-    public function handle(Activator $activator): void
+    public function handle(Deactivator $deactivator): void
     {
-        $version = PluginVersion::query()
-            ->with('plugin.placeholder')
-            ->findOrFail($this->pluginVersionId);
-
-        $plugin = $version->plugin;
-
-        if ((int)$plugin->plugin_placeholder_id !== $this->zipPlaceholderId) {
-            throw new RuntimeException('ZIP_PLUGIN_MISMATCH');
-        }
+        $plugin = Plugin::query()->findOrFail($this->pluginId);
 
         $installDir = base_path($plugin->plugin_path);
 
-
-        $result = $activator->run(
+        $result = $deactivator->run(
             plugin: $plugin,
-            versionId: $version->id,
             installedPluginRoot: $installDir,
-            actor: $this->actor,
+            actor: (string)$this->actor,
             runId: $this->runId
         );
 
@@ -73,7 +60,7 @@ final class ActivatePluginVersionJob implements ShouldQueue
         if ($process->isDirty()) $process->save();
 
         cache()->put(
-            "fortiplugin:activate:$this->runId",
+            "fortiplugin:deactivate:{$this->runId}",
             $this->normalizeResult($result),
             now()->addDay()
         );
@@ -84,6 +71,13 @@ final class ActivatePluginVersionJob implements ShouldQueue
         if (is_array($result)) return $result;
         if (is_object($result) && method_exists($result, 'toArray')) {
             return (array)$result->toArray();
+        }
+        // DeactivationResult has public properties status and data, but no toArray()
+        if (is_object($result) && property_exists($result, 'status') && property_exists($result, 'data')) {
+            return [
+                'status' => $result->status,
+                'data' => $result->data,
+            ];
         }
         return is_object($result) ? get_object_vars($result) : ['value' => $result];
     }

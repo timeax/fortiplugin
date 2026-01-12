@@ -1,8 +1,10 @@
 <?php
+/** @noinspection GrazieInspection */
 declare(strict_types=1);
 
 namespace Timeax\FortiPlugin\Autoload;
 
+use Random\RandomException;
 use RuntimeException;
 
 final class Psr4RegistryStore
@@ -35,6 +37,7 @@ final class Psr4RegistryStore
      * This guarantees the subsequent rename() is atomic.
      *
      * @return string temp file path
+     * @throws RandomException
      */
     public function stage(array $registry): string
     {
@@ -53,7 +56,7 @@ final class Psr4RegistryStore
 
         $bytes = @file_put_contents($tmpPath, $payload, LOCK_EX);
         if ($bytes === false) {
-            throw new RuntimeException("Failed to write staged registry file: {$tmpPath}");
+            throw new RuntimeException("Failed to write staged registry file: $tmpPath");
         }
 
         return $tmpPath;
@@ -78,7 +81,7 @@ final class Psr4RegistryStore
             if (!@rename($final, $bak)) {
                 // If we can’t backup, we must not proceed
                 @unlink($tmpPath);
-                throw new RuntimeException("Failed to backup registry file: {$final} -> {$bak}");
+                throw new RuntimeException("Failed to backup registry file: $final -> $bak");
             }
         }
 
@@ -89,7 +92,7 @@ final class Psr4RegistryStore
                 @rename($bak, $final);
             }
             @unlink($tmpPath);
-            throw new RuntimeException("Failed to commit registry file from {$tmpPath} to {$final}");
+            throw new RuntimeException("Failed to commit registry file from $tmpPath to $final");
         }
     }
 
@@ -143,7 +146,7 @@ final class Psr4RegistryStore
         }
 
         if (!@mkdir($dir, 0755, true) && !is_dir($dir)) {
-            throw new RuntimeException("Cannot create directory: {$dir}");
+            throw new RuntimeException("Cannot create directory: $dir");
         }
     }
 

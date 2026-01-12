@@ -4,6 +4,8 @@ declare(strict_types=1);
 namespace Timeax\FortiPlugin\Autoload;
 
 use Illuminate\Support\Str;
+use JsonException;
+use Random\RandomException;
 use Timeax\FortiPlugin\Installations\Contracts\RegistryWriter;
 use Timeax\FortiPlugin\Models\Plugin;
 
@@ -21,6 +23,8 @@ final readonly class Psr4RegistryWriter implements RegistryWriter
      *
      * Writes to bootstrap/fortiplugin.autoload_psr4.php (configurable),
      * without touching host composer.json and without dump-autoload.
+     * @throws JsonException
+     * @throws RandomException
      */
     public function stage(Plugin $plugin, int|string $versionId, string $installedPluginRoot): array
     {
@@ -79,6 +83,65 @@ final readonly class Psr4RegistryWriter implements RegistryWriter
                 'plugin_alias' => $alias,
                 'plugin_name' => $pluginName,
                 'prefixes' => array_keys($prefixes),
+            ],
+        ];
+    }
+
+    /**
+     * Deactivation-time PSR-4 registry update.
+     *
+     * Removes the plugin's PSR-4 prefixes from the registry by alias.
+     * @throws RandomException
+     */
+    public function stageRemove(Plugin $plugin): array
+    {
+        if (!config('fortiplugin.autoload_enabled', true)) {
+            return [
+                'commit' => static function (): void {},
+                'rollback' => static function (): void {},
+                'meta' => ['changed' => false, 'reason' => 'autoload_disabled'],
+            ];
+        }
+
+        $alias = $plugin->alias;
+
+        $registry = $this->store->read();
+        $registry['plugins'] ??= [];
+
+        if (!is_array($registry['plugins']) || !array_key_exists($alias, $registry['plugins'])) {
+            return [
+                'commit' => static function (): void {},
+                'rollback' => static function (): void {},
+                'meta' => [
+                    'changed' => false,
+                    'reason' => 'not_present',
+                    'plugin_alias' => $alias,
+                    'registry_path' => $this->store->registryPath(),
+                ],
+            ];
+        }
+
+        unset($registry['plugins'][$alias]);
+
+        $registry['generated_at'] = function_exists('now') ? now()->toIso8601String() : gmdate('c');
+
+        $finalPath = $this->store->registryPath();
+        $tmpPath = $this->store->stage($registry);
+
+        return [
+            'commit' => function () use ($tmpPath): void {
+                $this->store->commit($tmpPath);
+            },
+            'rollback' => static function () use ($tmpPath): void {
+                if (is_file($tmpPath)) {
+                    @unlink($tmpPath);
+                }
+            },
+            'meta' => [
+                'changed' => true,
+                'registry_path' => $finalPath,
+                'plugin_alias' => $alias,
+                'action' => 'removed',
             ],
         ];
     }

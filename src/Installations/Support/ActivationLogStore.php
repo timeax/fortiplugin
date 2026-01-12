@@ -5,8 +5,8 @@ namespace Timeax\FortiPlugin\Installations\Support;
 
 use JsonException;
 use RuntimeException;
-use Timeax\FortiPlugin\Installations\Activation\ActivationResult;
 use Timeax\FortiPlugin\Installations\Contracts\Filesystem;
+use Timeax\FortiPlugin\Installations\Lifecycle\Activation\ActivationResult;
 
 /**
  * Concrete activation.json store with atomic writes.

@@ -63,8 +63,8 @@ final class EloquentPluginRepository implements PluginRepository
      * - Stores InstallMeta under validation_report['install_meta'].
      * - Uses InstallMeta.paths['install'] (if present) as archive_url.
      *
-     * @param int        $pluginId
-     * @param string     $versionTag
+     * @param int $pluginId
+     * @param string $versionTag
      * @param InstallMeta $meta
      * @return int|null  PluginVersion primary key
      */
@@ -94,7 +94,7 @@ final class EloquentPluginRepository implements PluginRepository
      * Link a PluginZip to a PluginVersion.
      * Since there is no FK on PluginVersion schema, annotate validation_report.
      *
-     * @param int        $pluginVersionId
+     * @param int $pluginVersionId
      * @param int|string $zipId
      * @return void
      */
@@ -116,7 +116,7 @@ final class EloquentPluginRepository implements PluginRepository
     /**
      * Persist canonical plugin meta snapshot to Plugin.meta['install_meta'].
      *
-     * @param int        $pluginId
+     * @param int $pluginId
      * @param InstallMeta $meta
      * @return void
      */
@@ -137,8 +137,8 @@ final class EloquentPluginRepository implements PluginRepository
     /**
      * Persist the packages map (foreign/verified) under Plugin.meta['packages'].
      *
-     * @param int                           $pluginId
-     * @param array<string,PackageEntry>    $packages
+     * @param int $pluginId
+     * @param array<string,PackageEntry> $packages
      * @return void
      */
     public function savePackages(int $pluginId, array $packages): void
@@ -166,7 +166,7 @@ final class EloquentPluginRepository implements PluginRepository
     /**
      * Update Plugin.status (enum as string).
      *
-     * @param int    $pluginId
+     * @param int $pluginId
      * @param string $status
      * @return void
      */
@@ -188,7 +188,37 @@ final class EloquentPluginRepository implements PluginRepository
         if (!$plugin) {
             throw new RuntimeException("Plugin #$pluginId not found");
         }
-        $plugin->plugin_path = $path;
+
+        $plugin->plugin_path = $this->makePathRelativeToBasePath($path);
         $plugin->save();
+    }
+
+    private function makePathRelativeToBasePath(string $path): string
+    {
+        $path = trim($path);
+        if ($path === '') {
+            return '';
+        }
+
+        // Normalize slashes for comparison
+        $norm = static fn(string $p): string => rtrim(str_replace('\\', '/', $p), '/');
+        $p = $norm($path);
+        $base = $norm(base_path());
+
+        // Windows: compare case-insensitively
+        $cmpP = DIRECTORY_SEPARATOR === '\\' ? strtolower($p) : $p;
+        $cmpB = DIRECTORY_SEPARATOR === '\\' ? strtolower($base) : $base;
+
+        if ($cmpP === $cmpB) {
+            return '';
+        }
+
+        if (str_starts_with($cmpP, $cmpB . '/')) {
+            // Use forward slashes in DB for stability (you can swap to DIRECTORY_SEPARATOR if you prefer)
+            return ltrim(substr($p, strlen($base)), '/');
+        }
+
+        // Not under base_path; keep as-is
+        return $path;
     }
 }

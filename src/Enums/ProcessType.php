@@ -6,4 +6,5 @@ enum ProcessType: string
 {
 	case installer = "installer";
 	case activator = "activator";
+	case deactivator = "deactivator";
 }

@@ -16,7 +16,7 @@ return new class extends Migration {
 		) {
 			$table->id();
 			$table->bigInteger("source_id");
-			$table->enum("type", ["installer", "activator"]);
+			$table->enum("type", ["installer", "activator", "deactivator"]);
 			$table->enum("status", ["success", "failed", "pending"]);
 			$table->string("run_id")->unique();
 			$table->timestamps();

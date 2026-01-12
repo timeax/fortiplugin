@@ -1,20 +1,27 @@
 <?php
 declare(strict_types=1);
 
-namespace Timeax\FortiPlugin\Installations\Activation\Writers;
+namespace Timeax\FortiPlugin\Installations\Lifecycle\Writers;
 
-use Throwable;
 use Timeax\FortiPlugin\Installations\Contracts\RegistryWriter;
 use Timeax\FortiPlugin\Installations\InstallerPolicy;
+use Timeax\FortiPlugin\Installations\Lifecycle\Writers\Concerns\RegistryWriteHelpers;
 use Timeax\FortiPlugin\Installations\Support\AtomicFilesystem;
 use Timeax\FortiPlugin\Models\Plugin;
 
 final readonly class UiRegistryWriter implements RegistryWriter
 {
+    use RegistryWriteHelpers;
+
     public function __construct(
         private AtomicFilesystem $afs,
         private InstallerPolicy  $policy,
     ) {}
+
+    protected function afs(): AtomicFilesystem
+    {
+        return $this->afs;
+    }
 
     /**
      * Strategy:
@@ -41,6 +48,7 @@ final readonly class UiRegistryWriter implements RegistryWriter
         $doc = $fs->readJson($logPath);
         $ui = $doc['ui_validation'] ?? $doc['ui_config'] ?? null; // tolerate either key
         $accepted = is_array($ui) ? (int)($ui['accepted'] ?? 0) : 0;
+
         if ($accepted <= 0) {
             return [
                 'commit'   => static function (): void {},
@@ -49,28 +57,46 @@ final readonly class UiRegistryWriter implements RegistryWriter
             ];
         }
 
-        $registryPath = (string)(config('fortiplugin.ui.registry_path') ?? base_path('bootstrap/fortiplugin.ui.json'));
-        try {
-            $json = $fs->exists($registryPath) ? $fs->readJson($registryPath) : [];
-        } catch (Throwable) {
-            $json = [];
+        $registryPath = (string)(config('fortiplugin.ui.registry_path')
+            ?? base_path('bootstrap/fortiplugin.ui.json'));
+
+        // IMPORTANT: key by alias
+        $alias = $plugin->alias ?? '';
+        if ($alias === '') {
+            $alias = (string)($plugin->slug ?? $plugin->id);
         }
 
-        $slug = (string)($plugin->placeholder->slug ?? $plugin->slug ?? $plugin->id);
-        $json[$slug] = ['accepted' => $accepted, 'version_id' => $versionId];
-
-        $newJson = $json;
-
-        return [
-            'commit' => function () use ($registryPath, $newJson): void {
-                $this->afs->writeJsonAtomic($registryPath, $newJson, true);
+        return $this->stageJsonMutation(
+            $registryPath,
+            static function (array $prev) use ($alias, $accepted, $versionId): array {
+                $prev[$alias] = [
+                    'accepted'   => $accepted,
+                    'version_id' => $versionId,
+                ];
+                return $prev;
             },
-            'rollback' => static function (): void {},
-            'meta' => [
-                'changed'       => true,
-                'registry_path' => $registryPath,
-                'accepted'      => $accepted,
-            ],
-        ];
+            [
+                'plugin_alias' => $alias,
+                'accepted'     => $accepted,
+                'version_id'   => $versionId,
+            ]
+        );
+    }
+
+    /**
+     * Deactivation/uninstall helper:
+     *  - Remove the plugin alias key from the UI registry.
+     */
+    public function stageRemove(Plugin $plugin): array
+    {
+        $registryPath = (string)(config('fortiplugin.ui.registry_path')
+            ?? base_path('bootstrap/fortiplugin.ui.json'));
+
+        $alias = $plugin->alias ?? '';
+        if ($alias === '') {
+            $alias = (string)($plugin->slug ?? $plugin->id);
+        }
+
+        return $this->stageJsonRemoveKey($registryPath, $alias, ['plugin_alias' => $alias]);
     }
 }

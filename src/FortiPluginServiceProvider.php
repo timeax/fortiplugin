@@ -24,10 +24,6 @@ use Timeax\FortiPlugin\Console\Commands\RedirectPlugin;
 use Timeax\FortiPlugin\Console\Commands\ValidatePlugin;
 use Timeax\FortiPlugin\Core\Install\JsonRouteCompiler;
 use Timeax\FortiPlugin\Core\Install\RouteWriter;
-use Timeax\FortiPlugin\Installations\Activation\Activator;
-use Timeax\FortiPlugin\Installations\Activation\Writers\ProvidersRegistryWriter;
-use Timeax\FortiPlugin\Installations\Activation\Writers\RoutesRegistryWriter;
-use Timeax\FortiPlugin\Installations\Activation\Writers\UiRegistryWriter;
 use Timeax\FortiPlugin\Installations\Contracts\ActorResolver;
 use Timeax\FortiPlugin\Installations\Contracts\Filesystem as FsContract;
 use Timeax\FortiPlugin\Installations\Contracts\HostKeyService as TokenContract;
@@ -41,6 +37,11 @@ use Timeax\FortiPlugin\Installations\Infra\InMemoryZipRepository;
 use Timeax\FortiPlugin\Installations\Infra\LocalFilesystem;
 use Timeax\FortiPlugin\Installations\Installer;
 use Timeax\FortiPlugin\Installations\InstallerPolicy;
+use Timeax\FortiPlugin\Installations\Lifecycle\Activation\Activator;
+use Timeax\FortiPlugin\Installations\Lifecycle\Deactivation\Deactivator;
+use Timeax\FortiPlugin\Installations\Lifecycle\Writers\ProvidersRegistryWriter;
+use Timeax\FortiPlugin\Installations\Lifecycle\Writers\RoutesRegistryWriter;
+use Timeax\FortiPlugin\Installations\Lifecycle\Writers\UiRegistryWriter;
 use Timeax\FortiPlugin\Installations\Sections\ComposerPlanSection;
 use Timeax\FortiPlugin\Installations\Sections\DbPersistSection;
 use Timeax\FortiPlugin\Installations\Sections\FileScanSection;
@@ -58,6 +59,7 @@ use Timeax\FortiPlugin\Installations\Support\ActivationLogStore;
 use Timeax\FortiPlugin\Installations\Support\AtomicFilesystem;
 use Timeax\FortiPlugin\Installations\Support\BackgroundScanDispatcher;
 use Timeax\FortiPlugin\Installations\Support\ComposerInspector;
+use Timeax\FortiPlugin\Installations\Support\DeactivationLogStore;
 use Timeax\FortiPlugin\Installations\Support\DefaultActorResolver;
 use Timeax\FortiPlugin\Installations\Support\InstallationLogStore;
 use Timeax\FortiPlugin\Installations\Support\InstallerTokenManager;
@@ -70,6 +72,7 @@ use Timeax\FortiPlugin\Permissions\Bootstrap\FortiPermissions;
 use Timeax\FortiPlugin\Permissions\Contracts\PermissionServiceInterface;
 use Timeax\FortiPlugin\Permissions\Evaluation\PermissionService;
 use Timeax\FortiPlugin\Permissions\Manifest\ManifestValidator;
+use Timeax\FortiPlugin\Runtime\ActivatedPluginProviderLoader;
 use Timeax\FortiPlugin\Services\HostKeyService;
 use Timeax\FortiPlugin\Services\Plugins\PluginZipService;
 use Timeax\FortiPlugin\Services\PluginService;
@@ -107,6 +110,11 @@ class FortiPluginServiceProvider extends ServiceProvider
         $this->publishConfig();
         $this->publishMigrations();
         $this->registerRoutes();
+        $this->app->booted(function (): void {
+            app(PluginAutoloader::class)->register();
+            app(ActivatedPluginProviderLoader::class)->registerAll();
+        });
+
         FortiGateRegistrar::register();
 
         if ($this->app->runningInConsole()) {
@@ -229,6 +237,8 @@ class FortiPluginServiceProvider extends ServiceProvider
         $this->app->scoped(InstallationLogStore::class, fn($app) => new InstallationLogStore($app->make(AtomicFilesystem::class))
         );
         $this->app->scoped(ActivationLogStore::class, fn($app) => new ActivationLogStore($app->make(AtomicFilesystem::class))
+        );
+        $this->app->scoped(DeactivationLogStore::class, fn($app) => new DeactivationLogStore($app->make(AtomicFilesystem::class))
         );
 
         // ── Sections (scoped: they capture the run’s log store) ─────────────────
@@ -362,11 +372,12 @@ class FortiPluginServiceProvider extends ServiceProvider
             ingestSection: $app->make(IngestSection::class)
         ));
 
-        // ── Activation writers / activator ─────────────────────────────────────
+        // ── Lifecycle writers / orchestrators ──────────────────────────────────
         $this->app->singleton(RoutesRegistryWriter::class);
         $this->app->singleton(ProvidersRegistryWriter::class);
         $this->app->singleton(UiRegistryWriter::class);
         $this->app->scoped(Activator::class);
+        $this->app->scoped(Deactivator::class);
 
         // ── Plugin services ────────────────────────────────────────────────────
         $this->app->singleton(PluginService::class);

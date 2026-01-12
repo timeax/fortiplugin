@@ -5,14 +5,35 @@
   </component>
   <component name="ChangeListManager">
     <list default="true" id="eaf4cbc6-d298-4694-b042-183ced7c77f7" name="Changes" comment="">
+      <change afterPath="$PROJECT_DIR$/src/Installations/Lifecycle/Deactivation/DeactivationEvents.php" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/Installations/Lifecycle/Deactivation/DeactivationResult.php" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/Installations/Lifecycle/Deactivation/Deactivator.php" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/Installations/Lifecycle/Writers/Concerns/RegistryWriteHelpers.php" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/Installations/Support/DeactivationLogStore.php" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/Jobs/DeactivatePluginJob.php" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/Runtime/ActivatedPluginProviderLoader.php" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/.prisma-laravel/backups/src/Models/DbPermission.php.bak" beforeDir="false" afterPath="$PROJECT_DIR$/.prisma-laravel/backups/src/Models/DbPermission.php.bak" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/.prisma-laravel/backups/src/Models/FilePermission.php.bak" beforeDir="false" afterPath="$PROJECT_DIR$/.prisma-laravel/backups/src/Models/FilePermission.php.bak" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/.prisma-laravel/backups/src/Models/NotificationPermission.php.bak" beforeDir="false" afterPath="$PROJECT_DIR$/.prisma-laravel/backups/src/Models/NotificationPermission.php.bak" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/prisma/schema/permissions.prisma" beforeDir="false" afterPath="$PROJECT_DIR$/prisma/schema/permissions.prisma" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/Models/DbPermission.php" beforeDir="false" afterPath="$PROJECT_DIR$/src/Models/DbPermission.php" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/Models/FilePermission.php" beforeDir="false" afterPath="$PROJECT_DIR$/src/Models/FilePermission.php" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/Models/NotificationPermission.php" beforeDir="false" afterPath="$PROJECT_DIR$/src/Models/NotificationPermission.php" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/composer.json" beforeDir="false" afterPath="$PROJECT_DIR$/composer.json" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/database/migrations/2026_01_09_081441_04_create_scpl_plugin_process_table.php" beforeDir="false" afterPath="$PROJECT_DIR$/database/migrations/2026_01_09_081441_04_create_scpl_plugin_process_table.php" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/prisma/schema.prisma" beforeDir="false" afterPath="$PROJECT_DIR$/prisma/schema.prisma" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/Autoload/PluginAutoloadMapBuilder.php" beforeDir="false" afterPath="$PROJECT_DIR$/src/Autoload/PluginAutoloadMapBuilder.php" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/Autoload/PluginAutoloader.php" beforeDir="false" afterPath="$PROJECT_DIR$/src/Autoload/PluginAutoloader.php" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/Autoload/Psr4RegistryStore.php" beforeDir="false" afterPath="$PROJECT_DIR$/src/Autoload/Psr4RegistryStore.php" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/Autoload/Psr4RegistryWriter.php" beforeDir="false" afterPath="$PROJECT_DIR$/src/Autoload/Psr4RegistryWriter.php" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/Enums/ProcessType.php" beforeDir="false" afterPath="$PROJECT_DIR$/src/Enums/ProcessType.php" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/FortiPluginServiceProvider.php" beforeDir="false" afterPath="$PROJECT_DIR$/src/FortiPluginServiceProvider.php" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/Installations/Activation/ActivationEvents.php" beforeDir="false" afterPath="$PROJECT_DIR$/src/Installations/Lifecycle/Activation/ActivationEvents.php" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/Installations/Activation/ActivationResult.php" beforeDir="false" afterPath="$PROJECT_DIR$/src/Installations/Lifecycle/Activation/ActivationResult.php" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/Installations/Activation/Activator.php" beforeDir="false" afterPath="$PROJECT_DIR$/src/Installations/Lifecycle/Activation/Activator.php" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/Installations/Activation/Writers/ProvidersRegistryWriter.php" beforeDir="false" afterPath="$PROJECT_DIR$/src/Installations/Lifecycle/Writers/ProvidersRegistryWriter.php" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/Installations/Activation/Writers/RoutesRegistryWriter.php" beforeDir="false" afterPath="$PROJECT_DIR$/src/Installations/Lifecycle/Writers/RoutesRegistryWriter.php" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/Installations/Activation/Writers/UiRegistryWriter.php" beforeDir="false" afterPath="$PROJECT_DIR$/src/Installations/Lifecycle/Writers/UiRegistryWriter.php" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/Installations/Infra/EloquentPluginRepository.php" beforeDir="false" afterPath="$PROJECT_DIR$/src/Installations/Infra/EloquentPluginRepository.php" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/Installations/InstallerPolicy.php" beforeDir="false" afterPath="$PROJECT_DIR$/src/Installations/InstallerPolicy.php" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/Installations/Support/ActivationLogStore.php" beforeDir="false" afterPath="$PROJECT_DIR$/src/Installations/Support/ActivationLogStore.php" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/Jobs/ActivatePluginVersionJob.php" beforeDir="false" afterPath="$PROJECT_DIR$/src/Jobs/ActivatePluginVersionJob.php" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/Runtime/InstalledPlugin.php" beforeDir="false" afterPath="$PROJECT_DIR$/src/Runtime/InstalledPlugin.php" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/Services/Plugins/PluginInstallLocator.php" beforeDir="false" afterPath="$PROJECT_DIR$/src/Services/Plugins/PluginInstallLocator.php" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -26,7 +47,7 @@
     </execution>
   </component>
   <component name="EmbeddingIndexingInfo">
-    <option name="cachedIndexableFilesCount" value="9375" />
+    <option name="cachedIndexableFilesCount" value="9383" />
     <option name="fileBasedEmbeddingIndicesEnabled" value="true" />
   </component>
   <component name="FileTemplateManagerImpl">
@@ -274,8 +295,11 @@
   }
 }</component>
   <component name="RecapSpentCounter">
-    <option name="endsOfQuotaMs" value="1768672711677" />
-    <option name="spentUsd" value="0.1539741" />
+    <option name="endsOfQuotaMs" value="1769140888491" />
+    <option name="spentUsd" value="0.03852455" />
+  </component>
+  <component name="RecapUselessUpdatesCounter">
+    <option name="suspendCountdown" value="9" />
   </component>
   <component name="RecentsManager">
     <key name="CopyFile.RECENT_KEYS">
@@ -385,6 +409,7 @@
       <workItem from="1768169801613" duration="17438000" />
       <workItem from="1768199605284" duration="1291000" />
       <workItem from="1768211107788" duration="511000" />
+      <workItem from="1768240721128" duration="6857000" />
     </task>
     <servers />
   </component>

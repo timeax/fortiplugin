@@ -1,7 +1,7 @@
 <?php
 declare(strict_types=1);
 
-namespace Timeax\FortiPlugin\Installations\Activation;
+namespace Timeax\FortiPlugin\Installations\Lifecycle\Activation;
 
 /**
  * Machine-stable dotted event keys for the activation package.

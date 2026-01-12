@@ -1,9 +1,9 @@
 <?php
 declare(strict_types=1);
 
-namespace Timeax\FortiPlugin\Installations\Activation;
+namespace Timeax\FortiPlugin\Installations\Lifecycle\Deactivation;
 
-final class ActivationResult
+final class DeactivationResult
 {
     /** @var 'ok'|'fail' */
     public string $status;

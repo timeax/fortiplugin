@@ -1,7 +1,7 @@
 <?php
 declare(strict_types=1);
 
-namespace Timeax\FortiPlugin\Installations\Activation;
+namespace Timeax\FortiPlugin\Installations\Lifecycle\Activation;
 
 use Artisan;
 use Illuminate\Support\Facades\DB;
@@ -11,10 +11,10 @@ use Throwable;
 use Timeax\FortiPlugin\Autoload\Psr4RegistryWriter;
 use Timeax\FortiPlugin\Enums\PluginStatus;
 use Timeax\FortiPlugin\Installations\Events\ActivationEvent;
-use Timeax\FortiPlugin\Installations\Activation\Writers\ProvidersRegistryWriter;
-use Timeax\FortiPlugin\Installations\Activation\Writers\RoutesRegistryWriter;
-use Timeax\FortiPlugin\Installations\Activation\Writers\UiRegistryWriter;
 use Timeax\FortiPlugin\Installations\InstallerPolicy;
+use Timeax\FortiPlugin\Installations\Lifecycle\Writers\ProvidersRegistryWriter;
+use Timeax\FortiPlugin\Installations\Lifecycle\Writers\RoutesRegistryWriter;
+use Timeax\FortiPlugin\Installations\Lifecycle\Writers\UiRegistryWriter;
 use Timeax\FortiPlugin\Installations\Sections\ZipValidationGate;
 use Timeax\FortiPlugin\Installations\Support\ActivationLogStore;
 use Timeax\FortiPlugin\Installations\Support\AtomicFilesystem;

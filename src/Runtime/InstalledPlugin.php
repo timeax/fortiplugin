@@ -8,12 +8,16 @@ use Illuminate\Support\Str;
 use InvalidArgumentException;
 use JsonException;
 use RuntimeException;
+use Throwable;
 use Timeax\FortiPlugin\Contracts\ConfigInterface;
 use Timeax\FortiPlugin\Enums\PluginSettingValueType;
 use Timeax\FortiPlugin\Enums\PluginStatus;
 use Timeax\FortiPlugin\Enums\ProcessStatus;
 use Timeax\FortiPlugin\Enums\ProcessType;
+use Timeax\FortiPlugin\Installations\Lifecycle\Deactivation\DeactivationResult;
+use Timeax\FortiPlugin\Installations\Lifecycle\Deactivation\Deactivator;
 use Timeax\FortiPlugin\Jobs\ActivatePluginVersionJob;
+use Timeax\FortiPlugin\Jobs\DeactivatePluginJob;
 use Timeax\FortiPlugin\Models\Plugin;
 use Timeax\FortiPlugin\Models\PluginProcess;
 use Timeax\FortiPlugin\Permissions\Contracts\PermissionServiceInterface;
@@ -181,10 +185,26 @@ final readonly class InstalledPlugin
         );
     }
 
-    public function deactivate(): void
+    /**
+     * @throws Throwable
+     * @throws JsonException
+     */
+    public function deactivate(string $id): DeactivationResult
     {
-        $this->plugin->status = PluginStatus::inactive;
-        $this->plugin->save();
+        $process = PluginProcess::create([
+            'source_id' => $this->plugin->id,
+            'type' => ProcessType::deactivator,
+            'status' => ProcessStatus::pending,
+            'run_id' => Str::uuid()->toString(),
+        ]);
+
+        DeactivatePluginJob::dispatch(
+            plugin: $this->plugin,
+            actor: $id,
+            runId: $process->run_id,
+        );
+
+        return $process->id;
     }
 
     public function activate(int $id): int

@@ -3,6 +3,7 @@ declare(strict_types=1);
 
 namespace Timeax\FortiPlugin\Autoload;
 
+use JsonException;
 use RuntimeException;
 
 final class PluginAutoloadMapBuilder
@@ -13,27 +14,28 @@ final class PluginAutoloadMapBuilder
      * Security/consistency rule:
      * - We ONLY accept the expected prefix: "{$psr4Root}\\{$pluginName}\\"
      * - We ignore any other PSR-4 mappings a plugin may declare.
+     * @throws JsonException
      */
     public function build(string $pluginRoot, string $pluginName, string $psr4Root = 'Plugins'): array
     {
         $composerPath = rtrim($pluginRoot, "/\\") . DIRECTORY_SEPARATOR . 'composer.json';
         if (!is_file($composerPath)) {
-            throw new RuntimeException("Plugin composer.json not found: {$composerPath}");
+            throw new RuntimeException("Plugin composer.json not found: $composerPath");
         }
 
         $raw = @file_get_contents($composerPath);
         if ($raw === false) {
-            throw new RuntimeException("Unable to read plugin composer.json: {$composerPath}");
+            throw new RuntimeException("Unable to read plugin composer.json: $composerPath");
         }
 
-        $json = json_decode($raw, true);
+        $json = json_decode($raw, true, 512, JSON_THROW_ON_ERROR);
         if (!is_array($json)) {
-            throw new RuntimeException("Invalid JSON in plugin composer.json: {$composerPath}");
+            throw new RuntimeException("Invalid JSON in plugin composer.json: $composerPath");
         }
 
         $psr4 = $json['autoload']['psr-4'] ?? null;
         if (!is_array($psr4)) {
-            throw new RuntimeException("Missing autoload.psr-4 in plugin composer.json: {$composerPath}");
+            throw new RuntimeException("Missing autoload.psr-4 in plugin composer.json: $composerPath");
         }
 
         $expectedPrefix = $this->normalizePrefix($psr4Root . '\\' . $pluginName . '\\');
@@ -51,7 +53,7 @@ final class PluginAutoloadMapBuilder
         }
 
         if ($matchedKey === null) {
-            throw new RuntimeException("Plugin PSR-4 prefix not found. Expected: {$expectedPrefix} in {$composerPath}");
+            throw new RuntimeException("Plugin PSR-4 prefix not found. Expected: $expectedPrefix in $composerPath");
         }
 
         $paths = $psr4[$matchedKey];
@@ -75,7 +77,7 @@ final class PluginAutoloadMapBuilder
         $absPaths = array_values(array_unique(array_filter($absPaths, static fn ($p) => is_string($p) && trim($p) !== '')));
 
         if ($absPaths === []) {
-            throw new RuntimeException("Plugin PSR-4 paths empty/invalid for prefix {$expectedPrefix} in {$composerPath}");
+            throw new RuntimeException("Plugin PSR-4 paths empty/invalid for prefix $expectedPrefix in $composerPath");
         }
 
         return [

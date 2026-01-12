@@ -69,7 +69,7 @@ final readonly class PluginAutoloader
                 }
 
                 // Register into Composer autoloader (append=false)
-                $loader->addPsr4($prefix, array_keys($clean), false);
+                $loader->addPsr4($prefix, array_keys($clean));
             }
         }
     }

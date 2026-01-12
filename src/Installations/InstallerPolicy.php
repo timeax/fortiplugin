@@ -50,6 +50,7 @@ final class InstallerPolicy
     private string $logsDirName = '.internal/logs';
     private string $installationLogFilename = 'installation.json';
     private string $activationLogFilename = 'activation.json';
+    private string $deactivationLogFilename = 'deactivation.json';
 
     // ───────────────────────────── Mutators (chainable) ─────────────────────────────
     private bool $breakOnFileScanErrors;
@@ -249,6 +250,22 @@ final class InstallerPolicy
         return $this->activationLogFilename;
     }
 
+    /** Customize deactivation log filename (default "deactivation.json"). */
+    public function setDeactivationLogFilename(string $name): self
+    {
+        $name = trim($name);
+        if ($name === '') {
+            throw new InvalidArgumentException('deactivationLogFilename cannot be empty');
+        }
+        $this->deactivationLogFilename = $name;
+        return $this;
+    }
+
+    public function getDeactivationLogFilename(): string
+    {
+        return $this->deactivationLogFilename;
+    }
+
     // ───────────────────────────── Serialization ─────────────────────────────
 
     /**
@@ -269,6 +286,7 @@ final class InstallerPolicy
      *  - logs_dir_name (string)
      *  - installation_log_filename (string)
      *  - activation_log_filename (string)
+     *  - deactivation_log_filename (string)
      */
     public static function fromArray(array $cfg): self
     {
@@ -320,6 +338,9 @@ final class InstallerPolicy
         if (isset($cfg['activation_log_filename'])) {
             $p->setActivationLogFilename((string)$cfg['activation_log_filename']);
         }
+        if (isset($cfg['deactivation_log_filename'])) {
+            $p->setDeactivationLogFilename((string)$cfg['deactivation_log_filename']);
+        }
 
         if (isset($cfg['break_on_file_scan_errors'])) {
             $p->setBreakOnFileScanErrors((bool)$cfg['break_on_file_scan_errors']);
@@ -348,6 +369,7 @@ final class InstallerPolicy
             'logs_dir_name' => $this->logsDirName,
             'installation_log_filename' => $this->installationLogFilename,
             'activation_log_filename' => $this->activationLogFilename,
+            'deactivation_log_filename' => $this->deactivationLogFilename,
         ];
     }
 }
