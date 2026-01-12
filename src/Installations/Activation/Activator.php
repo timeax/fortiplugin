@@ -214,12 +214,17 @@ final readonly class Activator
 
             // Verify file_scan decision acceptable for activation
             //TODO: Uncomment this later - it is a known issue
-//            $decisions = (array)($doc['decisions'] ?? []);
-//            $okDecision = $this->extractOkDecisionForRun($decisions, $runId);
-//            if ($okDecision === null) {
-//                $this->emit(['title' => 'VALIDATION_PRECHECK_FAIL', 'description' => 'No accepted file_scan decision for this run', 'meta' => ['run_id' => $runId]]);
-//                return ActivationResult::fail(['reason' => 'scan_decision_missing_or_not_accepted', 'run_id' => $runId]);
-//            }
+            $decisions = (array)($doc['decisions'] ?? []);
+            $okDecision = $this->extractOkDecisionForRun($decisions, $runId);
+            if ($okDecision === null) {
+                $this->emit(['title' => 'VALIDATION_PRECHECK_FAIL', 'description' => 'No accepted file_scan decision for this run', 'meta' => ['run_id' => $runId]]);
+                return $this->terminate(
+                    ActivationEvents::RUN_FAIL,
+                    ActivationResult::fail(['reason' => 'scan_decision_missing_or_not_accepted', 'run_id' => $runId]), $plugin,
+                    $runId,
+                    $actor
+                );
+            }
             $this->emit([
                 'event' => ActivationEvents::VALIDATION_PRECHECK_OK,
                 'title' => 'VALIDATION_PRECHECK_OK',
@@ -499,7 +504,7 @@ final readonly class Activator
 
     /**
      * Emit an activation event.
-     * 
+     *
      * Dispatches ActivationEvent (Laravel event) only when payload['event'] is a non-empty string.
      * Best-effort: swallows all exceptions to ensure activation never fails due to event listeners.
      *
