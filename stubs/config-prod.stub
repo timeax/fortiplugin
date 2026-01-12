@@ -1,4 +1,6 @@
-<?php /** @noinspection GrazieInspection */ ///** @noinspection ALL */
+<?php /** @noinspection PsalmAdvanceCallableParamsInspection */
+/** @noinspection CallableParameterUseCaseInTypeContextInspection */
+/** @noinspection GrazieInspection */ ///** @noinspection ALL */
 #{SIGNATURE_BLOCK}
 
 declare(strict_types=1);
@@ -651,13 +653,38 @@ final class Config implements ConfigInterface
      */
     public static function getLogs(?string $log = null): array|string
     {
-        $basePath = (string)static::getInfo('basePath');
-        $basePath = trim($basePath, "/\\");
+        $cleanRel = static function (string $p): string {
+            // relative-ish path cleanup (forward slashes, no doubles, no leading slash)
+            $p = str_replace(array("\0", '\\'), array('', '/'), $p);
+            $p = preg_replace('#/+#', '/', $p) ?? $p;
+            return ltrim($p, '/');
+        };
+
+        $normAbs = static function (string $p): string {
+            // absolute-ish path cleanup for comparisons
+            $p = str_replace(array("\0", '\\'), array('', '/'), $p);
+            $p = preg_replace('#/+#', '/', $p) ?? $p;
+            $p = rtrim($p, '/');
+
+            if (PHP_OS_FAMILY === 'Windows') {
+                $p = strtolower($p);
+            }
+
+            return $p;
+        };
+
+        $join = static function (string ...$parts): string {
+            $parts = array_values(array_filter($parts, static fn($x) => $x !== ''));
+            $parts = array_map(static fn($p) => trim($p, "/\\"), $parts);
+            return implode(DIRECTORY_SEPARATOR, $parts);
+        };
+
+        $basePath = $cleanRel((string)static::getInfo('basePath'));
 
         // Prefer ".internal/logs" but keep ".internals/logs" as a fallback
         $candidates = [
-            base_path($basePath . DIRECTORY_SEPARATOR . '.internal' . DIRECTORY_SEPARATOR . 'logs'),
-            base_path($basePath . DIRECTORY_SEPARATOR . '.internals' . DIRECTORY_SEPARATOR . 'logs'),
+            base_path($join($basePath, '.internal', 'logs')),
+            base_path($join($basePath, '.internals', 'logs')),
         ];
 
         $path = null;
@@ -673,40 +700,22 @@ final class Config implements ConfigInterface
         }
 
         $rootReal = realpath($path) ?: $path;
-        $rootReal = rtrim($rootReal, "/\\");
-
-        $norm = static function (string $p): string {
-            $p = str_replace('\\', '/', rtrim($p, "/\\"));
-
-            // Windows is case-insensitive; normalize to lower for comparisons.
-            if (PHP_OS_FAMILY === 'Windows') {
-                $p = strtolower($p);
-            }
-
-            return $p;
-        };
+        $rootCmp = $normAbs($rootReal) . '/';
 
         if ($log !== null) {
-            // Basic sanitization (null byte + normalize slashes)
-            $log = str_replace(["\0", '\\'], ['', '/'], $log);
-            $log = ltrim($log, '/');
+            $log = $cleanRel($log);
 
             $target = realpath($path . DIRECTORY_SEPARATOR . $log);
-
             if ($target === false || !is_file($target)) {
                 return '';
             }
 
-            // Ensure $target is strictly inside $rootReal (no traversal, no prefix-collision)
-            $rootCmp = $norm($rootReal) . '/';
-            $targetCmp = $norm($target) . '/';
-
+            $targetCmp = $normAbs($target) . '/';
             if (!str_starts_with($targetCmp, $rootCmp)) {
                 return '';
             }
 
             $contents = @file_get_contents($target);
-
             return $contents === false ? '' : $contents;
         }
 
@@ -717,24 +726,23 @@ final class Config implements ConfigInterface
                 new RecursiveDirectoryIterator($path, FilesystemIterator::SKIP_DOTS)
             );
 
-            $rootCmp = $norm($rootReal) . '/';
+            // display base (forward slashes, no doubles)
+            $rootDisp = rtrim(preg_replace('#/+#', '/', str_replace('\\', '/', $rootReal)) ?? $rootReal, '/');
 
             foreach ($iterator as $file) {
                 if (!$file instanceof SplFileInfo || !$file->isFile()) {
                     continue;
                 }
 
-                $filePath = $file->getPathname();
-                $fileCmp = $norm($filePath);
+                $fileDisp = preg_replace('#/+#', '/', str_replace('\\', '/', $file->getPathname())) ?? $file->getPathname();
 
-                if (str_starts_with($fileCmp . '/', $rootCmp)) {
-                    // Compute relative path using normalized separators
-                    $rel = substr(str_replace('\\', '/', $filePath), strlen(str_replace('\\', '/', $rootReal)) + 1);
+                if (str_starts_with($fileDisp, $rootDisp . '/')) {
+                    $rel = substr($fileDisp, strlen($rootDisp) + 1);
                 } else {
-                    // Fallback (should be rare)
                     $rel = $file->getFilename();
                 }
 
+                $rel = $cleanRel($rel);
                 $entries[$rel] = $rel;
             }
         } catch (Throwable) {

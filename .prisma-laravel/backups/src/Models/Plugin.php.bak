@@ -29,7 +29,7 @@ use Illuminate\Database\Eloquent\Model;
  * @property \Illuminate\Support\Collection<int, Author::class> $authors
  * @property \Illuminate\Support\Collection<int, PluginIssue::class> $issues
  * @property \Illuminate\Support\Collection<int, PluginPermission::class> $plugin_permissions
- * @property \Illuminate\Support\Collection<int, PluginPermissionTag::class> $permission_tags
+ * @property \Illuminate\Support\Collection<int, PermissionTag::class> $permission_tags
  * @property \Illuminate\Support\Collection<int, PluginRoutePermission::class> $routes
  */
 class Plugin extends Model
@@ -75,12 +75,12 @@ class Plugin extends Model
 	{
 		return $this->belongsToMany(
 			Author::class,
-			"plugin_author",
+			"scpl_plugin_author",
 			"plugin_id",
 			"author_id",
 			"id",
 			"id",
-		); // pivot: plugin_author
+		); // pivot: scpl_plugin_author
 	}
 
 	public function issues()
@@ -95,7 +95,14 @@ class Plugin extends Model
 
 	public function permission_tags()
 	{
-		return $this->hasMany(PluginPermissionTag::class, "plugin_id", "id");
+		return $this->belongsToMany(
+			PermissionTag::class,
+			"scpl_plugin_permission_tags",
+			"plugin_id",
+			"tag_id",
+			"id",
+			"id",
+		); // pivot: scpl_plugin_permission_tags
 	}
 
 	public function routes()

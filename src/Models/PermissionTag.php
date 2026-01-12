@@ -13,7 +13,7 @@ use Illuminate\Database\Eloquent\Model;
  * @property PluginStatus::class $status
  * @property \Carbon\Carbon $created_at
  * @property \Carbon\Carbon $updated_at
- * @property \Illuminate\Support\Collection<int, PluginPermissionTag::class> $plugins
+ * @property \Illuminate\Support\Collection<int, Plugin::class> $plugins
  * @property \Illuminate\Support\Collection<int, PermissionTagItem::class> $items
  */
 class PermissionTag extends Model
@@ -32,7 +32,14 @@ class PermissionTag extends Model
 
 	public function plugins()
 	{
-		return $this->hasMany(PluginPermissionTag::class, "tag_id", "id");
+		return $this->belongsToMany(
+			Plugin::class,
+			"scpl_plugin_permission_tags",
+			"tag_id",
+			"plugin_id",
+			"id",
+			"id",
+		); // pivot: scpl_plugin_permission_tags
 	}
 
 	public function items()

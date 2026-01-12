@@ -5,6 +5,6 @@
   "devDependencies": {
     "@vitejs/plugin-react": "^5.1.2",
     "fortiplugin-bundle-adapter": "^0.0.3",
-    "prisma-laravel-migrate": "^3.0.2"
+    "prisma-laravel-migrate": "^3.1.13"
   }
 }

@@ -63,12 +63,12 @@ class Author extends Model
 	{
 		return $this->belongsToMany(
 			Plugin::class,
-			"plugin_author",
+			"scpl_plugin_author",
 			"author_id",
 			"plugin_id",
 			"id",
 			"id",
-		); // pivot: plugin_author
+		); // pivot: scpl_plugin_author
 	}
 
 	public function reportedIssues()
