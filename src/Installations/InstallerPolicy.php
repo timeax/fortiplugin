@@ -49,6 +49,7 @@ final class InstallerPolicy
     /** Log locations inside the plugin dir. */
     private string $logsDirName = '.internal/logs';
     private string $installationLogFilename = 'installation.json';
+    private string $activationLogFilename = 'activation.json';
 
     // ───────────────────────────── Mutators (chainable) ─────────────────────────────
     private bool $breakOnFileScanErrors;
@@ -232,6 +233,22 @@ final class InstallerPolicy
         return $this->installationLogFilename;
     }
 
+    /** Customize activation log filename (default "activation.json"). */
+    public function setActivationLogFilename(string $name): self
+    {
+        $name = trim($name);
+        if ($name === '') {
+            throw new InvalidArgumentException('activationLogFilename cannot be empty');
+        }
+        $this->activationLogFilename = $name;
+        return $this;
+    }
+
+    public function getActivationLogFilename(): string
+    {
+        return $this->activationLogFilename;
+    }
+
     // ───────────────────────────── Serialization ─────────────────────────────
 
     /**
@@ -251,6 +268,7 @@ final class InstallerPolicy
      *  - present_foreign_packages_for_scan (bool)
      *  - logs_dir_name (string)
      *  - installation_log_filename (string)
+     *  - activation_log_filename (string)
      */
     public static function fromArray(array $cfg): self
     {
@@ -299,6 +317,9 @@ final class InstallerPolicy
         if (isset($cfg['installation_log_filename'])) {
             $p->setInstallationLogFilename((string)$cfg['installation_log_filename']);
         }
+        if (isset($cfg['activation_log_filename'])) {
+            $p->setActivationLogFilename((string)$cfg['activation_log_filename']);
+        }
 
         if (isset($cfg['break_on_file_scan_errors'])) {
             $p->setBreakOnFileScanErrors((bool)$cfg['break_on_file_scan_errors']);
@@ -326,6 +347,7 @@ final class InstallerPolicy
             'present_foreign_packages_for_scan' => $this->presentForeignPackagesForScan,
             'logs_dir_name' => $this->logsDirName,
             'installation_log_filename' => $this->installationLogFilename,
+            'activation_log_filename' => $this->activationLogFilename,
         ];
     }
 }

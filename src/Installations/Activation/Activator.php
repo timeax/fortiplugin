@@ -16,6 +16,7 @@ use Timeax\FortiPlugin\Installations\Activation\Writers\RoutesRegistryWriter;
 use Timeax\FortiPlugin\Installations\Activation\Writers\UiRegistryWriter;
 use Timeax\FortiPlugin\Installations\InstallerPolicy;
 use Timeax\FortiPlugin\Installations\Sections\ZipValidationGate;
+use Timeax\FortiPlugin\Installations\Support\ActivationLogStore;
 use Timeax\FortiPlugin\Installations\Support\AtomicFilesystem;
 use Timeax\FortiPlugin\Models\Plugin;
 use Timeax\FortiPlugin\Models\PluginVersion;
@@ -31,7 +32,7 @@ final readonly class Activator
         private ProvidersRegistryWriter $providersWriter,
         private UiRegistryWriter        $uiWriter,
         private Psr4RegistryWriter      $psr4Writer,
-
+        private ActivationLogStore      $logStore,
     )
     {
     }
@@ -57,6 +58,19 @@ final readonly class Activator
         string     $runId
     ): ActivationResult
     {
+        $logsDir = rtrim($installedPluginRoot, "\\/") . DIRECTORY_SEPARATOR . trim($this->policy->getLogsDirName(), "\\/");
+        $activationJsonPath = $logsDir . DIRECTORY_SEPARATOR . $this->policy->getActivationLogFilename();
+
+        // Initialize activation log store
+        $this->logStore->openOrInit([
+            'run_id' => $runId,
+            'plugin_id' => $plugin->id,
+            'version_id' => (string)$versionId,
+            'root' => $installedPluginRoot,
+            'actor' => $actor,
+            'started_at' => now()->toIso8601String(),
+        ], $activationJsonPath);
+
         // Activation start
         $this->emit([
             'event' => ActivationEvents::RUN_START,
@@ -473,6 +487,13 @@ final readonly class Activator
             'meta' => $meta,
         ]);
 
+        // Persist result to activation log
+        try {
+            $this->logStore->writeResult($result);
+        } catch (Throwable) {
+            // Best effort persistence
+        }
+
         return $result;
     }
 
@@ -490,6 +511,13 @@ final readonly class Activator
         $eventKey = $payload['event'] ?? null;
         if (!is_string($eventKey) || $eventKey === '') {
             return;
+        }
+
+        // Log to activation.json
+        try {
+            $this->logStore->appendActivationEmit($payload);
+        } catch (Throwable) {
+            // Best effort logging
         }
 
         // Best-effort dispatch - swallow ALL exceptions
