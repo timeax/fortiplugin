@@ -15,6 +15,7 @@ use Timeax\FortiPlugin\Permissions\Evaluation\Dto\{
 trait PermissionServiceListTrait
 {
     abstract protected function repo(): PermissionRepositoryInterface;
+
     abstract protected function cache(): CapabilityCacheInterface;
 
     public function listPermissions(int $pluginId, ?PermissionListOptions $options = null): PermissionListResult
@@ -28,8 +29,8 @@ trait PermissionServiceListTrait
         // 2) Merge by (type, id)
         $byTypeIds = [];
         $groups = []; // key => ['type'=>, 'id'=>, 'direct'=>[], 'tags'=>[]]
-        $add = static function(array $row, bool $isDirect) use (&$groups, &$byTypeIds): void {
-            $t  = (string)($row['type'] ?? '');
+        $add = static function (array $row, bool $isDirect) use (&$groups, &$byTypeIds): void {
+            $t = (string)($row['type'] ?? '');
             $id = (int)($row['id'] ?? 0);
             if ($t === '' || $id <= 0) return;
 
@@ -45,8 +46,12 @@ trait PermissionServiceListTrait
             $byTypeIds[$t][$id] = true;
         };
 
-        foreach ($direct as $r)  { $add($r, true); }
-        foreach ($viaTags as $r) { $add($r, false); }
+        foreach ($direct as $r) {
+            $add($r, true);
+        }
+        foreach ($viaTags as $r) {
+            $add($r, false);
+        }
 
         // 3) Batch-load concretes per type
         $concretes = [];
@@ -62,50 +67,59 @@ trait PermissionServiceListTrait
         $requiredSatisfied = 0;
         foreach ($groups as $g) {
             $type = $g['type'];
-            $id   = $g['id'];
-            $row  = $concretes[$type][$id] ?? null;
+            $id = $g['id'];
+            $row = $concretes[$type][$id] ?? null;
             if (!$row) continue;
 
             // presentation & actions
             [$presentation, $actions, $naturalKey] = $this->extractPresentationAndActions($type, $row);
 
             // sources
-            $sourcesDirect = array_values(array_map(static function(array $d) {
+            $sourcesDirect = array_values(array_map(static function (array $d) {
                 return [
                     'assignment_id' => $d['assignment_id'] ?? null,
-                    'active'        => (bool)($d['active'] ?? true),
-                    'window'        => $d['window'] ?? null,
-                    'constraints'   => $d['constraints'] ?? null,
-                    'audit'         => $d['audit'] ?? null,
+                    'active' => (bool)($d['active'] ?? true),
+                    'window' => $d['window'] ?? null,
+                    'constraints' => $d['constraints'] ?? null,
+                    'audit' => $d['audit'] ?? null,
                     'justification' => $d['justification'] ?? null,
-                    'required'      => (bool)($d['constraints']['required'] ?? false),
+                    'required' => (bool)($d['constraints']['required'] ?? false),
                 ];
             }, $g['direct']));
 
-            $sourcesTags = array_values(array_map(static function(array $t) {
+            $sourcesTags = array_values(array_map(static function (array $t) {
                 $tag = $t['tag'] ?? null;
                 return [
-                    'tag_id'      => $tag['id']   ?? ($t['tag_id'] ?? null),
-                    'tag_name'    => $tag['name'] ?? ($t['tag_name'] ?? null),
-                    'active'      => (bool)($t['active'] ?? true),
+                    'tag_id' => $tag['id'] ?? ($t['tag_id'] ?? null),
+                    'tag_name' => $tag['name'] ?? ($t['tag_name'] ?? null),
+                    'active' => (bool)($t['active'] ?? true),
                     'constraints' => $t['constraints'] ?? null,
-                    'audit'       => $t['audit'] ?? null,
+                    'audit' => $t['audit'] ?? null,
                 ];
             }, $g['tags']));
 
             // derived flags
             $required = false;
             foreach ($sourcesDirect as $sd) {
-                if (!empty($sd['required'])) { $required = true; break; }
+                if (!empty($sd['required'])) {
+                    $required = true;
+                    break;
+                }
             }
 
             $activeEffective = false;
             foreach ($sourcesDirect as $sd) {
-                if (!empty($sd['active'])) { $activeEffective = true; break; }
+                if (!empty($sd['active'])) {
+                    $activeEffective = true;
+                    break;
+                }
             }
             if (!$activeEffective) {
                 foreach ($sourcesTags as $st) {
-                    if (!empty($st['active'])) { $activeEffective = true; break; }
+                    if (!empty($st['active'])) {
+                        $activeEffective = true;
+                        break;
+                    }
                 }
             }
 
@@ -139,19 +153,22 @@ trait PermissionServiceListTrait
             }
             if ($options->source) {
                 $hasDirect = (bool)count($item->sourcesDirect);
-                $hasTag    = (bool)count($item->sourcesTags);
+                $hasTag = (bool)count($item->sourcesTags);
                 $ok = match ($options->source) {
                     'direct' => $hasDirect,
-                    'tag'    => $hasTag,
-                    'both'   => $hasDirect && $hasTag,
-                    default  => true,
+                    'tag' => $hasTag,
+                    'both' => $hasDirect && $hasTag,
+                    default => true,
                 };
                 if (!$ok) continue;
             }
             if ($options->tagId) {
                 $ok = false;
                 foreach ($item->sourcesTags as $st) {
-                    if ((int)$st['tag_id'] === $options->tagId) { $ok = true; break; }
+                    if ((int)$st['tag_id'] === $options->tagId) {
+                        $ok = true;
+                        break;
+                    }
                 }
                 if (!$ok) continue;
             }
@@ -161,7 +178,7 @@ trait PermissionServiceListTrait
         }
 
         // 5) Summary
-        $activeCount   = 0;
+        $activeCount = 0;
         $inactiveCount = 0;
         foreach ($items as $it) {
             if ($it->activeEffective) $activeCount++; else $inactiveCount++;
@@ -177,6 +194,21 @@ trait PermissionServiceListTrait
         );
 
         return new PermissionListResult($items, $summary);
+    }
+
+    public function getPermission(int $pluginId, string $type, int $concreteId): ?PermissionListItem
+    {
+        $options = new PermissionListOptions(type: $type);
+
+        $listResult = $this->listPermissions($pluginId, $options);
+
+        foreach ($listResult->items as $item) {
+            if ($item->concreteId === $concreteId) {
+                return $item;
+            }
+        }
+
+        return null;
     }
 
     /**
@@ -197,75 +229,75 @@ trait PermissionServiceListTrait
         switch ($type) {
             case 'db':
                 $presentation = [
-                    'model'   => $row['model'] ?? null,
-                    'table'   => $row['table'] ?? null,
+                    'model' => $row['model'] ?? null,
+                    'table' => $row['table'] ?? null,
                     'columns' => $row['columns'] ?? ($row['readable_columns'] ?? null),
                 ];
                 $actions = $permMap ?: [
-                    'select'           => (bool)($row['select'] ?? false),
-                    'insert'           => (bool)($row['insert'] ?? false),
-                    'update'           => (bool)($row['update'] ?? false),
-                    'delete'           => (bool)($row['delete'] ?? false),
-                    'truncate'         => (bool)($row['truncate'] ?? false),
-                    'grouped_queries'  => (bool)($row['grouped_queries'] ?? false),
+                    'select' => (bool)($row['select'] ?? false),
+                    'insert' => (bool)($row['insert'] ?? false),
+                    'update' => (bool)($row['update'] ?? false),
+                    'delete' => (bool)($row['delete'] ?? false),
+                    'truncate' => (bool)($row['truncate'] ?? false),
+                    'grouped_queries' => (bool)($row['grouped_queries'] ?? false),
                 ];
                 break;
 
             case 'file':
                 $presentation = [
-                    'base_dir'        => $row['base_dir'] ?? '',
-                    'paths'           => $row['paths'] ?? [],
+                    'base_dir' => $row['base_dir'] ?? '',
+                    'paths' => $row['paths'] ?? [],
                     'follow_symlinks' => $row['follow_symlinks'] ?? false,
                 ];
                 $actions = $permMap ?: [
-                    'read'   => (bool)($row['read'] ?? false),
-                    'write'  => (bool)($row['write'] ?? false),
+                    'read' => (bool)($row['read'] ?? false),
+                    'write' => (bool)($row['write'] ?? false),
                     'append' => (bool)($row['append'] ?? false),
                     'delete' => (bool)($row['delete'] ?? false),
-                    'mkdir'  => (bool)($row['mkdir'] ?? false),
-                    'rmdir'  => (bool)($row['rmdir'] ?? false),
-                    'list'   => (bool)($row['list'] ?? false),
+                    'mkdir' => (bool)($row['mkdir'] ?? false),
+                    'rmdir' => (bool)($row['rmdir'] ?? false),
+                    'list' => (bool)($row['list'] ?? false),
                 ];
                 break;
 
             case 'notification':
                 // Support both legacy single 'channel' and new arrays if present.
                 $presentation = [
-                    'channel'    => $row['channel'] ?? null,
-                    'channels'   => $row['channels'] ?? ($row['channel'] ? [$row['channel']] : null),
-                    'templates'  => $row['templates_allowed'] ?? ($row['templates'] ?? null),
+                    'channel' => $row['channel'] ?? null,
+                    'channels' => $row['channels'] ?? ($row['channel'] ? [$row['channel']] : null),
+                    'templates' => $row['templates_allowed'] ?? ($row['templates'] ?? null),
                     'recipients' => $row['recipients_allowed'] ?? ($row['recipients'] ?? null),
                 ];
                 $actions = $permMap ?: [
-                    'send'    => (bool)($row['send'] ?? false),
+                    'send' => (bool)($row['send'] ?? false),
                     'receive' => (bool)($row['receive'] ?? false),
                 ];
                 break;
 
             case 'module':
                 $presentation = [
-                    'plugin'       => $row['plugin_alias'] ?? ($row['plugin'] ?? null),
-                    'plugin_fqcn'  => $row['plugin'] ?? null,
-                    'apis'         => $row['apis'] ?? [],
-                    'plugin_docs'  => $row['plugin_docs'] ?? null,
+                    'plugin' => $row['plugin_alias'] ?? ($row['plugin'] ?? null),
+                    'plugin_fqcn' => $row['plugin'] ?? null,
+                    'apis' => $row['apis'] ?? [],
+                    'plugin_docs' => $row['plugin_docs'] ?? null,
                 ];
                 $actions = $permMap ?: [
-                    'call'      => (bool)($row['call'] ?? ($row['access'] ?? false)),
-                    'publish'   => (bool)($row['publish'] ?? false),
+                    'call' => (bool)($row['call'] ?? ($row['access'] ?? false)),
+                    'publish' => (bool)($row['publish'] ?? false),
                     'subscribe' => (bool)($row['subscribe'] ?? false),
                 ];
                 break;
 
             case 'network':
                 $presentation = [
-                    'hosts'               => $row['hosts'] ?? [],
-                    'methods'             => $row['methods'] ?? [],
-                    'schemes'             => $row['schemes'] ?? null,
-                    'ports'               => $row['ports'] ?? null,
-                    'paths'               => $row['paths'] ?? null,
-                    'headers_allowed'     => $row['headers_allowed'] ?? null,
-                    'ips_allowed'         => $row['ips_allowed'] ?? null,
-                    'auth_via_host_secret'=> (bool)($row['auth_via_host_secret'] ?? true),
+                    'hosts' => $row['hosts'] ?? [],
+                    'methods' => $row['methods'] ?? [],
+                    'schemes' => $row['schemes'] ?? null,
+                    'ports' => $row['ports'] ?? null,
+                    'paths' => $row['paths'] ?? null,
+                    'headers_allowed' => $row['headers_allowed'] ?? null,
+                    'ips_allowed' => $row['ips_allowed'] ?? null,
+                    'auth_via_host_secret' => (bool)($row['auth_via_host_secret'] ?? true),
                 ];
                 $actions = $permMap ?: [
                     'request' => (bool)($row['request'] ?? ($row['access'] ?? false)),
@@ -274,10 +306,10 @@ trait PermissionServiceListTrait
 
             case 'codec':
                 $presentation = [
-                    'module'  => $row['module'] ?? 'codec',
+                    'module' => $row['module'] ?? 'codec',
                     'allowed' => $row['allowed'] ?? null,
                     'methods' => $row['methods'] ?? null,           // if you materialize
-                    'groups'  => $row['groups'] ?? null,            // if you materialize
+                    'groups' => $row['groups'] ?? null,            // if you materialize
                     'options' => $row['options'] ?? null,           // if you materialize
                 ];
                 $actions = $permMap ?: [

@@ -3,6 +3,7 @@ declare(strict_types=1);
 
 namespace Timeax\FortiPlugin\Permissions\Contracts;
 
+use Timeax\FortiPlugin\Permissions\Evaluation\Dto\PermissionListItem;
 use Timeax\FortiPlugin\Permissions\Evaluation\Dto\PermissionListOptions;
 use Timeax\FortiPlugin\Permissions\Evaluation\Dto\PermissionListResult;
 use Timeax\FortiPlugin\Permissions\Evaluation\Dto\Result;
@@ -152,4 +153,14 @@ interface PermissionServiceInterface
      * @return array The list of permissions for the specified plugin, potentially filtered by the options.
      */
     public function listPermissions(int $pluginId, ?PermissionListOptions $options = null): PermissionListResult;
+
+    /**
+     * Retrieves a single permission item for a specific plugin, type, and concrete ID.
+     *
+     * @param int $pluginId The unique identifier of the plugin.
+     * @param string $type The type of permission (e.g., 'db', 'file').
+     * @param int $concreteId The ID of the concrete permission.
+     * @return PermissionListItem|null The permission item if found, or null otherwise.
+     */
+    public function getPermission(int $pluginId, string $type, int $concreteId): ?PermissionListItem;
 }

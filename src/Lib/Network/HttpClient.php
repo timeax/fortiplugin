@@ -8,6 +8,7 @@ use Illuminate\Http\Client\Response;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Log;
 use Timeax\FortiPlugin\Core\ChecksModulePermission;
+use Timeax\FortiPlugin\Permissions\Evaluation\Dto\NetworkRequest;
 use Timeax\FortiPlugin\Support\PluginContext;
 
 class HttpClient extends PendingRequest
@@ -31,13 +32,13 @@ class HttpClient extends PendingRequest
 
     protected function checkPermissionFor(string $url, string $verb): void
     {
-        $host = parse_url($url, PHP_URL_HOST) ?: '*';
+        $request = new NetworkRequest(
+            method: strtoupper($verb),
+            url: $url,
+            headers: [] // Headers are not easily available here in a normalized way without parsing options
+        );
 
-        $this->checkModulePermission('network', 'request', [
-            'method' => strtoupper($verb),
-            'host'   => $host,
-            'url'    => $url,
-        ]);
+        $this->checkModulePermission($request);
     }
 
     protected function logRequest(string $method, string $url, array $context = []): void
@@ -75,7 +76,7 @@ class HttpClient extends PendingRequest
 
             // Normalize header values (can be string|array)
             if (is_array($value)) {
-                $out[$k] = array_map(fn ($v) => is_scalar($v) ? $v : '[NON_SCALAR]', $value);
+                $out[$k] = array_map(static fn ($v) => is_scalar($v) ? $v : '[NON_SCALAR]', $value);
             } else {
                 $out[$k] = is_scalar($value) ? $value : '[NON_SCALAR]';
             }
@@ -87,13 +88,10 @@ class HttpClient extends PendingRequest
     protected function sanitizeContext(array $ctx): array
     {
         // Avoid logging huge/binary/objects directly
-        $out = [];
 
-        foreach ($ctx as $key => $value) {
-            $out[$key] = $this->sanitizeValue($value);
-        }
-
-        return $out;
+        return array_map(function ($value) {
+            return $this->sanitizeValue($value);
+        }, $ctx);
     }
 
     protected function sanitizeValue(mixed $value): mixed
@@ -130,11 +128,9 @@ class HttpClient extends PendingRequest
 
         if (is_array($value)) {
             // Keep recursion safe-ish
-            $sanitized = [];
-            foreach ($value as $k => $v) {
-                $sanitized[$k] = $this->sanitizeValue($v);
-            }
-            return $sanitized;
+            return array_map(function ($v) {
+                return $this->sanitizeValue($v);
+            }, $value);
         }
 
         return $value; // int/float/bool/null

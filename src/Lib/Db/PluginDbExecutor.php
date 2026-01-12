@@ -121,7 +121,7 @@ class PluginDbExecutor extends PluginQueryBuilder
                             'db',
                             'select',
                             ['model' => $this->target, 'column' => $col],
-                            "Plugin is not allowed to select hidden/forbidden column '$col' on '{$this->modelAlias}'."
+                            "Plugin is not allowed to select hidden/forbidden column '$col' on '$this->modelAlias'."
                         );
                     }
                 }
@@ -242,7 +242,7 @@ class PluginDbExecutor extends PluginQueryBuilder
                 'db',
                 'select',
                 ['model' => $this->target, 'column' => $column],
-                "Plugin is not allowed to access hidden/forbidden column '$column' on '{$this->modelAlias}'."
+                "Plugin is not allowed to access hidden/forbidden column '$column' on '$this->modelAlias'."
             );
         }
 
@@ -259,7 +259,7 @@ class PluginDbExecutor extends PluginQueryBuilder
                 'db',
                 'select',
                 ['model' => $this->target, 'column' => $column],
-                "Plugin is not allowed to pluck hidden/forbidden column '$column' on '{$this->modelAlias}'."
+                "Plugin is not allowed to pluck hidden/forbidden column '$column' on '$this->modelAlias'."
             );
         }
 
@@ -363,7 +363,7 @@ class PluginDbExecutor extends PluginQueryBuilder
                 'db',
                 'select',
                 ['model' => $this->target, 'column' => $column],
-                "Plugin is not allowed to get max of hidden/forbidden column '$column' on '{$this->modelAlias}'."
+                "Plugin is not allowed to get max of hidden/forbidden column '$column' on '$this->modelAlias'."
             );
         }
 

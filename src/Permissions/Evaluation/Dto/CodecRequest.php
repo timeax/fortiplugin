@@ -10,7 +10,9 @@ final readonly class CodecRequest implements PermissionRequestInterface
     public function __construct(
         public string $method,    // e.g. 'json_encode','unserialize',...
         public ?array $options = null // e.g. ['class'=>'App\DTO\Safe'] for unserialize
-    ) {}
+    )
+    {
+    }
 
     public static function fromArray(array $a): self
     {

@@ -20,10 +20,18 @@ use Timeax\FortiPlugin\Enums\PermissionType;
 use Timeax\FortiPlugin\Facades\Permissions;
 use Timeax\FortiPlugin\Models\PluginAuditLog;
 use Timeax\FortiPlugin\Models\PluginSetting;
+use Timeax\FortiPlugin\Permissions\Contracts\PermissionRequestInterface;
+use Timeax\FortiPlugin\Permissions\Evaluation\Dto\CodecRequest;
+use Timeax\FortiPlugin\Permissions\Evaluation\Dto\DbRequest;
+use Timeax\FortiPlugin\Permissions\Evaluation\Dto\FileRequest;
+use Timeax\FortiPlugin\Permissions\Evaluation\Dto\ModuleRequest;
+use Timeax\FortiPlugin\Permissions\Evaluation\Dto\NetworkRequest;
+use Timeax\FortiPlugin\Permissions\Evaluation\Dto\NotifyRequest;
 use Timeax\FortiPlugin\Permissions\Evaluation\Dto\PermissionListOptions;
 use Timeax\FortiPlugin\Permissions\Evaluation\Dto\PermissionListResult;
 use Timeax\FortiPlugin\Permissions\Evaluation\Dto\PermissionListSummary;
 use Timeax\FortiPlugin\Permissions\Evaluation\Dto\Result;
+use Timeax\FortiPlugin\Permissions\Evaluation\Dto\RouteWriteRequest;
 use Timeax\FortiPlugin\Services\PluginSettingsWriter;
 use Timeax\FortiPlugin\Support\HostConfigToPluginSettings;
 use Timeax\FortiPlugin\Support\LoadedExportInfo;
@@ -1067,7 +1075,12 @@ final class Config implements ConfigInterface
         array                 $context = []
     ): bool
     {
-        return self::checkPermission($type, $actionOrIntent, $meta, $context)->allowed;
+        $request = self::createRequestFromLegacyArgs($type, $actionOrIntent, $meta);
+        if ($request === null) {
+             return false;
+        }
+
+        return self::checkPermission($request, $context)->allowed;
     }
 
     /**
@@ -1096,7 +1109,7 @@ final class Config implements ConfigInterface
                 continue;
             }
 
-            if (self::metaMatches($normalizedMeta, $item->concrete['meta'] ?? [])) {
+            if (self::metaMatches($normalizedMeta, $item->presentation)) {
                 return $item->toArray();
             }
         }
@@ -1109,25 +1122,16 @@ final class Config implements ConfigInterface
      */
     public
     static function checkPermission(
-        PermissionType|string $type,
-        string                $actionOrIntent,
-        array|string|null     $meta = null,
-        array                 $context = []
+        PermissionRequestInterface $request,
+        array                      $context = []
     ): Result
     {
-        $t = $type instanceof PermissionType ? $type->value : (string)$type;
-        $normalizedMeta = self::normalizeMeta($t, $meta);
-
         $pluginId = self::getPluginId();
         if (!$pluginId) {
-            return Result::deny('plugin_not_installed', meta: $normalizedMeta);
+            return Result::deny('plugin_not_installed');
         }
 
-        if ($normalizedMeta === null) {
-            return Result::deny('bad_target');
-        }
-
-        return self::dispatchCan($t, $pluginId, $actionOrIntent, $normalizedMeta, $context);
+        return Permissions::can($pluginId, $request, $context);
     }
 
     /**
@@ -1143,18 +1147,66 @@ final class Config implements ConfigInterface
     /**
      * Check if normalized meta matches the permission definition meta.
      */
-    private
-    static function metaMatches(array $requested, array $defined): bool
+    private static function metaMatches(array $requested, array $defined): bool
     {
         foreach ($requested as $key => $val) {
             if ($val === '' || $val === null || $val === []) {
                 continue;
             }
-            if (!isset($defined[$key]) || $defined[$key] !== $val) {
-                return false;
+
+            // Try exact key
+            if (array_key_exists($key, $defined)) {
+                if (!self::valMatches($val, $defined[$key])) return false;
+                continue;
             }
+
+            // Try snake_case (baseDir -> base_dir)
+            $snake = strtolower(preg_replace('/(?<!^)[A-Z]/', '_$0', $key));
+            if (array_key_exists($snake, $defined)) {
+                if (!self::valMatches($val, $defined[$snake])) return false;
+                continue;
+            }
+
+            // Try plural (path -> paths, host -> hosts)
+            $plural = $key . 's';
+            if (array_key_exists($plural, $defined)) {
+                if (!self::valMatches($val, $defined[$plural])) return false;
+                continue;
+            }
+
+            // Special mappings
+            $mapped = match($key) {
+                'module' => 'plugin',
+                'api' => 'apis',
+                'template' => 'templates',
+                'recipient' => 'recipients',
+                default => null
+            };
+
+            if ($mapped && array_key_exists($mapped, $defined)) {
+                if (!self::valMatches($val, $defined[$mapped])) return false;
+                continue;
+            }
+
+            return false;
         }
         return true;
+    }
+
+    private static function valMatches($req, $def): bool
+    {
+        if (is_array($def)) {
+            // If definition is list, check if req is in list
+            if (is_scalar($req)) {
+                return in_array($req, $def, true);
+            }
+            // If req is array, check subset
+            if (is_array($req)) {
+                return !array_diff($req, $def);
+            }
+        }
+
+        return $req === $def;
     }
 
     /**
@@ -1225,19 +1277,58 @@ final class Config implements ConfigInterface
     }
 
     /**
-     * Dispatch to the correct typed `can*` method on the Permissions facade.
+     * Helper to convert legacy scalar args to a Request DTO.
+     * This is needed because hasPermission still uses scalar args but checkPermission now expects a DTO.
      */
-    private static function dispatchCan(string $type, int $pluginId, string $action, array $target, array $context): Result
+    private static function createRequestFromLegacyArgs(PermissionType|string $type, string $action, array|string|null $meta): ?PermissionRequestInterface
     {
-        return match ($type) {
-            'db' => Permissions::canDb($pluginId, $action, $target, $context),
-            'file' => Permissions::canFile($pluginId, $action, $target, $context),
-            'notification' => Permissions::canNotify($pluginId, $action, $target, $context),
-            'module' => Permissions::canModule($pluginId, $target, $context),
-            'network' => Permissions::canNetwork($pluginId, $target, $context),
-            'codec' => Permissions::canCodec($pluginId, $target, $context),
-            'route' => Permissions::canRouteWrite($pluginId, $target, $context),
-            default => Result::deny('unknown_type'),
+        $t = $type instanceof PermissionType ? $type->value : (string)$type;
+        $normalizedMeta = self::normalizeMeta($t, $meta);
+        
+        if ($normalizedMeta === null) {
+            return null;
+        }
+
+        // We need to map the normalized meta back to specific DTOs.
+        // This is a bit circular but necessary for backward compat of hasPermission signature if we don't change it too.
+        // Or we can just instantiate DTOs directly based on type.
+        
+        return match ($t) {
+            'db' => new DbRequest(
+                action: $action,
+                modelAliasOrFqcn: $normalizedMeta['model'] ?? null,
+                table: $normalizedMeta['table'] ?? null,
+                columns: $normalizedMeta['columns'] ?? []
+            ),
+            'file' => new FileRequest(
+                action: $action,
+                baseDir: $normalizedMeta['baseDir'] ?? '',
+                path: $normalizedMeta['path'] ?? ''
+            ),
+            'notification' => new NotifyRequest(
+                action: $action,
+                channel: $normalizedMeta['channel'] ?? '',
+                template: $normalizedMeta['template'] ?? null,
+                recipient: $normalizedMeta['recipient'] ?? null
+            ),
+            'module' => new ModuleRequest(
+                module: $normalizedMeta['module'] ?? '',
+                api: $normalizedMeta['api'] ?? ''
+            ),
+            'network' => new NetworkRequest(
+                method: $normalizedMeta['method'] ?? 'GET',
+                url: $normalizedMeta['url'] ?? '',
+                headers: $normalizedMeta['headers'] ?? []
+            ),
+            'codec' => new CodecRequest(
+                method: $normalizedMeta['method'] ?? '',
+                options: $normalizedMeta['options'] ?? []
+            ),
+            'route' => new RouteWriteRequest(
+                routeId: $normalizedMeta['routeId'] ?? '',
+                guard: $normalizedMeta['guard'] ?? null
+            ),
+            default => null,
         };
     }
 }

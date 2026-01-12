@@ -3,6 +3,7 @@
 namespace Timeax\FortiPlugin\Lib\Network;
 
 use Illuminate\Support\Facades\Log;
+use Timeax\FortiPlugin\Permissions\Evaluation\Dto\NetworkRequest;
 use Timeax\FortiPlugin\Support\PluginContext;
 
 trait CurlExecTrait
@@ -80,11 +81,12 @@ trait CurlExecTrait
         $host = parse_url($this->url, PHP_URL_HOST) ?? '*';
 
         if (method_exists($this, 'checkModulePermission')) {
-            $this->checkModulePermission('network', 'request', [
-                'host' => $host,
-                'url' => $this->url,
-                'method' => 'GET'
-            ]);
+            $request = new NetworkRequest(
+                method: 'GET', // Default to GET, hard to know without parsing options
+                url: $this->url,
+                headers: []
+            );
+            $this->checkModulePermission($request);
         }
     }
 }

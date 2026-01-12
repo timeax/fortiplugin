@@ -14,6 +14,7 @@ use Timeax\FortiPlugin\Lib\Db\Traits\Relationships;
 use Timeax\FortiPlugin\Lib\Db\Traits\SoftDeleteQueryTrait;
 use Timeax\FortiPlugin\Lib\Db\Traits\WhereClauses;
 use Timeax\FortiPlugin\Core\ChecksModulePermission;
+use Timeax\FortiPlugin\Permissions\Evaluation\Dto\DbRequest;
 
 /**
  * PluginQueryBuilder
@@ -67,7 +68,12 @@ class PluginQueryBuilder
     {
         if (!isset($this->checkedPerms[$action])) {
             // Will throw if not allowed; if returns, it's safe
-            $this->checkModulePermission($this->type, $action, ['model' => $this->target]);
+            $request = new DbRequest(
+                action: $action,
+                modelAliasOrFqcn: $this->target,
+                table: $this->table
+            );
+            $this->checkModulePermission($request);
             $this->checkedPerms[$action] = true;
         }
         // else, already confirmed for this action+model on this instance
@@ -80,7 +86,11 @@ class PluginQueryBuilder
             $this->ensurePermission($action);
         } else {
             // Use your trait but override the $target param
-            $this->checkModulePermission($this->type, $action, ['model' => $alias]);
+            $request = new DbRequest(
+                action: $action,
+                modelAliasOrFqcn: $alias
+            );
+            $this->checkModulePermission($request);
             $this->checkedPerms["$action:$alias"] = true;
         }
     }
@@ -202,7 +212,7 @@ class PluginQueryBuilder
                         $this->type,
                         'select',
                         ['model' => $this->target, 'column' => $col],
-                        "Plugin is not allowed to select hidden/forbidden column '$col' on '{$this->modelAlias}'."
+                        "Plugin is not allowed to select hidden/forbidden column '$col' on '$this->modelAlias'."
                     );
                 }
             }

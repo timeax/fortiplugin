@@ -4,6 +4,7 @@ declare(strict_types=1);
 namespace Timeax\FortiPlugin\Contracts;
 
 use Timeax\FortiPlugin\Enums\PermissionType;
+use Timeax\FortiPlugin\Permissions\Contracts\PermissionRequestInterface;
 use Timeax\FortiPlugin\Permissions\Evaluation\Dto\PermissionListResult;
 use Timeax\FortiPlugin\Permissions\Evaluation\Dto\Result;
 use Timeax\FortiPlugin\Support\LoadedExportInfo;
@@ -232,24 +233,20 @@ interface ConfigInterface
     ): ?array;
 
     /**
-     * Evaluate and return a detailed permission check result for a given selector.
+     * Evaluate and return a detailed permission check result for a given request.
      *
      * This returns a rich DTO with details about the evaluation process,
      * including whether the action/intent is allowed, which grants matched,
      * and any relevant messages or metadata.
      *
-     * @param PermissionType|string $type Permission family: db|file|notification|module|network|codec
-     * @param string $actionOrIntent Action/intent to verify (see hasPermission for details).
-     * @param string|array|null $meta Type-specific selector (see hasPermission for details).
+     * @param PermissionRequestInterface $request The permission request to evaluate.
      * @param array $context Optional runtime hints (e.g., ['guard'=>'api','env'=>'staging']).
      * @return Result Detailed permission evaluation result.
      * @see Result::class for exact shape & accessors.
      */
     public static function checkPermission(
-        PermissionType|string $type,
-        string                $actionOrIntent,
-        string|array|null     $meta = null,
-        array                 $context = []
+        PermissionRequestInterface $request,
+        array                      $context = []
     ): Result;
 
     /**

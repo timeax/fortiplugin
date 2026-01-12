@@ -12,6 +12,7 @@ use RuntimeException;
 use Timeax\FortiPlugin\Exceptions\PermissionDeniedException;
 use Timeax\FortiPlugin\Lib\Utils\ObfuscatorUtil;
 use Timeax\FortiPlugin\Core\ChecksModulePermission;
+use Timeax\FortiPlugin\Permissions\Evaluation\Dto\CodecRequest;
 
 /**
  * Permission-gated wrappers for sensitive encoder/decoder / obfuscator functions.
@@ -34,7 +35,10 @@ class Obfuscator
      */
     protected function ensurePermission(string $capability): void
     {
-        $this->checkModulePermission('codec', 'invoke', ['method' => $capability]);
+        $request = new CodecRequest(
+            method: $capability
+        );
+        $this->checkModulePermission($request);
     }
 
 

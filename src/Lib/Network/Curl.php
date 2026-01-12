@@ -5,6 +5,7 @@ namespace Timeax\FortiPlugin\Lib\Network;
 use JsonException;
 use RuntimeException;
 use Timeax\FortiPlugin\Core\ChecksModulePermission;
+use Timeax\FortiPlugin\Permissions\Evaluation\Dto\NetworkRequest;
 use Timeax\FortiPlugin\Support\PluginContext;
 use Illuminate\Support\Facades\Log;
 
@@ -16,11 +17,13 @@ class Curl
     {
         $host = parse_url($url, PHP_URL_HOST) ?? '*';
 
-        $this->checkModulePermission(
-            type: 'network',
-            actionOrIntent: 'request',
-            meta: ['host' => $host, 'url' => $url, 'method' => 'GET']
+        $request = new NetworkRequest(
+            method: 'GET', // Default to GET for basic exec, though options might override
+            url: $url,
+            headers: [] // We don't easily know headers from options array without parsing constants
         );
+
+        $this->checkModulePermission($request);
 
         $ch = curl_init($url);
 
