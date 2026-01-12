@@ -39,6 +39,7 @@ use Timeax\FortiPlugin\Installations\Installer;
 use Timeax\FortiPlugin\Installations\InstallerPolicy;
 use Timeax\FortiPlugin\Installations\Lifecycle\Activation\Activator;
 use Timeax\FortiPlugin\Installations\Lifecycle\Deactivation\Deactivator;
+use Timeax\FortiPlugin\Installations\Lifecycle\Uninstallation\Uninstaller;
 use Timeax\FortiPlugin\Installations\Lifecycle\Writers\ProvidersRegistryWriter;
 use Timeax\FortiPlugin\Installations\Lifecycle\Writers\RoutesRegistryWriter;
 use Timeax\FortiPlugin\Installations\Lifecycle\Writers\UiRegistryWriter;
@@ -378,6 +379,7 @@ class FortiPluginServiceProvider extends ServiceProvider
         $this->app->singleton(UiRegistryWriter::class);
         $this->app->scoped(Activator::class);
         $this->app->scoped(Deactivator::class);
+        $this->app->scoped(Uninstaller::class);
 
         // ── Plugin services ────────────────────────────────────────────────────
         $this->app->singleton(PluginService::class);

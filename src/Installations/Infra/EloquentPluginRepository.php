@@ -193,6 +193,11 @@ final class EloquentPluginRepository implements PluginRepository
         $plugin->save();
     }
 
+    public function delete(int $pluginId): void
+    {
+        Plugin::destroy($pluginId);
+    }
+
     private function makePathRelativeToBasePath(string $path): string
     {
         $path = trim($path);

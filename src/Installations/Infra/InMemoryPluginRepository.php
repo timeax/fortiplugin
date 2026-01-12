@@ -112,4 +112,11 @@ final class InMemoryPluginRepository implements PluginRepository
         }
         $this->plugins[$pluginId]['meta']['config_class'] = $path;
     }
+
+    public function delete(int $pluginId): void
+    {
+        if (isset($this->plugins[$pluginId])) {
+            unset($this->plugins[$pluginId]);
+        }
+    }
 }

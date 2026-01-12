@@ -61,4 +61,6 @@ interface PluginRepository
     public function setStatus(int $pluginId, string $status): void;
 
     public function setPluginRoot(int $pluginId, string $path): void;
+
+    public function delete(int $pluginId): void;
 }
