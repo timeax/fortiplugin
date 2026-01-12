@@ -53,7 +53,7 @@ final class ActivatePluginVersionJob implements ShouldQueue
         }
 
         $installRoot = (string)config('fortiplugin.install_directory', 'apps');
-        $installDir = base_path($installRoot . DIRECTORY_SEPARATOR . $plugin->slug);
+        $installDir = base_path($installRoot . DIRECTORY_SEPARATOR . $plugin->name);
 
 
         $result = $activator->run(
