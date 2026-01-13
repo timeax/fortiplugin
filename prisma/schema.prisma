@@ -92,20 +92,21 @@ enum IssueStatus {
 ///@guarded:id
 ///@fillable:slug,name,handle,email,avatar_url,org,website,meta,verified,password,status
 model Author {
-  id         BigInt       @id @default(autoincrement()) @db.BigInt
-  slug       String       @unique
-  name       String
-  handle     String?      @unique
-  email      String?      @unique
-  password   String
-  avatar_url String?
-  org        String?
-  website    String?
-  meta       Json?
-  status     AuthorStatus @default(pending)
-  verified   Boolean      @default(false)
-  created_at DateTime     @default(now())
-  updated_at DateTime     @updatedAt
+  id                BigInt       @id @default(autoincrement()) @db.BigInt
+  slug              String       @unique
+  name              String
+  handle            String?      @unique
+  email             String?      @unique
+  password          String
+  avatar_url        String?
+  org               String?
+  website           String?
+  meta              Json?
+  bypass_pack_error Boolean?     @default(false)
+  status            AuthorStatus @default(pending)
+  verified          Boolean      @default(false)
+  created_at        DateTime     @default(now())
+  updated_at        DateTime     @updatedAt
 
   // relations
   pluginLinks       PluginAuthor[]
@@ -247,17 +248,17 @@ model PluginToken {
 ///@guarded:id
 ///@fillable:plugin_id,reporter_id,type,description,status,severity,meta
 model PluginIssue {
-  id          BigInt      @id @default(autoincrement()) @db.BigInt
-  plugin_id   BigInt
-  reporter_id BigInt
+  id            BigInt      @id @default(autoincrement()) @db.BigInt
+  plugin_id     BigInt
+  reporter_id   BigInt
   reporter_type String
-  type        String
-  description String      @db.Text
-  status      IssueStatus @default(open)
-  severity    String? /// optional (low|med|high|critical or free-form)
-  meta        Json?
-  created_at  DateTime    @default(now())
-  updated_at  DateTime    @updatedAt
+  type          String
+  description   String      @db.Text
+  status        IssueStatus @default(open)
+  severity      String? /// optional (low|med|high|critical or free-form)
+  meta          Json?
+  created_at    DateTime    @default(now())
+  updated_at    DateTime    @updatedAt
 
   plugin   Plugin               @relation(fields: [plugin_id], references: [id], onDelete: Cascade)
   messages PluginIssueMessage[]
@@ -318,7 +319,7 @@ model PluginAuditLog {
   created_at      DateTime @default(now())
   updated_at      DateTime @updatedAt
 
-  plugin      Plugin?  @relation(fields: [plugin_id], references: [id], onDelete: SetNull)
+  plugin      Plugin? @relation(fields: [plugin_id], references: [id], onDelete: SetNull)
   actorAuthor Author? @relation("PluginAuditActor", fields: [actor_author_id], references: [id])
 
   @@index([plugin_id])

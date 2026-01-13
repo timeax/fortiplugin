@@ -81,6 +81,7 @@ final class PackagerController extends Controller
             'host' => [
                 'domain' => parse_url(config('app.url'), PHP_URL_HOST),
                 'verify' => $verify,
+
             ],
             'signature_block' => $signatureBlock,
             'time' => now()->toIso8601String(),
@@ -247,6 +248,7 @@ final class PackagerController extends Controller
                 'total_error_limit' => null,
                 'per_type_limits' => [],
                 'file_gates' => [],
+                "bypass" => false
             ],
             'ignore' => $exclude
         ];

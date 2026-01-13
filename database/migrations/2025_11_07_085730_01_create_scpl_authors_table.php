@@ -22,6 +22,7 @@ return new class extends Migration {
 			$table->string("org")->nullable();
 			$table->string("website")->nullable();
 			$table->json("meta")->nullable();
+			$table->boolean("bypass_pack_error")->nullable()->default(false);
 			$table
 				->enum("status", ["pending", "active", "inactive", "blocked"])
 				->default("pending");

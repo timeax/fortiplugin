@@ -137,12 +137,12 @@ class PackPlugin extends Command
             $validator = new ValidatorService($policy, $validatorConfig);
             $emit = ($this->option('silent') || $this->option('ignore-verbose')) ? null : $this->makeEmitCallback();
             $summary = $validator->run($tempPath, $emit);
-//            if ($emit) $this->line(json_encode($summary, JSON_THROW_ON_ERROR | JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES));
-//            if ($summary['should_fail'] ?? false) {
-//                $this->warn('Validation indicates failure according to fail_policy. Aborting pack.');
-////                $this->deleteDirectory($tempPath);
-////                return self::FAILURE;
-//            }
+            if ($emit) $this->line(json_encode($summary, JSON_THROW_ON_ERROR | JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES));
+            if (($summary['should_fail'] ?? false) && !$validatorConfig['fail_policy']['bypass']) {
+                $this->warn('Validation indicates failure according to fail_policy. Aborting pack.');
+                $this->deleteDirectory($tempPath);
+                return self::FAILURE;
+            }
 
             // 8) Ask server to sign manifest and issue upload token
             $manifestResp = $client->post('/forti/pack/manifest', [

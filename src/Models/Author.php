@@ -17,6 +17,7 @@ use Illuminate\Database\Eloquent\Model;
  * @property string|null $org
  * @property string|null $website
  * @property array|null $meta
+ * @property bool|null $bypass_pack_error
  * @property AuthorStatus::class $status
  * @property bool $verified
  * @property \Carbon\Carbon $created_at
