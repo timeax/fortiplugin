@@ -4,15 +4,7 @@
     <option name="autoReloadType" value="SELECTIVE" />
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="eaf4cbc6-d298-4694-b042-183ced7c77f7" name="Changes" comment="">
-      <change afterPath="$PROJECT_DIR$/src/Installations/Lifecycle/Uninstallation/UninstallEvents.php" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/src/Installations/Lifecycle/Uninstallation/UninstallResult.php" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/src/Installations/Lifecycle/Uninstallation/Uninstaller.php" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/FortiPluginServiceProvider.php" beforeDir="false" afterPath="$PROJECT_DIR$/src/FortiPluginServiceProvider.php" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/Installations/Contracts/PluginRepository.php" beforeDir="false" afterPath="$PROJECT_DIR$/src/Installations/Contracts/PluginRepository.php" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/Installations/Infra/EloquentPluginRepository.php" beforeDir="false" afterPath="$PROJECT_DIR$/src/Installations/Infra/EloquentPluginRepository.php" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/Installations/Infra/InMemoryPluginRepository.php" beforeDir="false" afterPath="$PROJECT_DIR$/src/Installations/Infra/InMemoryPluginRepository.php" afterDir="false" />
-    </list>
+    <list default="true" id="eaf4cbc6-d298-4694-b042-183ced7c77f7" name="Changes" comment="" />
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
     <option name="HIGHLIGHT_NON_ACTIVE_CHANGELIST" value="false" />
@@ -387,7 +379,7 @@
       <workItem from="1768169801613" duration="17438000" />
       <workItem from="1768199605284" duration="1291000" />
       <workItem from="1768211107788" duration="511000" />
-      <workItem from="1768240721128" duration="7497000" />
+      <workItem from="1768240721128" duration="7544000" />
     </task>
     <servers />
   </component>
