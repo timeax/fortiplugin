@@ -16,12 +16,15 @@ use Timeax\FortiPlugin\Enums\ProcessStatus;
 use Timeax\FortiPlugin\Enums\ProcessType;
 use Timeax\FortiPlugin\Installations\Lifecycle\Deactivation\DeactivationResult;
 use Timeax\FortiPlugin\Installations\Lifecycle\Deactivation\Deactivator;
+use Timeax\FortiPlugin\Installations\Lifecycle\Uninstallation\Uninstaller;
+use Timeax\FortiPlugin\Installations\Lifecycle\Uninstallation\UninstallResult;
 use Timeax\FortiPlugin\Jobs\ActivatePluginVersionJob;
 use Timeax\FortiPlugin\Jobs\DeactivatePluginJob;
 use Timeax\FortiPlugin\Models\Plugin;
 use Timeax\FortiPlugin\Models\PluginProcess;
 use Timeax\FortiPlugin\Permissions\Contracts\PermissionServiceInterface;
 use Timeax\FortiPlugin\Services\PluginSettingsWriter;
+use Timeax\FortiPlugin\Support\AuditLogger;
 use Timeax\FortiPlugin\Support\LoadedExportInfo;
 use Timeax\FortiPlugin\Traits\PluginSettingsLoader;
 
@@ -187,7 +190,6 @@ final readonly class InstalledPlugin
 
     /**
      * @throws Throwable
-     * @throws JsonException
      */
     public function deactivate(string $id): DeactivationResult
     {
@@ -224,6 +226,15 @@ final readonly class InstalledPlugin
         );
 
         return $process->id;
+    }
+
+    public function uninstall(int $id): UninstallResult
+    {
+        AuditLogger::log('Uninstall', [
+            'plugin' => $this->plugin->toArray()
+        ], $id);
+        
+        return Uninstaller::run($this->plugin, (string)$id, (string)Str::uuid());
     }
 
     /**
