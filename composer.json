@@ -26,8 +26,7 @@
     "ext-openssl": "*",
     "ext-zlib": "*",
     "ext-curl": "*",
-    "ext-zip": "*",
-    "ext-apcu": "*"
+    "ext-zip": "*"
   },
   "require-dev": {
     "roave/security-advisories": "dev-latest",
