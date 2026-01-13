@@ -21,7 +21,7 @@ class AuditLogger
     public static function log(string $action, ?array $context = null, ?int $actorId = null): AuditLog
     {
         return AuditLog::create([
-            'actor_id' => $actorId ?? (Auth::check() ? Auth::id() : null),
+            'actor' => $actorId ?? (Auth::check() ? Auth::id() : null),
             'action' => $action,
             'context' => $context,
         ]);

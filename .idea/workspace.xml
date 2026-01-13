@@ -4,7 +4,11 @@
     <option name="autoReloadType" value="SELECTIVE" />
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="eaf4cbc6-d298-4694-b042-183ced7c77f7" name="Changes" comment="" />
+    <list default="true" id="eaf4cbc6-d298-4694-b042-183ced7c77f7" name="Changes" comment="">
+      <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/Runtime/ActivatedPluginProviderLoader.php" beforeDir="false" afterPath="$PROJECT_DIR$/src/Runtime/ActivatedPluginProviderLoader.php" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/Support/AuditLogger.php" beforeDir="false" afterPath="$PROJECT_DIR$/src/Support/AuditLogger.php" afterDir="false" />
+    </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
     <option name="HIGHLIGHT_NON_ACTIVE_CHANGELIST" value="false" />
@@ -17,7 +21,7 @@
     </execution>
   </component>
   <component name="EmbeddingIndexingInfo">
-    <option name="cachedIndexableFilesCount" value="9383" />
+    <option name="cachedIndexableFilesCount" value="9386" />
     <option name="fileBasedEmbeddingIndicesEnabled" value="true" />
   </component>
   <component name="FileTemplateManagerImpl">
@@ -266,10 +270,10 @@
 }</component>
   <component name="RecapSpentCounter">
     <option name="endsOfQuotaMs" value="1769140888491" />
-    <option name="spentUsd" value="0.03852455" />
+    <option name="spentUsd" value="0.0487753" />
   </component>
   <component name="RecapUselessUpdatesCounter">
-    <option name="suspendCountdown" value="9" />
+    <option name="suspendCountdown" value="6" />
   </component>
   <component name="RecentsManager">
     <key name="CopyFile.RECENT_KEYS">
@@ -380,6 +384,7 @@
       <workItem from="1768199605284" duration="1291000" />
       <workItem from="1768211107788" duration="511000" />
       <workItem from="1768240721128" duration="7544000" />
+      <workItem from="1768267864691" duration="2049000" />
     </task>
     <servers />
   </component>
