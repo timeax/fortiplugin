@@ -5,6 +5,7 @@ namespace Timeax\FortiPlugin\Services;
 
 use JsonException;
 use Timeax\FortiPlugin\Contracts\ConfigInterface;
+use Timeax\FortiPlugin\Installations\Lifecycle\Uninstallation\Uninstaller;
 use Timeax\FortiPlugin\Installations\Support\AtomicFilesystem;
 use Timeax\FortiPlugin\Models\Plugin;
 use Timeax\FortiPlugin\Permissions\Contracts\PermissionServiceInterface;
@@ -37,7 +38,8 @@ final class PluginService
             $locator,
             $resolver,
             $this->settingsWriter,
-            $this->permissionService
+            $this->permissionService,
+            app(Uninstaller::class)
         );
     }
 

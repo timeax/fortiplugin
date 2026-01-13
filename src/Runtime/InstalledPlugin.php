@@ -41,6 +41,7 @@ final readonly class InstalledPlugin
         private string                     $configClass,
         private PluginSettingsWriter       $settingsWriter,
         private PermissionServiceInterface $permissionService,
+        private Uninstaller                $uninstaller
     )
     {
         if (!is_subclass_of($configClass, ConfigInterface::class)) {
@@ -233,8 +234,8 @@ final readonly class InstalledPlugin
         AuditLogger::log('Uninstall', [
             'plugin' => $this->plugin->toArray()
         ], $id);
-        
-        return Uninstaller::run($this->plugin, (string)$id, (string)Str::uuid());
+
+        return $this->uninstaller->run($this->plugin, (string)$id, (string)Str::uuid());
     }
 
     /**

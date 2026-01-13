@@ -3,6 +3,7 @@ declare(strict_types=1);
 
 namespace Timeax\FortiPlugin\Services\Plugins;
 
+use Timeax\FortiPlugin\Installations\Lifecycle\Uninstallation\Uninstaller;
 use Timeax\FortiPlugin\Models\Plugin;
 use Timeax\FortiPlugin\Permissions\Contracts\PermissionServiceInterface;
 use Timeax\FortiPlugin\Runtime\InstalledPlugin;
@@ -15,6 +16,7 @@ final readonly class PluginRuntimeManager
         private PluginConfigResolver $configResolver,
         private PluginSettingsWriter $settingsWriter,
         private PermissionServiceInterface $permissionService,
+        private Uninstaller $uninstaller
     ) {}
 
     public function installedRoot(Plugin $plugin): string
@@ -40,7 +42,8 @@ final readonly class PluginRuntimeManager
             $root,
             $configClass,
             $this->settingsWriter,
-            $this->permissionService
+            $this->permissionService,
+            $this->uninstaller
         );
     }
 }
