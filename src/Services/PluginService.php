@@ -3,9 +3,11 @@ declare(strict_types=1);
 
 namespace Timeax\FortiPlugin\Services;
 
+use Illuminate\Support\Str;
 use JsonException;
 use Timeax\FortiPlugin\Contracts\ConfigInterface;
 use Timeax\FortiPlugin\Installations\Lifecycle\Uninstallation\Uninstaller;
+use Timeax\FortiPlugin\Installations\Lifecycle\Uninstallation\UninstallResult;
 use Timeax\FortiPlugin\Installations\Support\AtomicFilesystem;
 use Timeax\FortiPlugin\Models\Plugin;
 use Timeax\FortiPlugin\Permissions\Contracts\PermissionServiceInterface;
@@ -14,6 +16,7 @@ use Timeax\FortiPlugin\Services\Plugins\PluginCatalog;
 use Timeax\FortiPlugin\Services\Plugins\PluginConfigResolver;
 use Timeax\FortiPlugin\Services\Plugins\PluginInstallLocator;
 use Timeax\FortiPlugin\Services\Plugins\PluginRuntimeManager;
+use Timeax\FortiPlugin\Support\AuditLogger;
 use Timeax\FortiPlugin\Traits\PluginSettingsLoader;
 
 final class PluginService
@@ -27,6 +30,7 @@ final class PluginService
         private readonly AtomicFilesystem           $afs,
         private readonly PluginSettingsWriter       $settingsWriter,
         private readonly PermissionServiceInterface $permissionService,
+        private readonly Uninstaller                $uninstaller
     )
     {
         $this->catalog = new PluginCatalog();
@@ -39,7 +43,7 @@ final class PluginService
             $resolver,
             $this->settingsWriter,
             $this->permissionService,
-            app(Uninstaller::class)
+            $this->uninstaller
         );
     }
 
@@ -87,6 +91,16 @@ final class PluginService
     public function load(int|string $idOrAlias): InstalledPlugin
     {
         return $this->runtime->load($this->getPlugin($idOrAlias));
+    }
+
+    public function uninstall(int|string $idOrAlias, int $id): UninstallResult
+    {
+        $plugin = $this->getPlugin($idOrAlias);
+        AuditLogger::log('Uninstall', [
+            'plugin' => $plugin->toArray()
+        ], $id);
+
+        return $this->uninstaller->run($plugin, (string)$id, (string)Str::uuid());
     }
 
     /**
