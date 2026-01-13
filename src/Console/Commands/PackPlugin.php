@@ -225,6 +225,7 @@ class PackPlugin extends Command
             return self::SUCCESS;
 
         } catch (Throwable $e) {
+            Log::error($e);
             $this->error($e->getMessage());
             $this->deleteDirectory($tempPath);
             return self::FAILURE;
