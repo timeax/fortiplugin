@@ -5,13 +5,7 @@
   </component>
   <component name="ChangeListManager">
     <list default="true" id="eaf4cbc6-d298-4694-b042-183ced7c77f7" name="Changes" comment="">
-      <change afterPath="$PROJECT_DIR$/src/Autoload/PhpSyntaxScanner.php" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/Autoload/Psr4RegistryWriter.php" beforeDir="false" afterPath="$PROJECT_DIR$/src/Autoload/Psr4RegistryWriter.php" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/FortiPluginServiceProvider.php" beforeDir="false" afterPath="$PROJECT_DIR$/src/FortiPluginServiceProvider.php" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/Runtime/ActivatedPluginProviderLoader.php" beforeDir="false" afterPath="$PROJECT_DIR$/src/Runtime/ActivatedPluginProviderLoader.php" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/Services/PluginService.php" beforeDir="false" afterPath="$PROJECT_DIR$/src/Services/PluginService.php" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/Services/Plugins/PluginCatalog.php" beforeDir="false" afterPath="$PROJECT_DIR$/src/Services/Plugins/PluginCatalog.php" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -274,10 +268,10 @@
 }</component>
   <component name="RecapSpentCounter">
     <option name="endsOfQuotaMs" value="1769140888491" />
-    <option name="spentUsd" value="0.0994116" />
+    <option name="spentUsd" value="0.11116335" />
   </component>
   <component name="RecapUselessUpdatesCounter">
-    <option name="suspendCountdown" value="1" />
+    <option name="suspendCountdown" value="0" />
   </component>
   <component name="RecentsManager">
     <key name="CopyFile.RECENT_KEYS">
@@ -389,7 +383,7 @@
       <workItem from="1768211107788" duration="511000" />
       <workItem from="1768240721128" duration="7544000" />
       <workItem from="1768267864691" duration="2124000" />
-      <workItem from="1768281069543" duration="4975000" />
+      <workItem from="1768281069543" duration="6659000" />
     </task>
     <servers />
   </component>
