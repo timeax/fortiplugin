@@ -4,15 +4,15 @@ declare(strict_types=1);
 namespace Timeax\FortiPlugin\Runtime;
 
 use Illuminate\Contracts\Foundation\Application;
-use Illuminate\Support\Facades\Log;
 use RuntimeException;
 use Throwable;
-use Timeax\FortiPlugin\Installations\Lifecycle\Deactivation\Deactivator;
-use Timeax\FortiPlugin\Services\PluginLifecycleService;
+use Timeax\FortiPlugin\Services\PluginService;
 use Timeax\FortiPlugin\Support\AuditLogger;
 
 final readonly class ActivatedPluginProviderLoader
 {
+    private PluginService $service;
+
     public function __construct(private Application $app)
     {
     }
@@ -30,7 +30,7 @@ final readonly class ActivatedPluginProviderLoader
 
                     // Will autoload the class (may include file)
                     if (!class_exists($provider)) {
-                        throw new \RuntimeException("Provider class not found: {$provider}");
+                        throw new RuntimeException("Provider class not found: $provider");
                     }
 
                     app()->register($provider); // may run register() and boot() immediately if app already booted
@@ -46,9 +46,7 @@ final readonly class ActivatedPluginProviderLoader
                     // 2) mark plugin problematic + deactivate (and remove from registries)
                     // IMPORTANT: do this in a "best effort" way so failure here doesn't break the request.
                     try {
-                        // disablePlugin($alias) should:
-                        // - set plugin status inactive/problem
-                        // - remove alias from providers/ui/routes/autoload registries
+                        $this->service->load($alias)->deactivate('system');
                     } catch (Throwable $inner) {
                         AuditLogger::log('disabling_failed', [
                             'plugin' => $alias,
@@ -80,7 +78,7 @@ final readonly class ActivatedPluginProviderLoader
         $decoded = json_decode($raw, true);
 
         if (!is_array($decoded)) {
-            throw new RuntimeException("FortiPlugin providers map is invalid JSON: {$path}");
+            throw new RuntimeException("FortiPlugin providers map is invalid JSON: $path");
         }
 
         return $decoded;

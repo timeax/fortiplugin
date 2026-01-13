@@ -17,7 +17,8 @@ final class PluginCatalog
             return $this->byId[$idOrAlias];
         }
 
-        $plugin = Plugin::query()->find($idOrAlias);
+        if (is_string($idOrAlias)) $plugin = Plugin::where("alias", $idOrAlias)->first();
+        else $plugin = Plugin::query()->find($idOrAlias);
 
         if (!$plugin) {
             throw new RuntimeException("Plugin #$idOrAlias not found");

@@ -69,7 +69,22 @@ final readonly class Psr4RegistryWriter implements RegistryWriter
         $tmpPath = $this->store->stage($registry);
 
         return [
-            'commit' => function () use ($tmpPath): void {
+            'commit' => function () use ($tmpPath, $plugin, $prefixes): void {
+                // 1) Syntax scan all mapped dirs before making plugin autoloadable
+                $dirs = [];
+                foreach ($prefixes as $ns => $paths) {
+                    foreach ((array)$paths as $p) {
+                        if (is_string($p) && $p !== '') {
+                            $dirs[] = $p;
+                        }
+                    }
+                }
+                $dirs = array_values(array_unique($dirs));
+
+                app(PhpSyntaxScanner::class)
+                    ->assertDirsOk($dirs, $plugin->alias);
+
+                // 2) Only now commit registry
                 $this->store->commit($tmpPath);
             },
             'rollback' => static function () use ($tmpPath): void {

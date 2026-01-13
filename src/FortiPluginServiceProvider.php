@@ -8,6 +8,7 @@ use Illuminate\Contracts\Container\BindingResolutionException;
 use Illuminate\Filesystem\Filesystem as LaravelFs;
 use Illuminate\Support\ServiceProvider;
 use Timeax\FortiPlugin\Autoload\ComposerLoaderResolver;
+use Timeax\FortiPlugin\Autoload\PhpSyntaxScanner;
 use Timeax\FortiPlugin\Autoload\PluginAutoloader;
 use Timeax\FortiPlugin\Autoload\PluginAutoloadMapBuilder;
 use Timeax\FortiPlugin\Autoload\Psr4RegistryStore;
@@ -216,6 +217,8 @@ class FortiPluginServiceProvider extends ServiceProvider
         // ── Helpers / Tools ────────────────────────────────────────────────────
         $this->app->singleton(Psr4Checker::class, fn($app) => new Psr4Checker($app->make(AtomicFilesystem::class))
         );
+
+        $this->app->singleton(PhpSyntaxScanner::class);
 
         $this->app->singleton(ComposerInspector::class, fn($app) => new ComposerInspector($app->make(AtomicFilesystem::class))
         );

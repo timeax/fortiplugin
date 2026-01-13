@@ -18,6 +18,7 @@ use Timeax\FortiPlugin\Traits\PluginSettingsLoader;
 final class PluginService
 {
     use PluginSettingsLoader;
+
     private PluginCatalog $catalog;
     private PluginRuntimeManager $runtime;
 
@@ -63,9 +64,9 @@ final class PluginService
         return $this->catalog->list();
     }
 
-    public function installedRoot(int $pluginId): string
+    public function installedRoot(int $idOrAlias): string
     {
-        return $this->runtime->installedRoot($this->getPlugin($pluginId));
+        return $this->runtime->installedRoot($this->getPlugin($idOrAlias));
     }
 
     /**
@@ -89,7 +90,7 @@ final class PluginService
     /**
      * @throws JsonException
      */
-    public function initSettings(int|string $idOrAlias, array $settings): void
+    public function initSettings(int|string $idOrAlias): void
     {
         $plugin = $this->getPlugin($idOrAlias);
         $Ctx = $this->loadConfigClass($idOrAlias);
