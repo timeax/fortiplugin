@@ -17,8 +17,9 @@ return new class extends Migration {
 			$table->id();
 			$table
 				->foreignId("plugin_id")
+				->nullable()
 				->constrained("scpl_plugins", "id")
-				->onDelete("no action")
+				->onDelete("set null")
 				->onUpdate("no action");
 			$table->string("actor")->nullable();
 			$table

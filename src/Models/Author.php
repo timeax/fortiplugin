@@ -22,7 +22,6 @@ use Illuminate\Database\Eloquent\Model;
  * @property \Carbon\Carbon $created_at
  * @property \Carbon\Carbon $updated_at
  * @property \Illuminate\Support\Collection<int, Plugin::class> $pluginLinks
- * @property \Illuminate\Support\Collection<int, PluginIssue::class> $reportedIssues
  * @property \Illuminate\Support\Collection<int, PluginIssueMessage::class> $issueMessages
  * @property \Illuminate\Support\Collection<int, PluginZip::class> $uploadedZips
  * @property \Illuminate\Support\Collection<int, PluginToken::class> $pluginTokens
@@ -69,11 +68,6 @@ class Author extends Model
 			"id",
 			"id",
 		); // pivot: scpl_plugin_author
-	}
-
-	public function reportedIssues()
-	{
-		return $this->hasMany(PluginIssue::class, "reporter_id", "id");
 	}
 
 	public function issueMessages()

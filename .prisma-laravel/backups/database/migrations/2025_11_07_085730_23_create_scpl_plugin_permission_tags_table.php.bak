@@ -18,12 +18,12 @@ return new class extends Migration {
 			$table
 				->foreignId("plugin_id")
 				->constrained("scpl_plugins", "id")
-				->onDelete("no action")
+				->onDelete("cascade")
 				->onUpdate("no action");
 			$table
 				->foreignId("tag_id")
 				->constrained("scpl_permission_tags", "id")
-				->onDelete("no action")
+				->onDelete("cascade")
 				->onUpdate("no action");
 			$table->boolean("active")->default(true);
 			$table->boolean("limited")->default(false);

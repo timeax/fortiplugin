@@ -18,13 +18,9 @@ return new class extends Migration {
 			$table
 				->foreignId("plugin_id")
 				->constrained("scpl_plugins", "id")
-				->onDelete("no action")
+				->onDelete("cascade")
 				->onUpdate("no action");
-			$table
-				->foreignId("reporter_id")
-				->constrained("scpl_authors", "id")
-				->onDelete("no action")
-				->onUpdate("no action");
+			$table->morphs("reporter");
 			$table->string("type");
 			$table->text("description");
 			$table
@@ -44,7 +40,6 @@ return new class extends Migration {
 			$table->json("meta")->nullable();
 			$table->timestamps();
 			$table->index("plugin_id");
-			$table->index("reporter_id");
 		});
 	}
 

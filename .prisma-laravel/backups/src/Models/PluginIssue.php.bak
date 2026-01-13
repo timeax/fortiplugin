@@ -10,6 +10,7 @@ use Illuminate\Database\Eloquent\Model;
  * @property int $id
  * @property int $plugin_id
  * @property int $reporter_id
+ * @property string $reporter_type
  * @property string $type
  * @property string $description
  * @property IssueStatus::class $status
@@ -18,8 +19,8 @@ use Illuminate\Database\Eloquent\Model;
  * @property \Carbon\Carbon $created_at
  * @property \Carbon\Carbon $updated_at
  * @property Plugin::class $plugin
- * @property Author::class $reporter
  * @property \Illuminate\Support\Collection<int, PluginIssueMessage::class> $messages
+ * @property  $reporter
  */
 class PluginIssue extends Model
 {
@@ -49,13 +50,13 @@ class PluginIssue extends Model
 		return $this->belongsTo(Plugin::class, "plugin_id", "id");
 	}
 
-	public function reporter()
-	{
-		return $this->belongsTo(Author::class, "reporter_id", "id");
-	}
-
 	public function messages()
 	{
 		return $this->hasMany(PluginIssueMessage::class, "issue_id", "id");
+	}
+
+	public function reporter()
+	{
+		return $this->morphTo("reporter");
 	}
 }

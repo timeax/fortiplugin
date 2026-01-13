@@ -7,7 +7,7 @@ use Illuminate\Database\Eloquent\Model;
 
 /**
  * @property int $id
- * @property int $plugin_id
+ * @property int|null $plugin_id
  * @property string|null $actor
  * @property int|null $actor_author_id
  * @property string $type

@@ -60,8 +60,8 @@ model PluginPermissionTag {
   created_at DateTime @default(now())
   updated_at DateTime @updatedAt
 
-  plugin Plugin        @relation(fields: [plugin_id], references: [id])
-  tag    PermissionTag @relation(fields: [tag_id], references: [id])
+  plugin Plugin        @relation(fields: [plugin_id], references: [id], onDelete: Cascade)
+  tag    PermissionTag @relation(fields: [tag_id], references: [id], onDelete: Cascade)
 
   @@unique([plugin_id, tag_id])
   @@index([plugin_id])
@@ -86,7 +86,7 @@ model PermissionTagItem {
   created_at DateTime @default(now())
   updated_at DateTime @updatedAt
 
-  tag PermissionTag @relation(fields: [tag_id], references: [id])
+  tag PermissionTag @relation(fields: [tag_id], references: [id], onDelete: Cascade)
 
   @@unique([tag_id, permission_type, permission_id], name: "pti_tag_type_pid_unique")
   @@index([tag_id])
@@ -121,7 +121,7 @@ model PluginPermission {
   created_at DateTime @default(now())
   updated_at DateTime @updatedAt
 
-  plugin Plugin @relation(fields: [plugin_id], references: [id])
+  plugin Plugin @relation(fields: [plugin_id], references: [id], onDelete: Cascade)
 
   @@unique([plugin_id, permission_type, permission_id], name: "pti_permissions_unique")
   @@index([plugin_id])
@@ -280,7 +280,7 @@ model CodecPermission {
 model PluginRoutePermission {
   id        BigInt @id @default(autoincrement())
   plugin_id BigInt
-  plugin    Plugin @relation(fields: [plugin_id], references: [id])
+  plugin    Plugin @relation(fields: [plugin_id], references: [id], onDelete: Cascade)
 
   /// The JSON-declared route `id` (unique per plugin).
   route_id String

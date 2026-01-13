@@ -18,7 +18,7 @@ return new class extends Migration {
 			$table
 				->foreignId("plugin_id")
 				->constrained("scpl_plugins", "id")
-				->onDelete("no action")
+				->onDelete("cascade")
 				->onUpdate("no action");
 			$table->string("version");
 			$table->string("archive_url");

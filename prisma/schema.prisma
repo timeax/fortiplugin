@@ -109,7 +109,6 @@ model Author {
 
   // relations
   pluginLinks       PluginAuthor[]
-  reportedIssues    PluginIssue[]        @relation("IssueReporter")
   issueMessages     PluginIssueMessage[]
   uploadedZips      PluginZip[]
   pluginTokens      PluginToken[]
@@ -193,7 +192,7 @@ model PluginVersion {
   created_at        DateTime         @default(now())
   updated_at        DateTime         @updatedAt
 
-  plugin Plugin @relation(fields: [plugin_id], references: [id])
+  plugin Plugin @relation(fields: [plugin_id], references: [id], onDelete: Cascade)
 
   @@index([plugin_id])
   @@map("plugin_versions")
@@ -251,6 +250,7 @@ model PluginIssue {
   id          BigInt      @id @default(autoincrement()) @db.BigInt
   plugin_id   BigInt
   reporter_id BigInt
+  reporter_type String
   type        String
   description String      @db.Text
   status      IssueStatus @default(open)
@@ -259,12 +259,10 @@ model PluginIssue {
   created_at  DateTime    @default(now())
   updated_at  DateTime    @updatedAt
 
-  plugin   Plugin               @relation(fields: [plugin_id], references: [id])
-  reporter Author               @relation("IssueReporter", fields: [reporter_id], references: [id])
+  plugin   Plugin               @relation(fields: [plugin_id], references: [id], onDelete: Cascade)
   messages PluginIssueMessage[]
 
   @@index([plugin_id])
-  @@index([reporter_id])
   @@map("plugin_issues")
 }
 
@@ -310,7 +308,7 @@ model AuditLog {
 ///@fillable:plugin_id,actor,actor_author_id,type,action,resource,context
 model PluginAuditLog {
   id              BigInt   @id @default(autoincrement()) @db.BigInt
-  plugin_id       BigInt
+  plugin_id       BigInt?
   actor           String?
   actor_author_id BigInt?
   type            String
@@ -320,7 +318,7 @@ model PluginAuditLog {
   created_at      DateTime @default(now())
   updated_at      DateTime @updatedAt
 
-  plugin      Plugin  @relation(fields: [plugin_id], references: [id])
+  plugin      Plugin?  @relation(fields: [plugin_id], references: [id], onDelete: SetNull)
   actorAuthor Author? @relation("PluginAuditActor", fields: [actor_author_id], references: [id])
 
   @@index([plugin_id])

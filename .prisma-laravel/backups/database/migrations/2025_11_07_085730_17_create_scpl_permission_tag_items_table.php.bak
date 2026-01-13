@@ -18,7 +18,7 @@ return new class extends Migration {
 			$table
 				->foreignId("tag_id")
 				->constrained("scpl_permission_tags", "id")
-				->onDelete("no action")
+				->onDelete("cascade")
 				->onUpdate("no action");
 			$table->enum("permission_type", [
 				"db",
