@@ -5,22 +5,7 @@
   </component>
   <component name="ChangeListManager">
     <list default="true" id="eaf4cbc6-d298-4694-b042-183ced7c77f7" name="Changes" comment="">
-      <change afterPath="$PROJECT_DIR$/src/Support/FortiPluginConfig.php" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/schema/dev-host.schema.json" beforeDir="false" afterPath="$PROJECT_DIR$/schema/dev-host.schema.json" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/schema/dev-permissions.schema.json" beforeDir="false" afterPath="$PROJECT_DIR$/schema/dev-permissions.schema.json" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/schema/fortiplugin.host-config.schema.json" beforeDir="false" afterPath="$PROJECT_DIR$/schema/fortiplugin.host-config.schema.json" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/schema/fortiplugin.routes.schema.json" beforeDir="false" afterPath="$PROJECT_DIR$/schema/fortiplugin.routes.schema.json" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/schema/fortiplugin.schema.json" beforeDir="false" afterPath="$PROJECT_DIR$/schema/fortiplugin.schema.json" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/schema/manifest.schema.json" beforeDir="false" afterPath="$PROJECT_DIR$/schema/manifest.schema.json" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/Console/Commands/MakePlugin.php" beforeDir="false" afterPath="$PROJECT_DIR$/src/Console/Commands/MakePlugin.php" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/Console/Commands/PackPlugin.php" beforeDir="false" afterPath="$PROJECT_DIR$/src/Console/Commands/PackPlugin.php" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/Core/Security/ConfigValidator.php" beforeDir="false" afterPath="$PROJECT_DIR$/src/Core/Security/ConfigValidator.php" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/Core/Security/HostConfigValidator.php" beforeDir="false" afterPath="$PROJECT_DIR$/src/Core/Security/HostConfigValidator.php" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/Core/Security/PluginSecurityScanner.php" beforeDir="false" afterPath="$PROJECT_DIR$/src/Core/Security/PluginSecurityScanner.php" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/Http/Controllers/PackagerController.php" beforeDir="false" afterPath="$PROJECT_DIR$/src/Http/Controllers/PackagerController.php" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/Services/ValidatorService.php" beforeDir="false" afterPath="$PROJECT_DIR$/src/Services/ValidatorService.php" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/test/PluginSecurityScannerTest.php" beforeDir="false" afterPath="$PROJECT_DIR$/test/PluginSecurityScannerTest.php" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -408,7 +393,7 @@
       <workItem from="1768300945584" duration="1261000" />
       <workItem from="1768302495931" duration="2704000" />
       <workItem from="1768308920196" duration="325000" />
-      <workItem from="1768314138606" duration="15179000" />
+      <workItem from="1768314138606" duration="15771000" />
     </task>
     <servers />
   </component>
