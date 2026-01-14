@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://yourdomain.com/schemas/plugin-permissions.schema.json",
+  "$id": "https://raw.githubusercontent.com/timeax/fortiplugin/refs/heads/main/schema/manifest.schema.json",
   "title": "FortiPlugin Permissions Manifest",
   "description": "Declarative capabilities for plugins. No limits or time constraints are expressed here.",
   "type": "object",

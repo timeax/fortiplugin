@@ -153,7 +153,7 @@ class MakePlugin extends Command
     protected function defaultJson(string $studly, string $kebab): array
     {
         return [
-            '$schema' => 'https://github.com/timeax/fortiplugin/blob/main/schema/fortiplugin.schema.json',
+            '$schema' => 'https://raw.githubusercontent.com/timeax/fortiplugin/refs/heads/main/schema/fortiplugin.schema.json',
             'name' => $studly,
             'alias' => $kebab,
             'description' => '',

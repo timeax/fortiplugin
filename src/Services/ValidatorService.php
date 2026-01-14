@@ -8,7 +8,7 @@ declare(strict_types=1);
 namespace Timeax\FortiPlugin\Services;
 
 use Illuminate\Support\Arr;
-use RuntimeException;
+use JsonException;
 use Throwable;
 use Timeax\FortiPlugin\Core\PluginPolicy;
 use Timeax\FortiPlugin\Core\Security\ComposerScan;
@@ -21,6 +21,7 @@ use Timeax\FortiPlugin\Core\Security\PluginSecurityScanner;
 use Timeax\FortiPlugin\Core\Security\RouteFileValidator;
 use Timeax\FortiPlugin\Core\Security\RouteIdRegistry;
 use Timeax\FortiPlugin\Core\Security\TokenUsageAnalyzer;
+use Timeax\FortiPlugin\Support\FortiPluginConfig;
 
 /**
  * ValidatorService — Orchestrates headline and scanner-driven validations with telemetry and no hard stops.
@@ -137,6 +138,9 @@ final class ValidatorService
         return isset($this->ignored[$alias]) || isset($this->ignored[$class]);
     }
 
+    /**
+     * @throws JsonException
+     */
     public function run(string $root, ?callable $emit = null): array
     {
         $this->reset($emit);
@@ -263,12 +267,15 @@ final class ValidatorService
         $this->emit = $emit;
     }
 
+    /**
+     * @throws JsonException
+     */
     private function runHeadline(string $root): void
     {
         // Composer
         if (!$this->isIgnored('composer', ComposerScan::class)) {
             try {
-                $composerPath = $this->config['headline']['composer_json'] ?? ($root . DIRECTORY_SEPARATOR . 'composer.json');
+                $composerPath = ($root . DIRECTORY_SEPARATOR . 'composer.json');
                 $scanner = new ComposerScan($this->policy);
                 $violations = $scanner->scan($composerPath);
                 foreach ($violations as $v) {
@@ -281,12 +288,12 @@ final class ValidatorService
             }
         }
 
+        $conf = FortiPluginConfig::fromPluginRoot($root);
         // Config schema (fortiplugin.json)
-        $schema = $this->config['headline']['forti_schema'] ?? null;
-        if (is_string($schema) && $schema !== '' && !$this->isIgnored('config', ConfigValidator::class)) {
+        if (!$this->isIgnored('config', ConfigValidator::class)) {
             try {
                 $cv = new ConfigValidator();
-                $res = $cv->validate($root, $schema);
+                $res = $cv->validate($root);
                 if (($res['error'] ?? null) !== null) {
                     $details = (array)($res['details'] ?? []);
                     if (!$details) {
@@ -307,7 +314,7 @@ final class ValidatorService
         }
 
         // Host config (array provided by caller)
-        $hostCfg = $this->config['headline']['host_config'] ?? null;
+        $hostCfg = $conf->getHostConfig();
         if (is_array($hostCfg) && !$this->isIgnored('host_config', HostConfigValidator::class)) {
             try {
                 HostConfigValidator::validate($hostCfg);
@@ -318,20 +325,12 @@ final class ValidatorService
         }
 
         // Permission manifest (path or array)
-        $perm = $this->config['headline']['permission_manifest'] ?? null;
+        $perm = $conf->getPermissionManifest();
         if ($perm !== null && !$this->isIgnored('permission_manifest', PermissionManifestValidator::class)) {
             try {
                 $pmv = new PermissionManifestValidator();
-                // validate() throws on errors; we convert to log via catch
-                if (is_string($perm)) {
-                    $json = @file_get_contents($perm);
-                    if ($json === false) {
-                        throw new RuntimeException("Cannot read permission manifest: $perm");
-                    }
-                    $pmv->validate($json);
-                } else {
-                    $pmv->validate((array)$perm);
-                }
+                $pmv->validate($perm);
+                //
             } catch (Throwable $e) {
                 $this->record('manifest.invalid', $e->getMessage(), is_string($perm) ? $perm : '[manifest]', ['exception' => $e]);
                 $this->emitEvent('Headline: Permission manifest', $e->getMessage(), $this->errorCounter('Headline: Permission manifest', $e->getMessage()), is_string($perm) ? $perm : null, null);
@@ -339,15 +338,15 @@ final class ValidatorService
         }
 
         // Route files (validate IDs + JSON structure)
-        $routeFiles = (array)($this->config['headline']['route_files'] ?? []);
+        $routeFiles = $conf->listRouteManifestFiles();
         if ($routeFiles && !$this->isIgnored('route', RouteFileValidator::class)) {
             $registry = new RouteIdRegistry();
             foreach ($routeFiles as $rf) {
                 try {
                     RouteFileValidator::validateFile($rf, $registry);
                 } catch (Throwable $e) {
-                    $this->record('route.invalid', $e->getMessage(), (string)$rf, ['exception' => $e]);
-                    $this->emitEvent('Headline: Route file', $e->getMessage(), $this->errorCounter('Headline: Route file', $e->getMessage()), (string)$rf, null);
+                    $this->record('route.invalid', $e->getMessage(), $rf, ['exception' => $e]);
+                    $this->emitEvent('Headline: Route file', $e->getMessage(), $this->errorCounter('Headline: Route file', $e->getMessage()), $rf, null);
                 }
             }
         }
@@ -461,7 +460,6 @@ final class ValidatorService
             }
         }
         //TODO: remove this when we have a better way to handle this: END
-        
         $this->log[] = [$type, $issue, $file];
         $this->extended[] = $extended + ['type' => $type, 'issue' => $issue, 'file' => $file];
         $this->stats['total_errors']++;

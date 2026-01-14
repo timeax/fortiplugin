@@ -5,14 +5,22 @@
   </component>
   <component name="ChangeListManager">
     <list default="true" id="eaf4cbc6-d298-4694-b042-183ced7c77f7" name="Changes" comment="">
+      <change afterPath="$PROJECT_DIR$/src/Support/FortiPluginConfig.php" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/.prisma-laravel/backups/database/migrations/2025_11_07_085730_01_create_scpl_authors_table.php.bak" beforeDir="false" afterPath="$PROJECT_DIR$/.prisma-laravel/backups/database/migrations/2025_11_07_085730_01_create_scpl_authors_table.php.bak" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/.prisma-laravel/backups/src/Models/Author.php.bak" beforeDir="false" afterPath="$PROJECT_DIR$/.prisma-laravel/backups/src/Models/Author.php.bak" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/database/migrations/2025_11_07_085730_01_create_scpl_authors_table.php" beforeDir="false" afterPath="$PROJECT_DIR$/database/migrations/2025_11_07_085730_01_create_scpl_authors_table.php" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/prisma/schema.prisma" beforeDir="false" afterPath="$PROJECT_DIR$/prisma/schema.prisma" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/schema/dev-host.schema.json" beforeDir="false" afterPath="$PROJECT_DIR$/schema/dev-host.schema.json" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/schema/dev-permissions.schema.json" beforeDir="false" afterPath="$PROJECT_DIR$/schema/dev-permissions.schema.json" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/schema/fortiplugin.host-config.schema.json" beforeDir="false" afterPath="$PROJECT_DIR$/schema/fortiplugin.host-config.schema.json" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/schema/fortiplugin.routes.schema.json" beforeDir="false" afterPath="$PROJECT_DIR$/schema/fortiplugin.routes.schema.json" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/schema/fortiplugin.schema.json" beforeDir="false" afterPath="$PROJECT_DIR$/schema/fortiplugin.schema.json" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/schema/manifest.schema.json" beforeDir="false" afterPath="$PROJECT_DIR$/schema/manifest.schema.json" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/Console/Commands/MakePlugin.php" beforeDir="false" afterPath="$PROJECT_DIR$/src/Console/Commands/MakePlugin.php" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/src/Console/Commands/PackPlugin.php" beforeDir="false" afterPath="$PROJECT_DIR$/src/Console/Commands/PackPlugin.php" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/Core/Security/ConfigValidator.php" beforeDir="false" afterPath="$PROJECT_DIR$/src/Core/Security/ConfigValidator.php" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/Core/Security/HostConfigValidator.php" beforeDir="false" afterPath="$PROJECT_DIR$/src/Core/Security/HostConfigValidator.php" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/Core/Security/PluginSecurityScanner.php" beforeDir="false" afterPath="$PROJECT_DIR$/src/Core/Security/PluginSecurityScanner.php" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/src/Http/Controllers/PackagerController.php" beforeDir="false" afterPath="$PROJECT_DIR$/src/Http/Controllers/PackagerController.php" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/Models/Author.php" beforeDir="false" afterPath="$PROJECT_DIR$/src/Models/Author.php" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/Services/ValidatorService.php" beforeDir="false" afterPath="$PROJECT_DIR$/src/Services/ValidatorService.php" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/test/PluginSecurityScannerTest.php" beforeDir="false" afterPath="$PROJECT_DIR$/test/PluginSecurityScannerTest.php" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -219,60 +227,61 @@
     <option name="showLibraryContents" value="true" />
     <option name="sortKey" value="BY_TIME_DESCENDING" />
   </component>
-  <component name="PropertiesComponent">{
-  &quot;keyToString&quot;: {
-    &quot;ModuleVcsDetector.initialDetectionPerformed&quot;: &quot;true&quot;,
-    &quot;PHPUnit.EncryptionTest.executor&quot;: &quot;Run&quot;,
-    &quot;PHPUnit.EncryptionTest.test_decrypt_returns_null_when_keymap_missing.executor&quot;: &quot;Run&quot;,
-    &quot;PHPUnit.JsonRouteCompilerTest.executor&quot;: &quot;Run&quot;,
-    &quot;PHPUnit.JsonRouteCompilerTest.test_compileData_with_http_and_group_emits_expected_snippets_and_collects_ids.executor&quot;: &quot;Run&quot;,
-    &quot;PHPUnit.JsonRouteCompilerTest.test_http_variants_any_and_match_and_action_expr_variants.executor&quot;: &quot;Run&quot;,
-    &quot;PHPUnit.LegacyJsonRouteCompilerTest.test_http_variants_any_and_match_and_action_expr_variants.executor&quot;: &quot;Run&quot;,
-    &quot;PHPUnit.PermissionManifestValidatorTest.executor&quot;: &quot;Run&quot;,
-    &quot;PHPUnit.PermissionManifestValidatorTest.testRejectsUnknownTopLevelKeys.executor&quot;: &quot;Debug&quot;,
-    &quot;PHPUnit.PermissionsListingAndTagsTest.executor&quot;: &quot;Run&quot;,
-    &quot;PHPUnit.PluginInstallFlowTest.executor&quot;: &quot;Run&quot;,
-    &quot;PHPUnit.PluginSecurityScannerTest.executor&quot;: &quot;Run&quot;,
-    &quot;PHPUnit.PluginSecurityScannerTest.testBlocklistClassMethodAllowlist.executor&quot;: &quot;Debug&quot;,
-    &quot;RunOnceActivity.MCP Project settings loaded&quot;: &quot;true&quot;,
-    &quot;RunOnceActivity.ShowReadmeOnStart&quot;: &quot;true&quot;,
-    &quot;RunOnceActivity.TerminalTabsStorage.copyFrom.TerminalArrangementManager.252&quot;: &quot;true&quot;,
-    &quot;RunOnceActivity.git.unshallow&quot;: &quot;true&quot;,
-    &quot;RunOnceActivity.typescript.service.memoryLimit.init&quot;: &quot;true&quot;,
-    &quot;SHELLCHECK.PATH&quot;: &quot;I do mind&quot;,
-    &quot;Shell Script.s.sh.executor&quot;: &quot;Run&quot;,
-    &quot;com.intellij.ml.llm.matterhorn.ej.ui.settings.DefaultAutoModeForALLUsers.v1&quot;: &quot;true&quot;,
-    &quot;com.intellij.ml.llm.matterhorn.ej.ui.settings.DefaultModelSelectionForGA.v1&quot;: &quot;true&quot;,
-    &quot;git-widget-placeholder&quot;: &quot;pre-release&quot;,
-    &quot;ignore.virus.scanning.warn.message&quot;: &quot;true&quot;,
-    &quot;junie.onboarding.icon.badge.shown&quot;: &quot;true&quot;,
-    &quot;laravel_idea.dialogs.code_generation:createConsoleCommand.width&quot;: &quot;416&quot;,
-    &quot;laravel_idea.dialogs.code_generation:createConsoleCommand.x&quot;: &quot;2672&quot;,
-    &quot;laravel_idea.dialogs.code_generation:createConsoleCommand.y&quot;: &quot;182&quot;,
-    &quot;laravel_idea.dialogs.route_server_address_settings.width&quot;: &quot;575&quot;,
-    &quot;laravel_idea.dialogs.route_server_address_settings.x&quot;: &quot;937&quot;,
-    &quot;laravel_idea.dialogs.route_server_address_settings.y&quot;: &quot;451&quot;,
-    &quot;laravel_idea.dialogs.run_console_command.width&quot;: &quot;452&quot;,
-    &quot;laravel_idea.dialogs.run_console_command.x&quot;: &quot;2654&quot;,
-    &quot;laravel_idea.dialogs.run_console_command.y&quot;: &quot;146&quot;,
-    &quot;laravel_idea.dialogs.run_console_settings.width&quot;: &quot;279&quot;,
-    &quot;laravel_idea.dialogs.run_console_settings.x&quot;: &quot;2740&quot;,
-    &quot;laravel_idea.dialogs.run_console_settings.y&quot;: &quot;195&quot;,
-    &quot;last_opened_file_path&quot;: &quot;C:/Users/USER/GitHub/timex/fortiplugin/.prodex@forti&quot;,
-    &quot;node.js.detected.package.eslint&quot;: &quot;true&quot;,
-    &quot;node.js.detected.package.tslint&quot;: &quot;true&quot;,
-    &quot;node.js.selected.package.eslint&quot;: &quot;(autodetect)&quot;,
-    &quot;node.js.selected.package.tslint&quot;: &quot;(autodetect)&quot;,
-    &quot;nodejs_package_manager_path&quot;: &quot;npm&quot;,
-    &quot;npm.db.executor&quot;: &quot;Run&quot;,
-    &quot;php.override.implement.member.chooser.php.doc&quot;: &quot;NONE&quot;,
-    &quot;prettierjs.PrettierConfiguration.Package&quot;: &quot;D:\\Projects\\GitHub\\fortiplugin\\node_modules\\prettier&quot;,
-    &quot;run.code.analysis.last.selected.profile&quot;: &quot;pProject Default&quot;,
-    &quot;settings.editor.selected.configurable&quot;: &quot;preferences.keymap&quot;,
-    &quot;to.speed.mode.migration.done&quot;: &quot;true&quot;,
-    &quot;vue.rearranger.settings.migration&quot;: &quot;true&quot;
+  <component name="PropertiesComponent"><![CDATA[{
+  "keyToString": {
+    "ModuleVcsDetector.initialDetectionPerformed": "true",
+    "PHPUnit.EncryptionTest.executor": "Run",
+    "PHPUnit.EncryptionTest.test_decrypt_returns_null_when_keymap_missing.executor": "Run",
+    "PHPUnit.JsonRouteCompilerTest.executor": "Run",
+    "PHPUnit.JsonRouteCompilerTest.test_compileData_with_http_and_group_emits_expected_snippets_and_collects_ids.executor": "Run",
+    "PHPUnit.JsonRouteCompilerTest.test_http_variants_any_and_match_and_action_expr_variants.executor": "Run",
+    "PHPUnit.LegacyJsonRouteCompilerTest.test_http_variants_any_and_match_and_action_expr_variants.executor": "Run",
+    "PHPUnit.PermissionManifestValidatorTest.executor": "Run",
+    "PHPUnit.PermissionManifestValidatorTest.testRejectsUnknownTopLevelKeys.executor": "Debug",
+    "PHPUnit.PermissionsListingAndTagsTest.executor": "Run",
+    "PHPUnit.PluginInstallFlowTest.executor": "Run",
+    "PHPUnit.PluginSecurityScannerTest.executor": "Run",
+    "PHPUnit.PluginSecurityScannerTest.testAnonymousClassLeakAndClosureLeak.executor": "Debug",
+    "PHPUnit.PluginSecurityScannerTest.testBlocklistClassMethodAllowlist.executor": "Debug",
+    "RunOnceActivity.MCP Project settings loaded": "true",
+    "RunOnceActivity.ShowReadmeOnStart": "true",
+    "RunOnceActivity.TerminalTabsStorage.copyFrom.TerminalArrangementManager.252": "true",
+    "RunOnceActivity.git.unshallow": "true",
+    "RunOnceActivity.typescript.service.memoryLimit.init": "true",
+    "SHELLCHECK.PATH": "I do mind",
+    "Shell Script.s.sh.executor": "Run",
+    "com.intellij.ml.llm.matterhorn.ej.ui.settings.DefaultAutoModeForALLUsers.v1": "true",
+    "com.intellij.ml.llm.matterhorn.ej.ui.settings.DefaultModelSelectionForGA.v1": "true",
+    "git-widget-placeholder": "pre-release",
+    "ignore.virus.scanning.warn.message": "true",
+    "junie.onboarding.icon.badge.shown": "true",
+    "laravel_idea.dialogs.code_generation:createConsoleCommand.width": "416",
+    "laravel_idea.dialogs.code_generation:createConsoleCommand.x": "2672",
+    "laravel_idea.dialogs.code_generation:createConsoleCommand.y": "182",
+    "laravel_idea.dialogs.route_server_address_settings.width": "575",
+    "laravel_idea.dialogs.route_server_address_settings.x": "937",
+    "laravel_idea.dialogs.route_server_address_settings.y": "451",
+    "laravel_idea.dialogs.run_console_command.width": "452",
+    "laravel_idea.dialogs.run_console_command.x": "2654",
+    "laravel_idea.dialogs.run_console_command.y": "146",
+    "laravel_idea.dialogs.run_console_settings.width": "279",
+    "laravel_idea.dialogs.run_console_settings.x": "2740",
+    "laravel_idea.dialogs.run_console_settings.y": "195",
+    "last_opened_file_path": "C:/Users/USER/GitHub/timex/fortiplugin/.prodex@forti",
+    "node.js.detected.package.eslint": "true",
+    "node.js.detected.package.tslint": "true",
+    "node.js.selected.package.eslint": "(autodetect)",
+    "node.js.selected.package.tslint": "(autodetect)",
+    "nodejs_package_manager_path": "npm",
+    "npm.db.executor": "Run",
+    "php.override.implement.member.chooser.php.doc": "NONE",
+    "prettierjs.PrettierConfiguration.Package": "D:\\Projects\\GitHub\\fortiplugin\\node_modules\\prettier",
+    "run.code.analysis.last.selected.profile": "pProject Default",
+    "settings.editor.selected.configurable": "preferences.keymap",
+    "to.speed.mode.migration.done": "true",
+    "vue.rearranger.settings.migration": "true"
   }
-}</component>
+}]]></component>
   <component name="RecapSpentCounter">
     <option name="endsOfQuotaMs" value="1769140888491" />
     <option name="spentUsd" value="0.11116335" />
@@ -296,7 +305,7 @@
       <recent name="D:\Projects\GitHub\fortiplugin\src\Installations\Sections" />
     </key>
   </component>
-  <component name="RunManager" selected="PHPUnit.LegacyJsonRouteCompilerTest.test_http_variants_any_and_match_and_action_expr_variants">
+  <component name="RunManager" selected="PHPUnit.PluginSecurityScannerTest.testAnonymousClassLeakAndClosureLeak">
     <configuration name="LegacyJsonRouteCompilerTest.test_http_variants_any_and_match_and_action_expr_variants" type="PHPUnitRunConfigurationType" factoryName="PHPUnit" temporary="true">
       <TestRunner class="Tests\Core\Install\LegacyJsonRouteCompilerTest" file="$PROJECT_DIR$/test/Core/Install/LegacyJsonRouteCompilerTest.php" method="test_http_variants_any_and_match_and_action_expr_variants" scope="Method" />
       <method v="2" />
@@ -309,11 +318,16 @@
       <TestRunner class="PluginSecurityScannerTest" file="$PROJECT_DIR$/test/PluginSecurityScannerTest.php" scope="Class" />
       <method v="2" />
     </configuration>
+    <configuration name="PluginSecurityScannerTest.testAnonymousClassLeakAndClosureLeak" type="PHPUnitRunConfigurationType" factoryName="PHPUnit" temporary="true">
+      <TestRunner class="PluginSecurityScannerTest" file="$PROJECT_DIR$/test/PluginSecurityScannerTest.php" method="testAnonymousClassLeakAndClosureLeak" scope="Method" />
+      <method v="2" />
+    </configuration>
     <configuration name="PluginSecurityScannerTest.testBlocklistClassMethodAllowlist" type="PHPUnitRunConfigurationType" factoryName="PHPUnit" temporary="true">
       <TestRunner class="PluginSecurityScannerTest" file="$PROJECT_DIR$/test/PluginSecurityScannerTest.php" method="testBlocklistClassMethodAllowlist" scope="Method" />
       <method v="2" />
     </configuration>
     <list>
+      <item itemvalue="PHPUnit.PluginSecurityScannerTest.testAnonymousClassLeakAndClosureLeak" />
       <item itemvalue="PHPUnit.LegacyJsonRouteCompilerTest.test_http_variants_any_and_match_and_action_expr_variants" />
       <item itemvalue="PHPUnit.PluginInstallFlowTest" />
       <item itemvalue="PHPUnit.PluginSecurityScannerTest" />
@@ -321,11 +335,11 @@
     </list>
     <recent_temporary>
       <list>
+        <item itemvalue="PHPUnit.PluginSecurityScannerTest.testAnonymousClassLeakAndClosureLeak" />
         <item itemvalue="PHPUnit.LegacyJsonRouteCompilerTest.test_http_variants_any_and_match_and_action_expr_variants" />
         <item itemvalue="PHPUnit.PluginSecurityScannerTest.testBlocklistClassMethodAllowlist" />
         <item itemvalue="PHPUnit.PluginSecurityScannerTest" />
         <item itemvalue="PHPUnit.PluginInstallFlowTest" />
-        <item itemvalue="PHPUnit.LegacyJsonRouteCompilerTest.test_http_variants_any_and_match_and_action_expr_variants" />
       </list>
     </recent_temporary>
   </component>
@@ -394,7 +408,7 @@
       <workItem from="1768300945584" duration="1261000" />
       <workItem from="1768302495931" duration="2704000" />
       <workItem from="1768308920196" duration="325000" />
-      <workItem from="1768314138606" duration="5704000" />
+      <workItem from="1768314138606" duration="15179000" />
     </task>
     <servers />
   </component>

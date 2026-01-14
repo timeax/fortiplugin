@@ -1,4 +1,5 @@
-<?php /** @noinspection NestedTernaryOperatorInspection */
+<?php /** @noinspection GrazieInspection */
+/** @noinspection NestedTernaryOperatorInspection */
 
 /** @noinspection PhpUnusedParameterInspection */
 
@@ -11,7 +12,6 @@ use Illuminate\Http\UploadedFile;
 use Illuminate\Routing\Controller;
 use Illuminate\Support\Arr;
 use Illuminate\Support\Facades\Cache;
-use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
@@ -233,13 +233,6 @@ final class PackagerController extends Controller
         ];
 
         $validatorConfig = [
-            'headline' => [
-                'composer_json' => 'composer.json',
-                'forti_schema' => base_path('vendor/timeax/fortiplugin/schema/fortiplugin.schema.json'),
-                'host_config' => $snapshot['host_config'] ?? [],
-                'permission_manifest' => '.internal/permissions.json',
-                'route_files' => [],
-            ],
             'scan' => [
                 'token_list' => Arr::wrap($snapshot['forbidden_functions'] ?? []),
             ],

@@ -92,22 +92,19 @@ class PackPlugin extends Command
             $validatorConfig = (array)($handshake['validator_config'] ?? []);
             $encryptionNonce = (string)($handshake['encryption']['nonce'] ?? '');
 
-//            // 3) Build assets first (if any)
-//            $this->assertOutDirUnchanged($tempPath);
-//            $this->runNpmBuild($tempPath);
 
-            // 4) Collect files honoring both local and host excludes
+            // 3) Collect files honoring both local and host excludes
             $excludeList = [...$excludeFromHost, '/\/vendor($|\/)/', '/\/.internal($|\/)/']; // server-provided extra excludes
             $files = $this->collectPluginFiles($tempPath, $excludeList);
 
-            // 5) Determine version and allow bump if desired (optional, local only)
+            // 4) Determine version and allow bump if desired (optional, local only)
             $cfgPath = $tempPath . '/fortiplugin.json';
             $cfg = file_exists($cfgPath)
                 ? json_decode((string)file_get_contents($cfgPath), true, 512, JSON_THROW_ON_ERROR)
                 : [];
             $localVersion = (string)($cfg['version'] ?? '0.1.0');
 
-            // 6) Generate manifest (files: path, sha256, size)
+            // 5) Generate manifest (files: path, sha256, size)
             $filesManifest = [];
             $root = $tempPath;
             foreach ($files as $abs) {
@@ -137,9 +134,21 @@ class PackPlugin extends Command
             $validator = new ValidatorService($policy, $validatorConfig);
             $emit = ($this->option('silent') || $this->option('ignore-verbose')) ? null : $this->makeEmitCallback();
             $summary = $validator->run($tempPath, $emit);
+
+            $valLogPath = $tempPath . '/.internal/logs/validation.json';
+            if (!is_dir(dirname($valLogPath)) && !mkdir($concurrentDirectory = dirname($valLogPath), 0755, true) && !is_dir($concurrentDirectory)) {
+                throw new RuntimeException(sprintf('Directory "%s" was not created', $concurrentDirectory));
+            }
+            file_put_contents($valLogPath, json_encode($summary, JSON_THROW_ON_ERROR | JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES));
+
             if ($emit) $this->line(json_encode($summary, JSON_THROW_ON_ERROR | JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES));
             if (($summary['should_fail'] ?? false) && !$validatorConfig['fail_policy']['bypass']) {
                 $this->warn('Validation indicates failure according to fail_policy. Aborting pack.');
+                
+                // Write errors to plugins folder
+                $errorLogPath = $plugin . '/errors.json';
+                file_put_contents($errorLogPath, json_encode($summary, JSON_THROW_ON_ERROR | JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES));
+
                 $this->deleteDirectory($tempPath);
                 return self::FAILURE;
             }

@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://schemas.timeax.dev/fortiplugin/dev.host.json",
+  "$id": "https://raw.githubusercontent.com/timeax/fortiplugin/refs/heads/main/schema/dev.host.json",
   "title": "Dev Host Settings",
   "type": "object",
   "additionalProperties": {

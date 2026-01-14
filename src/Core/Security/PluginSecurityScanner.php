@@ -878,7 +878,7 @@ class PluginSecurityScanner extends NodeVisitorAbstract
                 $resolved = $this->resolvedVarString($funcVar);
 
                 $reportType = 'backdoor_variable_function_call';
-                $severity = 'high';
+                $severity = 'info';
                 $extra = [
                     'var' => is_string($funcVar) ? $funcVar : json_encode($funcVar, JSON_THROW_ON_ERROR)
                 ];

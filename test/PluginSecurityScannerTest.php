@@ -288,7 +288,7 @@ class PluginSecurityScannerTest extends TestCase
 
         $clos = <<<'PHP'
             <?php
-            $f = function(){ eval('1'); };
+            $f = function(){ return ""; };
             $f();
         PHP;
         $rClos = $this->scanner->scanSource($clos);
