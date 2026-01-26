@@ -312,10 +312,10 @@
       <method v="2" />
     </configuration>
     <list>
-      <item itemvalue="PHPUnit.PluginSecurityScannerTest.testAnonymousClassLeakAndClosureLeak" />
       <item itemvalue="PHPUnit.LegacyJsonRouteCompilerTest.test_http_variants_any_and_match_and_action_expr_variants" />
       <item itemvalue="PHPUnit.PluginInstallFlowTest" />
       <item itemvalue="PHPUnit.PluginSecurityScannerTest" />
+      <item itemvalue="PHPUnit.PluginSecurityScannerTest.testAnonymousClassLeakAndClosureLeak" />
       <item itemvalue="PHPUnit.PluginSecurityScannerTest.testBlocklistClassMethodAllowlist" />
     </list>
     <recent_temporary>
@@ -331,7 +331,7 @@
   <component name="SharedIndexes">
     <attachedChunks>
       <set>
-        <option value="bundled-php-predefined-a98d8de5180a-0e0d91225499-com.jetbrains.php.sharedIndexes-PS-253.29346.257" />
+        <option value="bundled-php-predefined-a98d8de5180a-0e0d91225499-com.jetbrains.php.sharedIndexes-PS-253.30387.85" />
       </set>
     </attachedChunks>
   </component>
@@ -395,7 +395,8 @@
       <workItem from="1768308920196" duration="325000" />
       <workItem from="1768314138606" duration="15771000" />
       <workItem from="1768459246655" duration="1585000" />
-      <workItem from="1768543367737" duration="1588000" />
+      <workItem from="1768543367737" duration="2272000" />
+      <workItem from="1769336017533" duration="254000" />
     </task>
     <servers />
   </component>
