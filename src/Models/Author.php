@@ -44,6 +44,7 @@ class Author extends Model
 		"org",
 		"website",
 		"meta",
+		"bypass_pack_error",
 		"status",
 		"verified",
 	];

@@ -90,7 +90,7 @@ enum IssueStatus {
 // AUTHORS (new)
 ///@hidden:password
 ///@guarded:id
-///@fillable:slug,name,handle,email,avatar_url,org,website,meta,verified,password,status
+///@fillable:slug,name,handle,email,avatar_url,org,website,meta,verified,password,status,bypass_pack_error
 model Author {
   id                BigInt       @id @default(autoincrement()) @db.BigInt
   slug              String       @unique
