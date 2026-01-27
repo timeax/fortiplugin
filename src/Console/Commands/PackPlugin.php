@@ -144,7 +144,7 @@ class PackPlugin extends Command
             if ($emit) $this->line(json_encode($summary, JSON_THROW_ON_ERROR | JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES));
             if (($summary['should_fail'] ?? false) && !$validatorConfig['fail_policy']['bypass']) {
                 $this->warn('Validation indicates failure according to fail_policy. Aborting pack.');
-                
+
                 // Write errors to plugins folder
                 $errorLogPath = $plugin . '/errors.json';
                 file_put_contents($errorLogPath, json_encode($summary, JSON_THROW_ON_ERROR | JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES));
