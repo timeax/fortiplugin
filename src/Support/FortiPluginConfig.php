@@ -268,7 +268,8 @@ final class FortiPluginConfig
             throw new RuntimeException("Unable to read permission_manifest file: $rel");
         }
 
-        $decoded = json_decode($json, true, 512, JSON_THROW_ON_ERROR);
+        $decoded = json_decode($json, false, 512, JSON_THROW_ON_ERROR);
+
         if (!is_object($decoded)) {
             throw new RuntimeException("permission_manifest must decode to an object: $rel");
         }
