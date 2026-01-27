@@ -6,6 +6,7 @@ namespace Timeax\FortiPlugin;
 
 use Illuminate\Contracts\Container\BindingResolutionException;
 use Illuminate\Filesystem\Filesystem as LaravelFs;
+use Illuminate\Http\Request;
 use Illuminate\Support\ServiceProvider;
 use Timeax\FortiPlugin\Autoload\ComposerLoaderResolver;
 use Timeax\FortiPlugin\Autoload\PhpSyntaxScanner;
@@ -80,6 +81,7 @@ use Timeax\FortiPlugin\Services\Plugins\PluginZipService;
 use Timeax\FortiPlugin\Services\PluginService;
 use Timeax\FortiPlugin\Services\PolicyService;
 use Timeax\FortiPlugin\Services\ValidatorService;
+use Timeax\FortiPlugin\Support\FortiAuth;
 use Timeax\FortiPlugin\Support\FortiGateRegistrar;
 
 
@@ -118,6 +120,7 @@ class FortiPluginServiceProvider extends ServiceProvider
         });
 
         FortiGateRegistrar::register();
+        $this->registerRequestMacros();
 
         if ($this->app->runningInConsole()) {
             $this->commands([
@@ -134,6 +137,14 @@ class FortiPluginServiceProvider extends ServiceProvider
             ]);
         }
     }
+
+    private function registerRequestMacros(): void
+    {
+        Request::macro('author', function () {
+            return FortiAuth::author();
+        });
+    }
+
 
     private function registerRoutes(): void
     {

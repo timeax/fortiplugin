@@ -2,6 +2,19 @@
 
 use Timeax\FortiPlugin\Enums\ProcessType;
 use Timeax\FortiPlugin\Models\PluginProcess;
+use Timeax\FortiPlugin\Support\FortiAuth;
+
+if (!function_exists('forti_author')) {
+    /**
+     * Get the current authenticated author.
+     *
+     * @return \Timeax\FortiPlugin\Models\Author|null
+     */
+    function forti_author()
+    {
+        return FortiAuth::author();
+    }
+}
 
 if (!function_exists('stripComments')) {
     /**

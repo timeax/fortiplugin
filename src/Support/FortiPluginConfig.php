@@ -25,6 +25,7 @@ use Throwable;
  * If your schemas use raw GitHub URLs in $id/$ref, this class maps that URL prefix to a local schema folder
  * so validation works offline (and on hosts where allow_url_fopen is disabled).
  */
+//const RAW_SCHEMA_BASE = '';
 final class FortiPluginConfig
 {
     public const DEFAULT_CONFIG_FILE = 'fortiplugin.json';

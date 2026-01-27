@@ -30,6 +30,7 @@ use Timeax\FortiPlugin\Models\PluginZip;
 use Timeax\FortiPlugin\Services\HostKeyService;
 use Timeax\FortiPlugin\Services\PolicyService;
 use Timeax\FortiPlugin\Services\SigningService;
+use Timeax\FortiPlugin\Support\FortiAuth;
 use Timeax\FortiPlugin\Support\FortiGates;
 use ZipArchive;
 
@@ -232,6 +233,7 @@ final class PackagerController extends Controller
             '*.ts', '*.tsx', 'vite.config.*', 'vite.input.*', 'tsconfig.json',
         ];
 
+
         $validatorConfig = [
             'scan' => [
                 'token_list' => Arr::wrap($snapshot['forbidden_functions'] ?? []),
@@ -241,7 +243,7 @@ final class PackagerController extends Controller
                 'total_error_limit' => null,
                 'per_type_limits' => [],
                 'file_gates' => [],
-                "bypass" => false
+                "bypass" => FortiAuth::author()->bypass_pack_error
             ],
             'ignore' => $exclude
         ];
