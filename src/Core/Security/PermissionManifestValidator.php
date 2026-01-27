@@ -100,7 +100,7 @@ final class PermissionManifestValidator
     /* ========================= Public API ========================= */
 
     /** Validate a manifest (array or JSON string). Returns normalized manifest or throws. */
-    public function validate(array|string $manifest): array
+    public function validate(object|string $manifest): array
     {
         $data = is_string($manifest) ? $this->decodeJson($manifest) : $manifest;
 
