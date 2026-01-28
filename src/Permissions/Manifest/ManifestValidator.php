@@ -37,6 +37,7 @@ final readonly class ManifestValidator
         );
 
         // Core validator already performs structural + semantic checks and returns normalized data.
+
         return $core->validate($manifest);
     }
 

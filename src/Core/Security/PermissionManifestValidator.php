@@ -100,9 +100,11 @@ final class PermissionManifestValidator
     /* ========================= Public API ========================= */
 
     /** Validate a manifest (array or JSON string). Returns normalized manifest or throws. */
-    public function validate(object|string $manifest): array
+    public function validate(array|object|string $manifest): array
     {
-        $data = is_string($manifest) ? $this->decodeJson($manifest) : $manifest;
+        $data = is_string($manifest)
+            ? $this->decodeJson($manifest)
+            : $this->normalizeToArray($manifest);
 
         $errors = [];
         $norm = ['required_permissions' => [], 'optional_permissions' => []];
@@ -724,6 +726,22 @@ final class PermissionManifestValidator
             if (!is_string($s)) return false;
         }
         return count($v) === count(array_unique($v));
+    }
+
+    private function normalizeToArray(mixed $value): mixed
+    {
+        if (is_array($value)) {
+            foreach ($value as $k => $v) {
+                $value[$k] = $this->normalizeToArray($v);
+            }
+            return $value;
+        }
+        if (is_object($value)) {
+            return array_map(function ($v) {
+                return $this->normalizeToArray($v);
+            }, get_object_vars($value));
+        }
+        return $value;
     }
 
     private function rejectUnknownKeys(array $obj, array $allowed, string $path): void

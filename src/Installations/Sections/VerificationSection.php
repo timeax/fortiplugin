@@ -1,4 +1,4 @@
-<?php
+<?php /** @noinspection GrazieInspection */
 declare(strict_types=1);
 
 namespace Timeax\FortiPlugin\Installations\Sections;
@@ -42,10 +42,11 @@ final class VerificationSection
      * @param string $pluginName Unique plugin name
      * @param string $run_id Correlation id
      * @param ValidatorService $validator Validation service
-     * @param array $validatorConfig Must include headline.route_files[]
+     * @param array $validatorConfig Must include the headline.route_files []
      * @param callable|null $emitValidation fn(array $payload): void  (validator emits passthrough)
      * @return array{status:'ok'|'fail', summary?:array}
      * @noinspection PhpUndefinedClassInspection
+     * @throws JsonException
      */
     public function run(
         string           $pluginDir,

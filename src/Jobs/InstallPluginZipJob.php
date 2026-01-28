@@ -14,7 +14,6 @@ use Random\RandomException;
 use RuntimeException;
 use Throwable;
 use Timeax\FortiPlugin\Enums\ProcessStatus;
-use Timeax\FortiPlugin\Enums\ProcessType;
 use Timeax\FortiPlugin\Installations\DTO\InstallMeta;
 use Timeax\FortiPlugin\Installations\Installer;
 use Timeax\FortiPlugin\Installations\InstallerPolicy;
@@ -125,11 +124,8 @@ final class InstallPluginZipJob implements ShouldQueue
 
         if ($process->isDirty()) $process->save();
 
-        cache()->put(
-            "fortiplugin:install:$this->runId",
-            $this->normalizeResult($result),
-            now()->addDay()
-        );
+        $safeData = json_decode(json_encode($result->toArray(), JSON_THROW_ON_ERROR), true, 512, JSON_THROW_ON_ERROR);
+        cache()->put("fortiplugin:install:$this->runId", $safeData, now()->addDay());
     }
 
     private function sanitizePlaceholderName(string $name): string
