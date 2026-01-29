@@ -6,10 +6,6 @@
   <component name="ChangeListManager">
     <list default="true" id="eaf4cbc6-d298-4694-b042-183ced7c77f7" name="Changes" comment="">
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/Core/Security/PermissionManifestValidator.php" beforeDir="false" afterPath="$PROJECT_DIR$/src/Core/Security/PermissionManifestValidator.php" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/Installations/Sections/VerificationSection.php" beforeDir="false" afterPath="$PROJECT_DIR$/src/Installations/Sections/VerificationSection.php" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/Jobs/InstallPluginZipJob.php" beforeDir="false" afterPath="$PROJECT_DIR$/src/Jobs/InstallPluginZipJob.php" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/Permissions/Manifest/ManifestValidator.php" beforeDir="false" afterPath="$PROJECT_DIR$/src/Permissions/Manifest/ManifestValidator.php" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -405,7 +401,7 @@
       <workItem from="1769336017533" duration="254000" />
       <workItem from="1769481220960" duration="59000" />
       <workItem from="1769481934568" duration="118000" />
-      <workItem from="1769611654800" duration="8119000" />
+      <workItem from="1769611654800" duration="8861000" />
     </task>
     <servers />
   </component>
