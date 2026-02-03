@@ -83,6 +83,7 @@
     <inspection_tool class="PhpUnusedLocalVariableInspection" enabled="false" level="INFORMATION" enabled_by_default="false" editorAttributes="INFO_ATTRIBUTES">
       <option name="ENABLE_IN_FILE_SCOPE" value="true" />
     </inspection_tool>
+    <inspection_tool class="RegExpRedundantEscape" enabled="true" level="INFORMATION" enabled_by_default="true" />
     <inspection_tool class="SecurityAdvisoriesInspection" enabled="true" level="WARNING" enabled_by_default="true">
       <option name="optionConfiguration">
         <list>

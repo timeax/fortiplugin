@@ -40,25 +40,66 @@ class PluginContext
      */
     public static function getCurrentPluginDir(): ?string
     {
-        $pluginBase = base_path(config('secured-plugin.directory', 'Plugins'));
-        $pluginBase = rtrim($pluginBase, '/\\') . DIRECTORY_SEPARATOR;
+        $pluginBase = base_path(config('fortiplugin.install_directory', 'Plugins'));
+
+        // Normalize base path to an absolute real path when possible
+        $baseReal = realpath($pluginBase) ?: $pluginBase;
+        $baseNorm = self::normalizePath($baseReal);
+
+        // Ensure trailing slash so prefix matching doesn't falsely match "PluginsX"
+        $baseNorm = rtrim($baseNorm, '/') . '/';
 
         $trace = debug_backtrace(DEBUG_BACKTRACE_IGNORE_ARGS, self::getStackDepth());
 
         foreach ($trace as $frame) {
-            if (!isset($frame['file'])) continue;
+            if (!isset($frame['file']) || !is_string($frame['file'])) {
+                continue;
+            }
+
             $file = $frame['file'];
-            if (str_starts_with($file, $pluginBase)) {
-                // File is inside the plugin base directory
-                $relPath = substr($file, strlen($pluginBase));
-                $parts = explode(DIRECTORY_SEPARATOR, $relPath);
-                if (!empty($parts[0])) {
-                    // Return the plugin's root directory (e.g., .../Plugins/MyPlugin)
-                    return $pluginBase . $parts[0];
-                }
+            $fileReal = realpath($file) ?: $file;
+            $fileNorm = self::normalizePath($fileReal);
+
+            if (!self::pathStartsWith($fileNorm, $baseNorm)) {
+                continue;
+            }
+
+            // file is inside plugin base directory
+            $relPath = substr($fileNorm, strlen($baseNorm));
+            $relPath = ltrim($relPath, '/');
+
+            if ($relPath === '') {
+                continue;
+            }
+
+            $parts = explode('/', $relPath);
+            if (!empty($parts[0])) {
+                // Return the plugin's root directory in normalized absolute form
+                return rtrim($baseNorm, '/') . '/' . $parts[0];
             }
         }
+
         return null;
+    }
+
+    private static function normalizePath(string $path): string
+    {
+        // Convert backslashes to slashes and collapse duplicate slashes
+        $path = str_replace('\\', '/', $path);
+        $path = preg_replace('~/+~', '/', $path) ?: $path;
+
+        // Optional: trim trailing slash (caller decides on trailing slash needs)
+        return rtrim($path, '/');
+    }
+
+    private static function pathStartsWith(string $path, string $prefix): bool
+    {
+        // $prefix is expected to already have trailing slash
+        if (PHP_OS_FAMILY === 'Windows') {
+            return str_starts_with(strtolower($path), strtolower($prefix));
+        }
+
+        return str_starts_with($path, $prefix);
     }
 
     /**
@@ -96,6 +137,7 @@ class PluginContext
     public static function getCurrentConfigClass(): ?string
     {
         $pluginDir = self::getCurrentPluginDir();
+        debug($pluginDir);
         if (!$pluginDir) return null;
 
         $pluginName = basename($pluginDir); // Studly class
