@@ -20,7 +20,9 @@ final readonly class PublishBuildAssetsSection
     public function __construct(
         private InstallationLogStore $log,
         private AtomicFilesystem     $afs,
-    ) {}
+    )
+    {
+    }
 
     /**
      * Copy plugin Vite build output to host public folder.
@@ -55,28 +57,70 @@ final readonly class PublishBuildAssetsSection
         }
 
         $sourcePublicDir = join_paths($installedRoot, 'public');
-        $sourceManifest = join_paths($sourcePublicDir, 'build', '.vite','manifest.json');
+        $integrated_sourceManifest = join_paths($sourcePublicDir, 'build', '.vite', 'manifest.integrations.json');
+        $spa_sourceManifest = join_paths($sourcePublicDir, 'build', '.vite', 'manifest.spa.json');
 
-        // 3. Validate Manifest Existence
-        if (!$this->afs->fs()->exists($sourceManifest)) {
-            return $this->skip('manifest_missing', 'No Vite manifest found', $alias, ['manifest' => $sourceManifest], $emit);
+        $manifests = [$integrated_sourceManifest, $spa_sourceManifest];
+        
+        $validManifest = null;
+        $lastResult = ['status' => 'skipped', 'reason' => 'manifest_missing', 'alias' => $alias];
+
+        foreach ($manifests as $manifest) {
+            if (!$this->afs->fs()->exists($manifest)) {
+                continue;
+            }
+
+            $result = $this->compileManifest($manifest, $alias, $emit);
+
+            if ($result['status'] === 'fail') {
+                return $result;
+            }
+
+            if ($result['status'] === 'ok') {
+                $validManifest = $manifest;
+                break;
+            }
+            
+            $lastResult = $result;
         }
 
+        if ($validManifest === null) {
+            return $lastResult;
+        }
+
+        return $this->copyAssets($alias, $sourcePublicDir, $validManifest, $emit);
+    }
+
+    /**
+     * @return array{status:string, reason?:string, alias?:string}
+     * @throws JsonException
+     */
+    protected function compileManifest(string $source_manifest, string $alias, callable $emit): array
+    {
         // 4. Validate Manifest Content
         try {
-            $manifest = $this->afs->fs()->readJson($sourceManifest);
+            $manifest = $this->afs->fs()->readJson($source_manifest);
         } catch (Throwable $e) {
-            return $this->fail('manifest_unreadable', 'Vite manifest unreadable', ['alias' => $alias, 'manifest' => $sourceManifest, 'exception' => $e->getMessage()], $emit);
+            return $this->fail('manifest_unreadable', 'Vite manifest unreadable', ['alias' => $alias, 'manifest' => $source_manifest, 'exception' => $e->getMessage()], $emit);
         }
 
-        if (!$this->manifestHasEmbedEntries($manifest)) {
+        if (str_contains($source_manifest, 'manifest.integrations.json') && !$this->manifestHasEmbedEntries($manifest)) {
             return $this->skip('no_embed_entries', 'Manifest has no embed entries', $alias, [], $emit);
         }
 
-        // 5. Perform Copy
-        [$baseTpl, $baseUrlPath, $destDir] = $this->resolveDestinationFromConfig($alias);
+        return ['status' => 'ok', 'alias' => $alias];
+    }
 
+    /**
+     * @return array{status:string, reason?:string, from?:string, to?:string, alias?:string}
+     * @throws JsonException
+     */
+    protected function copyAssets(string $alias, string $sourcePublicDir, string $manifest, callable $emit): array
+    {
+        // 5. Perform Copy
         try {
+            [$baseTpl, $baseUrlPath, $destDir] = $this->resolveDestinationFromConfig($alias);
+
             if ($this->afs->fs()->exists($destDir)) {
                 $this->afs->fs()->delete($destDir);
             }
@@ -91,7 +135,7 @@ final readonly class PublishBuildAssetsSection
                 'base_url_path' => $baseUrlPath,
                 'from' => $sourcePublicDir,
                 'to' => $destDir,
-                'manifest' => $sourceManifest,
+                'manifest' => $manifest,
             ]);
 
             $emit([
@@ -104,7 +148,7 @@ final readonly class PublishBuildAssetsSection
             return ['status' => 'ok', 'alias' => $alias, 'from' => $sourcePublicDir, 'to' => $destDir];
 
         } catch (Throwable $e) {
-            return $this->fail('copy_failed', 'Failed to publish embed UI public assets', ['alias' => $alias, 'from' => $sourcePublicDir, 'to' => $destDir, 'error' => $e->getMessage()], $emit);
+            return $this->fail('copy_failed', 'Failed to publish embed UI public assets', ['alias' => $alias, 'from' => $sourcePublicDir, 'to' => $destDir ?? 'unknown', 'error' => $e->getMessage()], $emit);
         }
     }
 
