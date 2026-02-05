@@ -48,4 +48,12 @@ final class DeactivationResult
     {
         return $this->data[$key] ?? $default;
     }
+
+    public function toArray()
+    {
+        return [
+            "data" => $this->data,
+            "status" => $this->status
+        ];
+    }
 }

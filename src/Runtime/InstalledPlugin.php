@@ -192,7 +192,7 @@ final readonly class InstalledPlugin
     /**
      * @throws Throwable
      */
-    public function deactivate(string $id): DeactivationResult
+    public function deactivate(string $id): int
     {
         $process = PluginProcess::create([
             'source_id' => $this->plugin->id,

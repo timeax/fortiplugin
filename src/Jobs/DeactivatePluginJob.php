@@ -61,7 +61,7 @@ final class DeactivatePluginJob implements ShouldQueue
 
         cache()->put(
             "fortiplugin:deactivate:{$this->runId}",
-            $this->normalizeResult($result),
+            $result->toArray(),
             now()->addDay()
         );
     }
