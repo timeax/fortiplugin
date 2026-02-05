@@ -202,9 +202,9 @@ final readonly class InstalledPlugin
         ]);
 
         DeactivatePluginJob::dispatch(
-            plugin: $this->plugin,
-            actor: $id,
+            pluginId: $this->plugin->id,
             runId: $process->run_id,
+            actor: $id,
         );
 
         return $process->id;

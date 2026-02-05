@@ -29,6 +29,7 @@ export default defineConfig({
         emptyOutDir: false, // do NOT wipe the SPA build
         manifest: ".vite/manifest.integrations.json", // path is relative to outDir
         rollupOptions: {
+            preserveEntrySignatures: "strict",
             // Keep these externals (the adapter ALSO sets external, but this keeps intent explicit here)
             external: (id) =>
                 id === "react" ||
