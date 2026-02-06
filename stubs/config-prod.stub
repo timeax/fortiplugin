@@ -923,43 +923,65 @@ final class Config implements ConfigInterface
 
         $tokens = token_get_all($src);
 
-        $namespace = '';
-        $className = null;
+        // ...
 
-        $captureNamespace = false;
-        $nsParts = [];
+        $namespace = null;
+        $className = null;
 
         $prevMeaningful = null;
         $captureClassName = false;
 
+        $captureNamespace = false;
+        $ns = '';
+
         foreach ($tokens as $tok) {
             if (!is_array($tok)) {
+                // If we're capturing namespace, a ';' or '{' ends it.
+                if ($captureNamespace && ($tok === ';' || $tok === '{')) {
+                    $namespace = $ns !== '' ? $ns : null;
+                    $captureNamespace = false;
+                }
                 continue;
             }
 
             [$id, $text] = $tok;
 
+            // Start namespace capture
             if ($id === T_NAMESPACE) {
                 $captureNamespace = true;
-                $nsParts = [];
+                $ns = '';
                 continue;
             }
 
+            // Capture namespace
             if ($captureNamespace) {
-                if (
-                    $id === T_STRING ||
-                    $id === T_NS_SEPARATOR ||
-                    (defined('T_NAME_QUALIFIED') && $id === T_NAME_QUALIFIED)
-                ) {
-                    $nsParts[] = $text;
+                // Skip trivia while capturing
+                if ($id === T_WHITESPACE || $id === T_COMMENT || $id === T_DOC_COMMENT) {
                     continue;
                 }
 
-                $namespace = trim(implode('', $nsParts));
+                // PHP 8+ name tokens (often the whole namespace is one token)
+                if (
+                    (defined('T_NAME_QUALIFIED') && $id === T_NAME_QUALIFIED) ||
+                    (defined('T_NAME_FULLY_QUALIFIED') && $id === T_NAME_FULLY_QUALIFIED) ||
+                    (defined('T_NAME_RELATIVE') && $id === T_NAME_RELATIVE)
+                ) {
+                    $ns .= ltrim($text, '\\'); // normalize: remove leading backslash
+                    continue;
+                }
+
+                // Legacy tokens
+                if ($id === T_STRING || $id === T_NS_SEPARATOR) {
+                    $ns .= $text;
+                    continue;
+                }
+
+                // If we hit anything else, namespace is done (covers odd layouts)
+                $namespace = $ns !== '' ? trim($ns) : null;
                 $captureNamespace = false;
-                $nsParts = [];
             }
 
+            // Class detection (your existing logic, but keep it after namespace handling)
             if ($id === T_CLASS) {
                 if ($prevMeaningful === T_NEW) {
                     $prevMeaningful = $id;
@@ -984,7 +1006,53 @@ final class Config implements ConfigInterface
             }
         }
 
-        return [$namespace !== '' ? $namespace : null, $className];
+        return [self::cleanNamespaceString($namespace), $className];
+    }
+
+    private static function cleanNamespaceString(?string $raw): ?string
+    {
+        if ($raw === null) return null;
+
+        $ns = trim($raw);
+        if ($ns === '') return null;
+
+        // 1) Strip comment-like text if it somehow got into the string
+        //    (shouldn't happen if you skipped comment tokens, but safe)
+        $ns = preg_replace('~/\*.*?\*/~s', '', $ns) ?? $ns; // block comments
+        $ns = preg_replace('~//.*$~m', '', $ns) ?? $ns;     // line comments
+        $ns = preg_replace('~#.*$~m', '', $ns) ?? $ns;      // hash comments
+
+        // 2) Remove all whitespace characters
+        $ns = preg_replace('~\s+~', '', $ns) ?? $ns;
+
+        // 3) Normalize separators:
+        //    - allow both "\" and "/" (just in case)
+        //    - collapse repeats
+        $ns = str_replace('/', '\\', $ns);
+        $ns = preg_replace('~\\\\+~', '\\', $ns) ?? $ns;
+
+        // 4) Remove leading/trailing separators
+        $ns = trim($ns, '\\');
+
+        if ($ns === '') return null;
+
+        // 5) Keep only valid PHP namespace identifier characters + backslashes.
+        //    Valid identifier chars: letters, digits, underscore, and extended ASCII (for non-English identifiers).
+        //    This filters out any stray punctuation.
+        $ns = preg_replace('~[^A-Za-z0-9_\\\\\x80-\xff]~', '', $ns) ?? $ns;
+
+        // 6) Remove empty segments (e.g. "Foo\\\Bar")
+        $parts = array_values(array_filter(explode('\\', $ns), fn($p) => $p !== ''));
+        if (!$parts) return null;
+
+        // 7) Ensure each segment starts like a PHP identifier:
+        //    - can't start with a digit
+        $parts = array_values(array_filter($parts, function ($p) {
+            return $p !== '' && !ctype_digit($p[0]);
+        }));
+        if (!$parts) return null;
+
+        return implode('\\', $parts);
     }
 
     /**
@@ -1077,7 +1145,7 @@ final class Config implements ConfigInterface
     {
         $request = self::createRequestFromLegacyArgs($type, $actionOrIntent, $meta);
         if ($request === null) {
-             return false;
+            return false;
         }
 
         return self::checkPermission($request, $context)->allowed;
@@ -1175,7 +1243,7 @@ final class Config implements ConfigInterface
             }
 
             // Special mappings
-            $mapped = match($key) {
+            $mapped = match ($key) {
                 'module' => 'plugin',
                 'api' => 'apis',
                 'template' => 'templates',
@@ -1284,7 +1352,7 @@ final class Config implements ConfigInterface
     {
         $t = $type instanceof PermissionType ? $type->value : (string)$type;
         $normalizedMeta = self::normalizeMeta($t, $meta);
-        
+
         if ($normalizedMeta === null) {
             return null;
         }
@@ -1292,7 +1360,7 @@ final class Config implements ConfigInterface
         // We need to map the normalized meta back to specific DTOs.
         // This is a bit circular but necessary for backward compat of hasPermission signature if we don't change it too.
         // Or we can just instantiate DTOs directly based on type.
-        
+
         return match ($t) {
             'db' => new DbRequest(
                 action: $action,
