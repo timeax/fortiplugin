@@ -903,10 +903,7 @@ final class Config implements ConfigInterface
             resolvedAt: date('c'),
         );
 
-        return self::$exportResolveCache[$cacheKey] = $info;
-    }
-
-    /**
+        return self::$exportResolveCache[$cacheKey] = $info;    /**
      * Parse the first declared class in a PHP file.
      * Returns [namespace|null, className|null].
      *
@@ -914,7 +911,7 @@ final class Config implements ConfigInterface
      *
      * @return array{0:string|null,1:string|null}
      */
-    private static function parseFirstDeclaredClass(string $realPath): array
+        private static function parseFirstDeclaredClass(string $realPath): array
     {
         $src = @file_get_contents($realPath);
         if ($src === false || $src === '') {
@@ -1009,7 +1006,7 @@ final class Config implements ConfigInterface
         return [self::cleanNamespaceString($namespace), $className];
     }
 
-    private static function cleanNamespaceString(?string $raw): ?string
+        private static function cleanNamespaceString(?string $raw): ?string
     {
         if ($raw === null) return null;
 
@@ -1054,6 +1051,9 @@ final class Config implements ConfigInterface
 
         return implode('\\', $parts);
     }
+
+    }
+
 
     /**
      * @throws JsonException

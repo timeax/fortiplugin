@@ -42,8 +42,8 @@ class MakePlugin extends Command
         if (!$session) return self::FAILURE;
 
         // 2) Validate plugin name/alias
-        $studly = Str::studly($this->argument('alias'));
-        $kebab = Str::kebab($studly);
+        $studly = $this->argument('name');
+        $kebab = Str::kebab($this->argument('alias'));
 
         if (!preg_match('/^[a-z0-9\-_]{3,40}$/', $kebab)) {
             $this->error("Plugin alias must be 3-40 characters, lowercase a-z, 0-9, dash or underscore only.");
