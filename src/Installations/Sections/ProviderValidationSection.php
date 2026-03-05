@@ -124,7 +124,10 @@ final readonly class ProviderValidationSection
             $fileMap[$prov] = $path;
 
             if (!$fs->exists($path) || !$fs->isFile($path)) {
-                $missing[] = $prov;
+                $missing[] = [
+                    "provider" => $prov,
+                    "path_checked" => $path
+                ];
             }
         }
 
