@@ -143,21 +143,77 @@ final class InstallPluginZipJob implements ShouldQueue
             throw new RuntimeException('FAILED_TO_OPEN_ZIP');
         }
 
+        $dest = rtrim($dest, DIRECTORY_SEPARATOR);
+
+        if (!is_dir($dest) && !@mkdir($dest, 0755, true) && !is_dir($dest)) {
+            $zip->close();
+            throw new RuntimeException('FAILED_TO_CREATE_DEST_DIR');
+        }
+
+        $destReal = realpath($dest) ?: $dest;
+
         for ($i = 0; $i < $zip->numFiles; $i++) {
             $name = $zip->getNameIndex($i);
+            if (!is_string($name) || $name === '') {
+                continue;
+            }
+
+            // Normalize Windows separators to POSIX (critical on Linux)
+            $normalized = str_replace('\\', '/', $name);
+            $normalized = ltrim($normalized, '/');
+
+            // Zip-slip / unsafe paths (stronger than ".." substring check)
             if (
-                str_contains($name, '..') ||
-                str_starts_with($name, '/') ||
-                str_contains($name, ':')
+                str_contains($normalized, "\0") ||
+                str_starts_with($normalized, '../') ||
+                str_contains($normalized, '/../') ||
+                str_contains($normalized, ':')
             ) {
                 $zip->close();
                 throw new RuntimeException('ZIP_SLIP_DETECTED');
             }
-        }
 
-        if (!$zip->extractTo($dest)) {
-            $zip->close();
-            throw new RuntimeException('FAILED_TO_EXTRACT_ZIP');
+            // Directory entry
+            if (str_ends_with($normalized, '/')) {
+                $dirPath = $dest . DIRECTORY_SEPARATOR . rtrim(str_replace('/', DIRECTORY_SEPARATOR, $normalized), DIRECTORY_SEPARATOR);
+                if (!mkdir($dirPath, 0755, true) && !is_dir($dirPath)) {
+                    throw new RuntimeException(sprintf('Directory "%s" was not created', $dirPath));
+                }
+                continue;
+            }
+
+            $target = $dest . DIRECTORY_SEPARATOR . str_replace('/', DIRECTORY_SEPARATOR, $normalized);
+            $targetDir = dirname($target);
+
+            if (!is_dir($targetDir) && !@mkdir($targetDir, 0755, true) && !is_dir($targetDir)) {
+                $zip->close();
+                throw new RuntimeException('FAILED_TO_CREATE_EXTRACT_DIR');
+            }
+
+            // Ensure final resolved directory remains inside $dest (extra safety)
+            $targetDirReal = realpath($targetDir) ?: $targetDir;
+            if (!str_starts_with($targetDirReal, $destReal)) {
+                $zip->close();
+                throw new RuntimeException('ZIP_SLIP_DETECTED');
+            }
+
+            // Read using ORIGINAL name (ZipArchive indexes by original entry name)
+            $in = $zip->getStream($name);
+            if (!$in) {
+                $zip->close();
+                throw new RuntimeException('FAILED_TO_READ_ZIP_ENTRY');
+            }
+
+            $out = fopen($target, 'wb');
+            if (!$out) {
+                fclose($in);
+                $zip->close();
+                throw new RuntimeException('FAILED_TO_WRITE_EXTRACTED_FILE');
+            }
+
+            stream_copy_to_stream($in, $out);
+            fclose($out);
+            fclose($in);
         }
 
         $zip->close();
