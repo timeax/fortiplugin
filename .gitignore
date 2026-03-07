@@ -14,3 +14,4 @@ composer.phar
 /node_modules
 .idea/workspace.xml
 /.idea
+.idea/workspace.xml
