@@ -5,125 +5,45 @@
     "dir": ".prodex@forti"
   },
   "shortcuts": {
-    "install": {
-      "files": [
-        "src/Facades/Plugin.php",
-        "src/Facades/PluginZip.php"
-      ]
-    },
-    "act": {
-      "files": [
-        "src/Installations/Activation/**"
-      ],
-      "prefix": "activation"
-    },
-    "context": {
-      "prefix": "context",
+    "db-config-routes-schema": {
       "include": [
-        "composer.json",
-        "config/fortiplugin.php",
-        "config/fortipluginui.php",
-        "config/fortiplugin-maps.php",
-        "src/FortiPluginServiceProvider.php",
-        "src/Helpers/helpers.php",
-        "src/Console/Commands/**"
-      ]
-    },
-    "full": {
-      "prefix": "full",
-      "files": [
-        "src/FortiPluginServiceProvider.php",
-        "src/Console/Commands/**"
-      ],
-      "include": [
-        "composer.json",
-        "config/**",
-        "stubs/**",
-        "src/Facades/**",
-        "schema/**"
-      ]
-    },
-    "prisma": {
-      "prefix": "prisma",
-      "include": [
-        "prisma/**"
-      ]
-    },
-    "load": {
-      "prefix": "load",
-      "files": [
-        "src/Autoload/**",
-        "src/Installations/Activation/**"
-      ],
-      "include": [
-        "config/fortiplugin.php",
-        "src/FortiPluginServiceProvider.php",
-        "stubs/config-*.stub"
-      ]
-    },
-    "embed": {
-      "files": [
-        "src/Http/Middleware/FortiTokenGuard.php",
-        "src/Http/Controllers/Ui/EmbedResolveController.php"
-      ],
-      "include": [
-        "routes/api.php"
-      ]
-    },
-    "permissions-full": {
-      "files": [
-        "src/Lib/**",
-        "src/Contracts/ConfigInterface.php",
-        "**/*[Pp]ermission*.php"
-      ],
-      "include": [
-        "stubs/config-*.stub"
-      ]
-    },
-    "permissions": {
-      "files": [
-        "src/Lib/**",
-        "src/Contracts/ConfigInterface.php"
-      ],
-      "include": [
-        "stubs/config-*.stub",
-        "**/*[Pp]ermission*.php"
-      ]
-    },
-    "facade": {
-      "files": [
-        "src/Facades/Plugin.php",
-        "src/Facades/PluginZip.php"
-      ],
-      "include": [
-        "prisma/**.prisma",
-        "src/Contracts/ConfigInterface.php"
-      ],
-      "prefix": "plugin-facade"
-    },
-    "major": {
-      "files": [
-        "src/Permissions/Evaluation/PermissionService.php",
-        "src/Runtime/PluginPermissions.php"
-      ],
-      "include": [
-        "src/Runtime/**",
-        "src/Services/Plugin*.php",
-        "src/Facades/Plugin*.php",
-        "src/Contracts/ConfigInterface.php",
-        "stubs/config-prod.stub",
-        "config/**",
-        "stubs/**",
+        "prisma/**",
         "schema/**",
-        "prisma/**.prisma"
+        "config/**",
+        "stubs"
       ]
     },
-    "latest": {
+    "console-events-helpers-etc": {
       "include": [
+        "src/Autoload/**",
+        "src/Console/**",
+        "src/Contracts/**",
+        "src/Events/**",
+        "src/Jobs/**",
+        "src/Https/**",
+        "src/Helpers/**",
+        "src/Support/**",
+        "src/Traits/**",
+        "src/Facades/**",
+        "src/Exceptions/**",
+        "src/Ui/**"
+      ]
+    },
+    "major-files": {
+      "include": [
+        "src/Core/**",
+        "src/Permissions/**",
         "src/Runtime/**",
-        "src/Services/Plugin*.php",
+        "src/Services/**",
+        "src/Lib/**",
         "src/FortiPluginServiceProvider.php",
-        "src/Facades/Plugin*.php"
+        "src/EventServiceProvider.php",
+        "src/Installations/**"
+      ]
+    },
+    "tests": {
+      "include": [
+        "test/**"
       ]
     }
   }
